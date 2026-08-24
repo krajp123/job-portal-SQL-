@@ -138,6 +138,31 @@ exports.getMyProfile = async (req, res) => {
   }
 };
 
+// GET /api/recruiter/company-members?companyName=...
+exports.getCompanyMembers = async (req, res) => {
+  try {
+    const companyName = String(req.query.companyName || '').trim();
+
+    if (!companyName) {
+      return res.json([]);
+    }
+
+    const escapedCompanyName = companyName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const members = await Recruiter.find({
+      companyName: { $regex: `^${escapedCompanyName}$`, $options: 'i' },
+      accountStatus: 'active',
+    })
+      .select('_id fullName designation companyName profilePictureUrl location experienceYears expertiseTags verificationStatus')
+      .sort({ fullName: 1, createdAt: 1 })
+      .lean();
+
+    res.json(members);
+  } catch (err) {
+    console.error('Error loading company recruiters:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // GET /api/recruiter/:recruiterId/public-profile
 exports.getPublicProfile = async (req, res) => {
   try {

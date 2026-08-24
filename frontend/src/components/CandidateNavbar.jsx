@@ -119,16 +119,16 @@ export default function CandidateNavbar({ profile, onOpenAccountMenu }) {
                         <img
                             src={platformBranding.logo}
                             alt={`${platformBranding.siteName} logo`}
-                            className="candidate-brand-logo h-9 w-9 shrink-0 rounded-full object-contain"
+                            className="candidate-brand-logo h-11 w-11 shrink-0 rounded-full object-contain"
                         />
                     ) : platformBranding.siteName ? (
-                        <span className="candidate-brand-logo flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#C75560] bg-[#1D181A] text-[13px] font-bold text-[#F7C56B]">
+                        <span className="candidate-brand-logo flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#C75560] bg-[#1D181A] text-[15px] font-bold text-[#F7C56B]">
                             {platformBranding.siteName.slice(0, 1).toUpperCase()}
                         </span>
                     ) : (
-                        <span className="candidate-brand-logo block h-9 w-9 shrink-0 animate-pulse rounded-full bg-[#F3E5DE]" aria-label="Loading platform logo" />
+                        <span className="candidate-brand-logo block h-11 w-11 shrink-0 animate-pulse rounded-full bg-[#F3E5DE]" aria-label="Loading platform logo" />
                     )}
-                    <span className="truncate text-[16px] font-bold tracking-[-0.02em] text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>
+                    <span className="truncate text-[18px] font-bold tracking-[-0.02em] text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>
                         {platformBranding.siteName || <span className="inline-block h-3 w-28 animate-pulse bg-[#F3E5DE] align-middle" aria-label="Loading platform name" />}
                     </span>
                 </Link>

@@ -66,14 +66,64 @@ const STEPS = [
 const EMPLOYMENT_TYPES = ['Full-time', 'Part-time', 'Internship', 'Contract'];
 const WORK_MODES = ['On-site', 'Hybrid', 'Remote'];
 const CATEGORIES = [
-    'Engineering', 'Product', 'Design', 'Sales', 'Marketing',
-    'Operations', 'Finance', 'Human Resources', 'Customer Support', 'Data & Analytics', 'Other',
+    'IT / Software Development', 'Web Development', 'Mobile App Development',
+    'Data Science & Analytics', 'AI / Machine Learning', 'DevOps & Cloud',
+    'Cybersecurity', 'UI/UX Design', 'Graphic Design', 'Product Management',
+    'Sales', 'Business Development', 'Digital Marketing', 'Content Writing',
+    'Customer Support / BPO', 'Human Resources', 'Finance & Accounting',
+    'Banking & Insurance', 'Operations & Administration', 'Project Management',
+    'Supply Chain & Logistics', 'Mechanical Engineering', 'Civil Engineering',
+    'Electrical Engineering', 'Healthcare & Nursing', 'Pharmacy',
+    'Education & Teaching', 'Legal', 'Retail & E-commerce', 'Hospitality & Travel',
+    'Manufacturing & Production', 'Media & Entertainment',
 ];
 const INDIAN_STATES = [
-    'Andhra Pradesh', 'Bihar', 'Delhi NCR', 'Gujarat', 'Haryana', 'Karnataka', 'Kerala',
-    'Madhya Pradesh', 'Maharashtra', 'Odisha', 'Punjab', 'Rajasthan', 'Tamil Nadu',
-    'Telangana', 'Uttar Pradesh', 'West Bengal', 'Other',
+    'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa',
+    'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala',
+    'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland',
+    'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura',
+    'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Andaman and Nicobar Islands',
+    'Chandigarh', 'Dadra and Nagar Haveli and Daman and Diu', 'Delhi', 'Jammu and Kashmir',
+    'Ladakh', 'Lakshadweep', 'Puducherry',
 ];
+const CITIES_BY_STATE = {
+    'Andhra Pradesh': ['Visakhapatnam', 'Vijayawada', 'Guntur', 'Nellore', 'Kurnool', 'Tirupati', 'Rajahmundry', 'Kakinada', 'Kadapa', 'Anantapur'],
+    'Arunachal Pradesh': ['Itanagar', 'Naharlagun', 'Tawang', 'Bomdila', 'Pasighat', 'Ziro', 'Along', 'Tezu'],
+    Assam: ['Guwahati', 'Dibrugarh', 'Silchar', 'Jorhat', 'Nagaon', 'Tinsukia', 'Tezpur', 'Sivasagar', 'Dhubri'],
+    Bihar: ['Patna', 'Gaya', 'Bhagalpur', 'Muzaffarpur', 'Purnia', 'Darbhanga', 'Arrah', 'Begusarai', 'Katihar', 'Munger'],
+    Chhattisgarh: ['Raipur', 'Bhilai', 'Bilaspur', 'Korba', 'Durg', 'Rajnandgaon', 'Jagdalpur', 'Ambikapur'],
+    Goa: ['Panaji', 'Vasco da Gama', 'Margao', 'Mapusa', 'Ponda', 'Bicholim', 'Calangute'],
+    Gujarat: ['Ahmedabad', 'Surat', 'Vadodara', 'Rajkot', 'Bhavnagar', 'Jamnagar', 'Gandhinagar', 'Junagadh', 'Anand', 'Vapi'],
+    Haryana: ['Gurugram', 'Faridabad', 'Panipat', 'Ambala', 'Hisar', 'Karnal', 'Rohtak', 'Sonipat', 'Panchkula', 'Yamunanagar'],
+    'Himachal Pradesh': ['Shimla', 'Dharamshala', 'Manali', 'Solan', 'Mandi', 'Baddi', 'Kullu', 'Chamba', 'Una'],
+    Jharkhand: ['Ranchi', 'Jamshedpur', 'Dhanbad', 'Bokaro', 'Deoghar', 'Hazaribagh', 'Giridih', 'Ramgarh'],
+    Karnataka: ['Bengaluru', 'Mysuru', 'Mangaluru', 'Hubballi', 'Belagavi', 'Kalaburagi', 'Davanagere', 'Ballari', 'Shivamogga', 'Tumakuru'],
+    Kerala: ['Thiruvananthapuram', 'Kochi', 'Kozhikode', 'Thrissur', 'Kollam', 'Kannur', 'Alappuzha', 'Kottayam', 'Palakkad'],
+    'Madhya Pradesh': ['Bhopal', 'Indore', 'Jabalpur', 'Gwalior', 'Ujjain', 'Sagar', 'Rewa', 'Satna', 'Ratlam', 'Dewas'],
+    Maharashtra: ['Mumbai', 'Pune', 'Nagpur', 'Nashik', 'Thane', 'Aurangabad', 'Navi Mumbai', 'Kolhapur', 'Solapur', 'Amravati'],
+    Manipur: ['Imphal', 'Thoubal', 'Bishnupur', 'Churachandpur', 'Ukhrul', 'Senapati'],
+    Meghalaya: ['Shillong', 'Tura', 'Jowai', 'Nongpoh', 'Williamnagar', 'Nongstoin'],
+    Mizoram: ['Aizawl', 'Lunglei', 'Champhai', 'Kolasib', 'Serchhip', 'Saiha'],
+    Nagaland: ['Kohima', 'Dimapur', 'Mokokchung', 'Tuensang', 'Wokha', 'Mon'],
+    Odisha: ['Bhubaneswar', 'Cuttack', 'Rourkela', 'Berhampur', 'Sambalpur', 'Puri', 'Balasore', 'Baripada', 'Jharsuguda'],
+    Punjab: ['Ludhiana', 'Amritsar', 'Jalandhar', 'Patiala', 'Bathinda', 'Mohali', 'Pathankot', 'Hoshiarpur', 'Moga'],
+    Rajasthan: ['Jaipur', 'Jodhpur', 'Udaipur', 'Kota', 'Ajmer', 'Bikaner', 'Alwar', 'Bharatpur', 'Sikar', 'Sri Ganganagar'],
+    Sikkim: ['Gangtok', 'Namchi', 'Gyalshing', 'Mangan', 'Ravangla', 'Singtam'],
+    'Tamil Nadu': ['Chennai', 'Coimbatore', 'Madurai', 'Tiruchirappalli', 'Salem', 'Tiruppur', 'Erode', 'Vellore', 'Thoothukudi', 'Thanjavur'],
+    Telangana: ['Hyderabad', 'Warangal', 'Nizamabad', 'Karimnagar', 'Khammam', 'Ramagundam', 'Secunderabad', 'Adilabad'],
+    Tripura: ['Agartala', 'Udaipur', 'Dharmanagar', 'Kailasahar', 'Belonia', 'Ambassa'],
+    'Uttar Pradesh': ['Lucknow', 'Kanpur', 'Ghaziabad', 'Agra', 'Varanasi', 'Meerut', 'Prayagraj', 'Bareilly', 'Noida', 'Gorakhpur'],
+    Uttarakhand: ['Dehradun', 'Haridwar', 'Nainital', 'Haldwani', 'Rishikesh', 'Roorkee', 'Rudrapur', 'Kashipur', 'Almora'],
+    'West Bengal': ['Kolkata', 'Howrah', 'Durgapur', 'Asansol', 'Siliguri', 'Bardhaman', 'Malda', 'Kharagpur', 'Darjeeling'],
+    'Andaman and Nicobar Islands': ['Port Blair', 'Diglipur', 'Rangat', 'Mayabunder', 'Havelock Island'],
+    Chandigarh: ['Chandigarh'],
+    'Dadra and Nagar Haveli and Daman and Diu': ['Daman', 'Diu', 'Silvassa'],
+    Delhi: ['New Delhi', 'Delhi'],
+    'Jammu and Kashmir': ['Srinagar', 'Jammu', 'Anantnag', 'Baramulla', 'Kathua', 'Udhampur', 'Leh'],
+    Ladakh: ['Leh', 'Kargil'],
+    Lakshadweep: ['Kavaratti', 'Agatti', 'Amini', 'Andrott', 'Minicoy'],
+    Puducherry: ['Puducherry', 'Karaikal', 'Mahe', 'Yanam'],
+};
 const COUNTRIES = ['India', 'United States', 'United Kingdom', 'United Arab Emirates', 'Singapore', 'Other'];
 const SALARY_TYPES = ['Range', 'Fixed', 'Not disclosed'];
 
@@ -273,6 +323,141 @@ function ChipInput({ values, onChange, placeholder, suggestions = [] }) {
                             className="rounded-full border border-dashed border-[#EBC2AE] px-2.5 py-1 text-[11px] font-semibold text-[#80576A] transition-colors hover:border-[#C75560] hover:bg-[#FFF0E8] hover:text-[#C75560]"
                         >
                             + {s}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function CategoryAutocomplete({ value, onChange }) {
+    const [open, setOpen] = useState(false);
+    const [activeIndex, setActiveIndex] = useState(-1);
+    const wrapperRef = useRef(null);
+    const matches = CATEGORIES.filter((category) =>
+        category.toLowerCase().includes(value.trim().toLowerCase())
+    );
+
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) setOpen(false);
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    function handleKeyDown(event) {
+        if (!value.trim() || matches.length === 0) return;
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            setOpen(true);
+            setActiveIndex((index) => (index + 1) % matches.length);
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setOpen(true);
+            setActiveIndex((index) => (index <= 0 ? matches.length - 1 : index - 1));
+        } else if (event.key === 'Enter' && open && activeIndex >= 0) {
+            event.preventDefault();
+            onChange(matches[activeIndex]);
+            setOpen(false);
+            setActiveIndex(-1);
+        } else if (event.key === 'Escape') {
+            event.preventDefault();
+            setOpen(false);
+            setActiveIndex(-1);
+        }
+    }
+
+    return (
+        <div ref={wrapperRef} className="relative">
+            <input
+                value={value}
+                onChange={(event) => {
+                    onChange(event.target.value);
+                    setOpen(true);
+                    setActiveIndex(-1);
+                }}
+                onFocus={() => value.trim() && setOpen(true)}
+                onKeyDown={handleKeyDown}
+                placeholder="Type to search categories"
+                className={inputClass}
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded={open && Boolean(value.trim())}
+                aria-activedescendant={activeIndex >= 0 ? `category-option-${activeIndex}` : undefined}
+            />
+            {open && value.trim() && matches.length > 0 && (
+                <div className="absolute left-0 right-0 top-full z-30 mt-1.5 max-h-52 overflow-y-auto rounded-[10px] border border-[#EBC2AE] bg-white p-1.5 shadow-lg">
+                    {matches.map((category, index) => (
+                        <button
+                            key={category}
+                            id={`category-option-${index}`}
+                            type="button"
+                            onClick={() => {
+                                onChange(category);
+                                setOpen(false);
+                            }}
+                            className={`block w-full rounded-[8px] px-3 py-2 text-left text-[12.5px] text-[#54263F] transition-colors hover:bg-[#FFF0E8] hover:text-[#C75560] ${activeIndex === index ? 'bg-[#FFF0E8] text-[#C75560]' : ''}`}
+                        >
+                            {category}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function CityAutocomplete({ state, value, onChange, disabled, className }) {
+    const [open, setOpen] = useState(false);
+    const wrapperRef = useRef(null);
+    const cities = CITIES_BY_STATE[state] || [];
+    const matches = cities.filter((city) => city.toLowerCase().includes(value.trim().toLowerCase()));
+
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) setOpen(false);
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    function handleKeyDown(event) {
+        if (event.key === 'Escape') setOpen(false);
+    }
+
+    return (
+        <div ref={wrapperRef} className="relative">
+            <MapPin size={15} className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-[#A77D8D]" />
+            <input
+                value={value}
+                onChange={(event) => {
+                    onChange(event.target.value);
+                    setOpen(Boolean(event.target.value.trim()));
+                }}
+                onFocus={() => value.trim() && setOpen(true)}
+                onKeyDown={handleKeyDown}
+                disabled={disabled}
+                placeholder={state ? 'Type city name' : 'Select a state first'}
+                className={className}
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded={open && Boolean(value.trim())}
+            />
+            {open && value.trim() && matches.length > 0 && (
+                <div className="absolute left-0 right-0 top-full z-30 mt-1.5 max-h-52 overflow-y-auto rounded-[10px] border border-[#EBC2AE] bg-white p-1.5 shadow-lg">
+                    {matches.map((city) => (
+                        <button
+                            key={city}
+                            type="button"
+                            onClick={() => {
+                                onChange(city);
+                                setOpen(false);
+                            }}
+                            className="block w-full rounded-[8px] px-3 py-2 text-left text-[12.5px] text-[#54263F] transition-colors hover:bg-[#FFF0E8] hover:text-[#C75560]"
+                        >
+                            {city}
                         </button>
                     ))}
                 </div>
@@ -696,16 +881,10 @@ export default function PostJob() {
 
                                 <div className="grid gap-4 sm:grid-cols-2">
                                     <Field label="Job category">
-                                        <select
+                                        <CategoryAutocomplete
                                             value={form.category}
-                                            onChange={(e) => update({ category: e.target.value })}
-                                            className={inputClass}
-                                        >
-                                            <option value="">Select a category</option>
-                                            {CATEGORIES.map((c) => (
-                                                <option key={c} value={c}>{c}</option>
-                                            ))}
-                                        </select>
+                                            onChange={(category) => update({ category })}
+                                        />
                                     </Field>
 
                                     <Field label="Department" hint="Optional">
@@ -770,7 +949,7 @@ export default function PostJob() {
                                     <Field label="State" hint={form.panIndia ? 'Not needed for Pan India' : undefined}>
                                         <select
                                             value={form.state}
-                                            onChange={(e) => update({ state: e.target.value })}
+                                            onChange={(e) => update({ state: e.target.value, city: '' })}
                                             disabled={form.panIndia}
                                             className={`${inputClass} disabled:cursor-not-allowed disabled:opacity-50`}
                                         >
@@ -786,16 +965,13 @@ export default function PostJob() {
                                         error={errors.city}
                                         hint={form.panIndia ? 'Not needed for Pan India' : undefined}
                                     >
-                                        <span className="relative block">
-                                            <MapPin size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#A77D8D]" />
-                                            <input
-                                                value={form.city}
-                                                onChange={(e) => update({ city: e.target.value })}
-                                                disabled={form.panIndia}
-                                                placeholder="Enter City"
-                                                className={`${inputClass} pl-9 disabled:cursor-not-allowed disabled:opacity-50 ${errors.city ? errorInputClass : ''}`}
-                                            />
-                                        </span>
+                                        <CityAutocomplete
+                                            state={form.state}
+                                            value={form.city}
+                                            onChange={(city) => update({ city })}
+                                            disabled={form.panIndia}
+                                            className={`${inputClass} disabled:cursor-not-allowed disabled:opacity-50 ${errors.city ? errorInputClass : ''}`}
+                                        />
                                     </Field>
                                 </div>
 

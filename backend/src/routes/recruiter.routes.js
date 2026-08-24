@@ -16,6 +16,7 @@ router.post('/register', recruiterAuth.register);
 router.post('/login', recruiterAuth.login);
 router.post('/password/forgot/send', recruiterPasswordReset.sendResetOtp);
 router.post('/password/forgot/reset', recruiterPasswordReset.resetPassword);
+router.get('/company-members', recruiterController.getCompanyMembers);
 router.get('/:recruiterId/public-profile', recruiterController.getPublicProfile);
 
 // Authenticated (recruiter only)

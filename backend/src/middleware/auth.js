@@ -22,6 +22,17 @@ function verifyToken(req, res, next) {
   }
 }
 
+function optionalVerifyToken(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return next();
+
+  try {
+    req.user = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET);
+  } catch (err) {
+  }
+  next();
+}
+
 // Middleware to check if account is suspended/banned
 // Should be called after verifyToken middleware
 async function checkAccountStatus(req, res, next) {
@@ -111,4 +122,4 @@ async function verifyTokenAndStatus(req, res, next) {
   }
 }
 
-module.exports = { verifyToken, checkAccountStatus, verifyTokenAndStatus };
+module.exports = { verifyToken, optionalVerifyToken, checkAccountStatus, verifyTokenAndStatus };

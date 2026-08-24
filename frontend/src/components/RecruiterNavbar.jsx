@@ -43,7 +43,7 @@ export default function RecruiterNavbar() {
         <header className="sticky top-0 z-30 overflow-visible border-b border-[#EBC2AE] bg-[#FFFDFC]/95 backdrop-blur-md">
             <div className="mx-auto flex w-full max-w-6xl items-center gap-3 overflow-visible px-4 py-2.5 sm:px-6">
                 <Link to="/recruiter/dashboard" className="flex min-w-[140px] shrink-0 items-center gap-2" aria-label={`${brandName || 'Platform'} recruiter dashboard`}>
-                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl text-xs font-extrabold shadow-sm ${platformBranding.siteName || platformBranding.logo ? 'bg-gradient-to-br from-[#C75560] to-[#E7A24B] text-white' : 'animate-pulse bg-[#F3E5DE]'}`}>
+                    <span className={`flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl text-sm font-extrabold shadow-sm ${platformBranding.siteName || platformBranding.logo ? 'bg-gradient-to-br from-[#C75560] to-[#E7A24B] text-white' : 'animate-pulse bg-[#F3E5DE]'}`}>
                         {platformBranding.logo ? (
                             <img src={platformBranding.logo} alt={`${brandName} logo`} className="h-full w-full object-cover" />
                         ) : (
@@ -51,7 +51,7 @@ export default function RecruiterNavbar() {
                         )}
                     </span>
                     <span className="flex flex-col">
-                        <span className="text-[15px] font-bold tracking-tight text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>
+                        <span className="text-[17px] font-bold tracking-tight text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>
                             {brandName || <span className="block h-3 w-24 animate-pulse bg-[#F3E5DE]" aria-label="Loading platform name" />}
                         </span>
                         <span className="hidden text-[10px] font-semibold uppercase tracking-[0.12em] text-[#80576A] sm:block">Recruiter workspace</span>

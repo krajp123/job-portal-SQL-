@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Outlet, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { AlertTriangle, LogOut } from 'lucide-react';
 import { AuthProvider } from './context/AuthContext';
@@ -7,9 +7,13 @@ import CandidateWorkspaceRoute from './routes/CandidateWorkspaceRoute';
 import UniversalFooter from './components/UniversalFooter';
 
 import Home from './pages/Home';
+import HelpCenter from './pages/HelpCenter';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsAndServices from './pages/TermsAndServices';
 import IdRecovery from './pages/IdRecovery';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import RecruiterProfile from './pages/RecruiterProfile';
+import Recruiters from './pages/recruiter/Recruiters';
 import CandidateProfile from './pages/candidate/Profile';
 import CandidateJobSearch from './pages/candidate/JobSearch';
 import CandidateJobDetail from './pages/candidate/JobDetail';
@@ -49,8 +53,13 @@ function AppLayout() {
 }
 
 function AppRoutes() {
+  const location = useLocation();
   const navigate = useNavigate();
   const [restrictionModal, setRestrictionModal] = useState({ show: false, message: '', code: '' });
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [location.pathname]);
 
   // Listen for account restriction events (suspended/banned by admin)
   useEffect(() => {
@@ -121,6 +130,9 @@ function AppRoutes() {
       <Routes>
       <Route element={<AppLayout />}>
         <Route path="/" element={<Home />} />
+        <Route path="/help-center" element={<HelpCenter />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsAndServices />} />
         <Route path="/id-recovery" element={<IdRecovery />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/recruiter/:recruiterId" element={<RecruiterProfile />} />
@@ -144,6 +156,10 @@ function AppRoutes() {
         <Route
           path="/recruiter/dashboard"
           element={<ProtectedRoute role="recruiter"><RecruiterDashboard /></ProtectedRoute>}
+        />
+        <Route
+          path="/recruiters"
+          element={<ProtectedRoute role="recruiter"><Recruiters /></ProtectedRoute>}
         />
         <Route
           path="/recruiter/resume-downloads"

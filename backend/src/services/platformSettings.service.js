@@ -11,6 +11,7 @@ const DEFAULT_SETTINGS = {
   notifications: {
     newRecruiterSignup: true,
     jobFlagged: true,
+    supportRequest: true,
     paymentFailed: true,
     lowWalletAlert: true,
     smsAlerts: false,

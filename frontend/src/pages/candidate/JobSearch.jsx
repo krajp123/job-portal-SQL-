@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Search,
   MapPin,
   IndianRupee,
   Bookmark,
@@ -21,7 +20,6 @@ import {
   X,
   SlidersHorizontal,
   Sparkles,
-  ChevronDown,
 } from "lucide-react";
 import axiosInstance from "../../api/axiosInstance";
 import {
@@ -35,30 +33,6 @@ import {
 import CandidateNavbar from "../../components/CandidateNavbar";
 
 const EXPERIENCE_LEVELS = ["Fresher", "1-3 years", "3-5 years", "5+ years"];
-
-const ROLE_SUGGESTIONS = [
-  "Frontend Developer",
-  "Backend Developer",
-  "Full Stack Developer",
-  "Data Analyst",
-  "Data Scientist",
-  "UI/UX Designer",
-  "Product Manager",
-  "DevOps Engineer",
-  "QA Engineer",
-  "Mobile App Developer",
-];
-
-const INDUSTRY_OPTIONS = [
-  "Information Technology",
-  "Finance & Banking",
-  "Healthcare",
-  "E-commerce",
-  "Education",
-  "Manufacturing",
-  "Consulting",
-  "Media & Entertainment",
-];
 
 const SALARY_OPTIONS = [
   { label: "Any salary", value: "" },
@@ -150,82 +124,133 @@ function CompanyRating({ rating }) {
   );
 }
 
-// Multi-select dropdown for "Preferred job role" — click to open, click again
-// (or click outside) to close, checkboxes allow picking more than one role.
-function RoleMultiSelect({ selected, onChange, suggestions = [] }) {
+// Multi-value input used for job titles and locations.
+function MultiValueInput({ values, onChange, placeholder, suggestions = [], datalistId }) {
+  const [draft, setDraft] = useState("");
+
+  function addValues(rawValue) {
+    const newValues = rawValue
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .filter((value) => !values.some((existing) => existing.toLowerCase() === value.toLowerCase()));
+    if (newValues.length) onChange([...values, ...newValues]);
+    setDraft("");
+  }
+
+  function handleKeyDown(event) {
+    if (event.key === "Enter" || event.key === ",") {
+      event.preventDefault();
+      addValues(draft);
+    }
+    if (event.key === "Backspace" && !draft && values.length) {
+      onChange(values.slice(0, -1));
+    }
+  }
+
+  return (
+    <div className="rounded-[10px] border border-stone-200 bg-white px-2.5 py-2 focus-within:border-[#8B1E2F]/40">
+      <div className="flex flex-wrap items-center gap-1.5">
+        {values.map((value) => (
+          <span key={value} className="flex items-center gap-1 rounded-full bg-[#8B1E2F0F] px-2 py-1 text-[11.5px] font-medium text-[#8B1E2F]">
+            {value}
+            <button type="button" onClick={() => onChange(values.filter((item) => item !== value))} className="leading-none text-[#8B1E2F]/60 hover:text-[#8B1E2F]" aria-label={`Remove ${value}`}>&times;</button>
+          </span>
+        ))}
+        <input
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={() => draft.trim() && addValues(draft)}
+          {...(datalistId ? { list: datalistId } : {})}
+          placeholder={values.length ? "Add another…" : placeholder}
+          className="min-w-[120px] flex-1 border-0 px-1 py-1 text-[13px] text-stone-700 outline-none"
+        />
+      </div>
+      {datalistId && (
+        <datalist id={datalistId}>
+          {[...new Set(suggestions)].map((suggestion) => <option key={suggestion} value={suggestion} />)}
+        </datalist>
+      )}
+    </div>
+  );
+}
+
+function RoleAutocomplete({ value, onChange, suggestions = [] }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef(null);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const wrapperRef = useRef(null);
+  const matches = [...new Set(suggestions)].filter((role) =>
+    role.toLowerCase().includes(value.trim().toLowerCase()),
+  );
 
   useEffect(() => {
-    function handleClickOutside(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    function handleClickOutside(event) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) setOpen(false);
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  function toggleRole(r) {
-    onChange(
-      selected.includes(r) ? selected.filter((x) => x !== r) : [...selected, r],
-    );
+  function handleKeyDown(event) {
+    if (!value.trim() || matches.length === 0) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setOpen(true);
+      setActiveIndex((index) => (index + 1) % matches.length);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setOpen(true);
+      setActiveIndex((index) => (index <= 0 ? matches.length - 1 : index - 1));
+    } else if (event.key === "Enter" && open && activeIndex >= 0) {
+      event.preventDefault();
+      onChange(matches[activeIndex]);
+      setOpen(false);
+      setActiveIndex(-1);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      setOpen(false);
+      setActiveIndex(-1);
+    }
   }
 
-  const label =
-    selected.length === 0
-      ? "Any role"
-      : selected.length === 1
-        ? selected[0]
-        : `${selected.length} roles selected`;
-
   return (
-    <div className="relative" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between rounded-[10px] border border-stone-200 py-2.5 pl-9 pr-3 text-left text-[13px] outline-none focus:border-[#8B1E2F]/40"
-      >
-        <span className={selected.length ? "text-stone-800" : "text-stone-400"}>
-          {label}
-        </span>
-        <ChevronDown
-          size={14}
-          className={`shrink-0 text-stone-400 transition-transform ${open ? "rotate-180" : ""}`}
-        />
-      </button>
-      <Briefcase
-        size={14}
-        className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400"
+    <div ref={wrapperRef} className="relative">
+      <input
+        value={value}
+        onChange={(event) => {
+          onChange(event.target.value);
+          setOpen(Boolean(event.target.value.trim()));
+          setActiveIndex(-1);
+        }}
+        onFocus={() => value.trim() && setOpen(true)}
+        onKeyDown={handleKeyDown}
+        placeholder="Type a role"
+        className="w-full rounded-[10px] border border-stone-200 px-3 py-2.5 text-[13px] text-stone-700 outline-none focus:border-[#8B1E2F]/40"
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={open && Boolean(value.trim())}
+        aria-activedescendant={activeIndex >= 0 ? `role-option-${activeIndex}` : undefined}
       />
-
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.15 }}
-            className="absolute z-20 mt-1.5 max-h-56 w-full overflow-y-auto rounded-[10px] border border-stone-200 bg-white p-1.5 shadow-lg"
-          >
-            {[...new Set([...suggestions, ...ROLE_SUGGESTIONS])].map((r) => {
-              const checked = selected.includes(r);
-              return (
-                <label
-                  key={r}
-                  className="flex cursor-pointer items-center gap-2 rounded-[8px] px-2.5 py-2 text-[12.5px] text-stone-700 hover:bg-stone-50"
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggleRole(r)}
-                    className="h-3.5 w-3.5 rounded accent-[#8B1E2F]"
-                  />
-                  {r}
-                </label>
-              );
-            })}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {open && value.trim() && matches.length > 0 && (
+        <div className="absolute left-0 right-0 top-full z-30 mt-1.5 max-h-52 overflow-y-auto rounded-[10px] border border-stone-200 bg-white p-1.5 shadow-lg">
+          {matches.map((role, index) => (
+            <button
+              key={role}
+              id={`role-option-${index}`}
+              type="button"
+              onClick={() => {
+                onChange(role);
+                setOpen(false);
+                setActiveIndex(-1);
+              }}
+              className={`block w-full rounded-[8px] px-3 py-2 text-left text-[12.5px] font-medium text-stone-800 transition-colors hover:bg-stone-100 hover:text-stone-950 ${activeIndex === index ? "bg-stone-100 text-stone-950" : ""}`}
+            >
+              {role}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -250,12 +275,11 @@ export default function JobSearch() {
   const navigate = useNavigate();
 
   // Filters
-  const [keyword, setKeyword] = useState("");
-  const [roles, setRoles] = useState([]); // array — multi-select
-  const [location, setLocation] = useState("");
+  const [keyword, setKeyword] = useState([]);
+  const [roles, setRoles] = useState("");
+  const [location, setLocation] = useState([]);
   const [experienceLevel, setExperienceLevel] = useState("");
   const [salaryRange, setSalaryRange] = useState("");
-  const [industry, setIndustry] = useState("");
   const [datePosted, setDatePosted] = useState("");
   const [suggestions, setSuggestions] = useState({ titles: [], roles: [], categories: [], industries: [], locations: [] });
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
@@ -272,7 +296,7 @@ export default function JobSearch() {
 
   const debouncedKeyword = useDebouncedValue(keyword, 400);
   const debouncedLocation = useDebouncedValue(location, 400);
-  const debouncedSuggestionQuery = useDebouncedValue(keyword || roles[0] || industry || location, 250);
+  const debouncedSuggestionQuery = useDebouncedValue(keyword[0] || roles || location[0] || "", 250);
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -280,12 +304,11 @@ export default function JobSearch() {
     try {
       const { data } = await axiosInstance.get("/jobs", {
         params: {
-          title: debouncedKeyword || undefined,
-          role: roles.length ? roles.join(",") : undefined,
-          location: debouncedLocation || undefined,
+          title: debouncedKeyword.length ? debouncedKeyword.join(",") : undefined,
+          role: roles || undefined,
+          location: debouncedLocation.length ? debouncedLocation.join(",") : undefined,
           experienceLevel: experienceLevel || undefined,
           salary: salaryRange || undefined,
-          industry: industry || undefined,
           datePosted: datePosted || undefined,
         },
       });
@@ -309,7 +332,6 @@ export default function JobSearch() {
     debouncedLocation,
     experienceLevel,
     salaryRange,
-    industry,
     datePosted,
   ]);
 
@@ -402,45 +424,27 @@ export default function JobSearch() {
   }
 
   const hasActiveFilters =
-    keyword ||
-    roles.length > 0 ||
-    location ||
+    keyword.length > 0 ||
+    roles ||
+    location.length > 0 ||
     experienceLevel ||
     salaryRange ||
-    industry ||
     datePosted;
 
   function clearAllFilters() {
-    setKeyword("");
-    setRoles([]);
-    setLocation("");
+    setKeyword([]);
+    setRoles("");
+    setLocation([]);
     setExperienceLevel("");
     setSalaryRange("");
-    setIndustry("");
     setDatePosted("");
   }
 
   const filterChips = useMemo(() => {
     const chips = [];
-    if (keyword)
-      chips.push({
-        key: "keyword",
-        label: `"${keyword}"`,
-        clear: () => setKeyword(""),
-      });
-    roles.forEach((r) =>
-      chips.push({
-        key: `role-${r}`,
-        label: r,
-        clear: () => setRoles((prev) => prev.filter((x) => x !== r)),
-      }),
-    );
-    if (location)
-      chips.push({
-        key: "location",
-        label: location,
-        clear: () => setLocation(""),
-      });
+    keyword.forEach((value) => chips.push({ key: `title-${value}`, label: `Title: ${value}`, clear: () => setKeyword((prev) => prev.filter((item) => item !== value)) }));
+    if (roles) chips.push({ key: "role", label: `Role: ${roles}`, clear: () => setRoles("") });
+    location.forEach((value) => chips.push({ key: `location-${value}`, label: `Location: ${value}`, clear: () => setLocation((prev) => prev.filter((item) => item !== value)) }));
     if (experienceLevel)
       chips.push({
         key: "exp",
@@ -455,12 +459,6 @@ export default function JobSearch() {
         clear: () => setSalaryRange(""),
       });
     }
-    if (industry)
-      chips.push({
-        key: "industry",
-        label: industry,
-        clear: () => setIndustry(""),
-      });
     if (datePosted) {
       const opt = DATE_POSTED_OPTIONS.find((o) => o.value === datePosted);
       chips.push({
@@ -476,7 +474,6 @@ export default function JobSearch() {
     location,
     experienceLevel,
     salaryRange,
-    industry,
     datePosted,
   ]);
 
@@ -729,7 +726,7 @@ export default function JobSearch() {
           <aside
             className={`order-1 lg:order-2 ${mobileFiltersOpen ? "block" : "hidden lg:block"}`}
           >
-            <div className="sticky top-4 rounded-xl border border-stone-200/70 bg-white p-4">
+            <div className="sticky top-[92px] z-10 rounded-xl border border-stone-200/70 bg-white p-4">
               <p
                 className="text-[14px] font-bold text-stone-900"
                 style={{ fontFamily: FONT_DISPLAY }}
@@ -741,66 +738,50 @@ export default function JobSearch() {
                             </p> */}
 
               <div className="mt-4 flex flex-col gap-3">
-                <div className="relative">
-                  <Search
-                    size={14}
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400"
+                <div>
+                  <label className="mb-1 block text-[11.5px] font-semibold text-stone-500">
+                    Job titles <span className="font-normal text-stone-400">(add up to 3 or more)</span>
+                  </label>
+                  <MultiValueInput
+                    values={keyword}
+                    onChange={setKeyword}
+                    placeholder="Type a title, then press Enter"
                   />
-                  <input
-                    value={keyword}
-                    onChange={(e) => setKeyword(e.target.value)}
-                    list="job-title-suggestions"
-                    placeholder="Search by job title…"
-                    className="w-full rounded-[10px] border border-stone-200 py-2.5 pl-9 pr-3 text-[13px] outline-none transition-colors focus:border-[#8B1E2F]/40"
-                  />
-                  <datalist id="job-title-suggestions">
-                    {suggestions.titles.map((title) => <option key={title} value={title} />)}
-                  </datalist>
                 </div>
 
                 <div>
                   <label className="mb-1 block text-[11.5px] font-semibold text-stone-500">
                     Preferred job role
                   </label>
-                  <RoleMultiSelect selected={roles} onChange={setRoles} suggestions={suggestions.roles} />
+                  <RoleAutocomplete value={roles} onChange={setRoles} suggestions={suggestions.roles} />
                 </div>
 
                 <div>
                   <label className="mb-1 block text-[11.5px] font-semibold text-stone-500">
-                    Preferred work location
+                    Preferred work location <span className="font-normal text-stone-400">(add up to 3 or more)</span>
                   </label>
-                  <div className="relative">
-                    <MapPin
-                      size={14}
-                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400"
-                    />
-                    <input
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                      placeholder="e.g. Bangalore, Remote"
-                      list="job-location-suggestions"
-                      className="w-full rounded-[10px] border border-stone-200 py-2.5 pl-9 pr-3 text-[13px] outline-none focus:border-[#8B1E2F]/40"
-                    />
-                    <datalist id="job-location-suggestions">
-                      {suggestions.locations.map((value) => <option key={value} value={value} />)}
-                    </datalist>
-                  </div>
+                  <MultiValueInput
+                    values={location}
+                    onChange={setLocation}
+                    suggestions={suggestions.locations}
+                    datalistId="job-location-suggestions"
+                    placeholder="Type a location, then press Enter"
+                  />
                 </div>
 
                 <div>
                   <label className="mb-1 block text-[11.5px] font-semibold text-stone-500">
                     Preferred salary
                   </label>
-                  <input
+                  <select
                     value={salaryRange}
                     onChange={(e) => setSalaryRange(e.target.value)}
-                    list="salary-suggestions"
-                    placeholder="e.g. 6 - 10 LPA"
                     className="w-full rounded-[10px] border border-stone-200 px-3 py-2.5 text-[13px] text-stone-700 outline-none focus:border-[#8B1E2F]/40"
-                  />
-                  <datalist id="salary-suggestions">
-                    {SALARY_OPTIONS.filter((option) => option.value).map((option) => <option key={option.value} value={option.label} />)}
-                  </datalist>
+                  >
+                    {SALARY_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
@@ -813,22 +794,6 @@ export default function JobSearch() {
                     placeholder="e.g. 2 - 4 years"
                     className="w-full rounded-[10px] border border-stone-200 px-3 py-2.5 text-[13px] text-stone-700 outline-none focus:border-[#8B1E2F]/40"
                   />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-[11.5px] font-semibold text-stone-500">
-                    Industry
-                  </label>
-                  <input
-                    value={industry}
-                    onChange={(e) => setIndustry(e.target.value)}
-                    list="industry-suggestions"
-                    placeholder="e.g. Information Technology"
-                    className="w-full rounded-[10px] border border-stone-200 px-3 py-2.5 text-[13px] text-stone-700 outline-none focus:border-[#8B1E2F]/40"
-                  />
-                  <datalist id="industry-suggestions">
-                    {[...new Set([...suggestions.industries, ...INDUSTRY_OPTIONS])].map((ind) => <option key={ind} value={ind} />)}
-                  </datalist>
                 </div>
 
                 <div>

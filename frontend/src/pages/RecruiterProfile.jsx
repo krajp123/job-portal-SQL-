@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowLeft,
@@ -280,6 +281,7 @@ export default function RecruiterProfile() {
   const [recruiter, setRecruiter] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [activity, setActivity] = useState([]);
+  const [companyMembers, setCompanyMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [logoError, setLogoError] = useState(false);
@@ -308,6 +310,23 @@ export default function RecruiterProfile() {
           isArray: Array.isArray(data.languages),
         });
         setRecruiter(data || null);
+        if (data.companyName) {
+          try {
+            const membersResponse = await axiosInstance.get('/recruiter/company-members', {
+              params: { companyName: data.companyName },
+            });
+            setCompanyMembers(
+              (Array.isArray(membersResponse.data) ? membersResponse.data : []).filter(
+                (member) => String(member._id) !== String(data._id)
+              )
+            );
+          } catch (membersError) {
+            console.error('Failed to load company recruiters:', membersError);
+            setCompanyMembers([]);
+          }
+        } else {
+          setCompanyMembers([]);
+        }
         if (Array.isArray(data.jobs)) setJobs(data.jobs);
         if (Array.isArray(data.activity)) {
           setActivity(data.activity);
@@ -317,6 +336,7 @@ export default function RecruiterProfile() {
         setError(null);
       } catch (err) {
         console.error('Failed to load recruiter:', err);
+        setCompanyMembers([]);
         setRecruiter(DUMMY_RECRUITER);
         setError(err.message);
       } finally {
@@ -504,6 +524,44 @@ export default function RecruiterProfile() {
             )}
           </div>
         </motion.div>
+
+        {companyMembers.length > 0 && (
+          <section className="mb-4 rounded-2xl border border-[#EBC2AE] bg-white p-7">
+            <div className="mb-5 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#C75560]">Our people</p>
+                <h2 className="mt-1 text-lg font-bold text-[#1D181A]">Other recruiters at {recruiter.companyName}</h2>
+              </div>
+              <Users size={20} className="shrink-0 text-[#C75560]" />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {companyMembers.map((member) => (
+                <Link
+                  key={member._id}
+                  to={`/recruiter/${member._id}`}
+                  className="flex items-center gap-3 rounded-xl border border-[#EBC2AE] p-3 text-left transition hover:border-[#C75560] hover:bg-[#FFF9F5]"
+                >
+                  {member.profilePictureUrl ? (
+                    <img
+                      src={member.profilePictureUrl}
+                      alt={member.fullName || 'Recruiter'}
+                      className="h-11 w-11 shrink-0 rounded-full border border-[#EBC2AE] object-cover"
+                    />
+                  ) : (
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#FFF0E8] text-sm font-bold text-[#A0182C]">
+                      {getInitials(member.fullName || member.companyName)}
+                    </span>
+                  )}
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-bold text-[#1D181A]">{member.fullName || 'Recruiter'}</span>
+                    <span className="mt-0.5 block truncate text-xs font-medium text-[#C75560]">{member.designation || 'Recruiter'}</span>
+                    <span className="mt-0.5 block truncate text-xs text-[#80576A]">{member.location || 'Remote / India'}</span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* ---------------- TRUST STRIP ---------------- */}
         <div className="flex flex-wrap items-stretch divide-x divide-[#EBC2AE] rounded-2xl border border-[#EBC2AE] bg-white mb-4 overflow-hidden">

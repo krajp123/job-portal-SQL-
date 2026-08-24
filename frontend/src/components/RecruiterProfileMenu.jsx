@@ -97,7 +97,8 @@ export default function RecruiterProfileMenu({ recruiterProfile: initialProfile 
   }, [open]);
 
   const displayName = recruiterProfile?.fullName || recruiterProfile?.name || user?.name || "Recruiter";
-  const companyLogoUrl = recruiterProfile?.companyLogoUrl;
+  const profilePictureUrl = recruiterProfile?.profilePictureUrl;
+  const recruiterId = recruiterProfile?._id || user?._id || user?.id || user?.recruiterId;
 
   const handleLogout = () => {
     setOpen(false);
@@ -113,10 +114,10 @@ export default function RecruiterProfileMenu({ recruiterProfile: initialProfile 
         aria-label="Open profile menu"
         className="relative inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2.5 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-50"
       >
-        {!profileLoading && companyLogoUrl ? (
+        {!profileLoading && profilePictureUrl ? (
           <img
-            src={companyLogoUrl}
-            alt="Company logo"
+            src={profilePictureUrl}
+            alt={`${displayName} profile`}
             className="h-8 w-8 rounded-full object-cover ring-2 ring-white"
           />
         ) : (
@@ -143,13 +144,15 @@ export default function RecruiterProfileMenu({ recruiterProfile: initialProfile 
           </div>
           <div className="space-y-0.5 px-1.5 py-1.5">
             <button
+              type="button"
+              disabled={!recruiterId}
               onClick={() => {
-                if (recruiterProfile?._id) {
-                  navigate(`/recruiter/${recruiterProfile._id}`);
+                if (recruiterId) {
+                  navigate(`/recruiter/${recruiterId}`);
                   setOpen(false);
                 }
               }}
-              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 transition hover:bg-slate-50"
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <User size={16} />
               Recruiter Profile
@@ -171,7 +174,7 @@ export default function RecruiterProfileMenu({ recruiterProfile: initialProfile 
               Settings
             </Link>
             <Link
-              to="/recruiter/help"
+              to="/help-center"
               onClick={() => setOpen(false)}
               className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 transition hover:bg-slate-50"
             >

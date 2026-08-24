@@ -89,6 +89,14 @@ exports.reply = async (req, res) => {
       ...(isCandidate ? { conversationOpenUntil } : {}),
     });
 
+    if (!isCandidate) {
+      await ChatPreference.findOneAndUpdate(
+        { recruiter: req.user.id, candidate: candidateId },
+        { candidateRepliesEnabled: true },
+        { upsert: true, new: true, setDefaultsOnInsert: true },
+      );
+    }
+
     emitToUser(otherUserId, 'newMessage', message);
     try {
       await createNotification({

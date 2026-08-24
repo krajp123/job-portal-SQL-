@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
+import Cropper from 'react-easy-crop';
 import axiosInstance from '../../api/axiosInstance';
 import RecruiterNavbar from '../../components/RecruiterNavbar';
 import { FONT_DISPLAY } from '../../theme';
@@ -160,6 +161,38 @@ function parseExpertiseTags(rawValue) {
         .filter(Boolean)
     )
   );
+}
+
+function getCroppedImage(imageSrc, croppedAreaPixels) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = croppedAreaPixels.width;
+      canvas.height = croppedAreaPixels.height;
+      const context = canvas.getContext('2d');
+      context.drawImage(
+        image,
+        croppedAreaPixels.x,
+        croppedAreaPixels.y,
+        croppedAreaPixels.width,
+        croppedAreaPixels.height,
+        0,
+        0,
+        croppedAreaPixels.width,
+        croppedAreaPixels.height
+      );
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          reject(new Error('Could not adjust this image.'));
+          return;
+        }
+        resolve(new File([blob], 'profile-picture.jpg', { type: 'image/jpeg' }));
+      }, 'image/jpeg', 0.9);
+    };
+    image.onerror = () => reject(new Error('Could not read this image.'));
+    image.src = imageSrc;
+  });
 }
 
 function ChipInput({ items, onAdd, onRemove, placeholder = 'Add tag' }) {
@@ -354,6 +387,11 @@ export default function RecruiterSettings() {
   const [editingExperienceId, setEditingExperienceId] = useState(null);
   const [selectedProfilePicture, setSelectedProfilePicture] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
+  const [cropImage, setCropImage] = useState(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const [cropping, setCropping] = useState(false);
   const [uploadingProfilePicture, setUploadingProfilePicture] = useState(false);
   const [deletingProfilePicture, setDeletingProfilePicture] = useState(false);
 
@@ -567,14 +605,30 @@ export default function RecruiterSettings() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    setSelectedProfilePicture(file);
-
-    // Create preview
     const reader = new FileReader();
     reader.onload = (e) => {
-      setPreviewImage(e.target?.result);
+      setCropImage(e.target?.result);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
     };
     reader.readAsDataURL(file);
+    event.target.value = '';
+  }
+
+  async function applyProfilePictureCrop() {
+    if (!cropImage || !croppedAreaPixels) return;
+    setCropping(true);
+    try {
+      const croppedFile = await getCroppedImage(cropImage, croppedAreaPixels);
+      const previewUrl = URL.createObjectURL(croppedFile);
+      setSelectedProfilePicture(croppedFile);
+      setPreviewImage(previewUrl);
+      setCropImage(null);
+    } catch (err) {
+      setError(err.message || 'Could not adjust this image.');
+    } finally {
+      setCropping(false);
+    }
   }
 
   async function handleDeleteProfilePicture() {
@@ -743,6 +797,41 @@ export default function RecruiterSettings() {
   return (
     <div className="min-h-screen bg-[#FFF8F2] text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>
       <RecruiterNavbar />
+
+      {cropImage && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 px-4 py-8">
+          <div className="w-full max-w-lg rounded-3xl bg-white p-5 shadow-2xl sm:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-bold text-[#1D181A]">Adjust profile picture</h2>
+                <p className="mt-1 text-sm text-slate-500">Move the image and adjust the zoom before applying.</p>
+              </div>
+              <button type="button" onClick={() => setCropImage(null)} className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100" aria-label="Close image editor"><X size={17} /></button>
+            </div>
+            <div className="relative mt-5 h-72 overflow-hidden rounded-2xl bg-slate-900 sm:h-80">
+              <Cropper
+                image={cropImage}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                cropShape="round"
+                showGrid={false}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={(_, pixels) => setCroppedAreaPixels(pixels)}
+              />
+            </div>
+            <label className="mt-5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Zoom
+              <input type="range" min="1" max="3" step="0.05" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} className="mt-2 w-full accent-[#C75560]" />
+            </label>
+            <div className="mt-5 flex justify-end gap-2 border-t border-slate-100 pt-4">
+              <button type="button" onClick={() => setCropImage(null)} className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
+              <button type="button" onClick={applyProfilePictureCrop} disabled={cropping} className="rounded-full bg-[#C75560] px-4 py-2 text-sm font-semibold text-white hover:bg-[#B44852] disabled:opacity-60">{cropping ? 'Applying…' : 'Apply photo'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {toast && (
         <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center px-4">

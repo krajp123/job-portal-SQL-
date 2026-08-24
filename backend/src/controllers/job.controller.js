@@ -135,6 +135,7 @@ exports.create = async (req, res) => {
       { title, description, location, salary, experienceLevel, skillsRequired },
       settings.moderation?.flaggedKeywords || []
     );
+    const requestedStatus = req.body.status === 'active' ? 'open' : 'draft';
 
     const job = await Job.create({
       title,
@@ -148,7 +149,7 @@ exports.create = async (req, res) => {
       skillsRequired,
       experienceLevel,
       postedBy: req.user.id,
-      status: moderationMatches.length ? 'draft' : settings.autoApproveJobs ? 'open' : 'draft',
+      status: moderationMatches.length ? 'draft' : requestedStatus === 'open' ? 'open' : 'draft',
       moderationStatus: moderationMatches.length ? 'flagged' : 'clear',
       moderationMatches,
     });
@@ -166,7 +167,10 @@ exports.list = async (req, res) => {
     const query = { status: 'open' };
 
     if (skill) query.skillsRequired = { $regex: skill, $options: 'i' };
-    if (title) query.title = { $regex: escapeRegex(title), $options: 'i' };
+    if (title) {
+      const titles = String(title).split(',').map((value) => value.trim()).filter(Boolean);
+      query.title = { $regex: titles.map(escapeRegex).join('|'), $options: 'i' };
+    }
     if (role) query.role = { $regex: escapeRegex(role), $options: 'i' };
     if (category) {
       const categories = String(category).split(',').map((value) => value.trim()).filter(Boolean);
@@ -180,11 +184,14 @@ exports.list = async (req, res) => {
         { postedBy: { $in: matchingRecruiters } },
       ];
     }
-    if (location) query.location = { $regex: location, $options: 'i' };
+    if (location) {
+      const locations = String(location).split(',').map((value) => value.trim()).filter(Boolean);
+      query.location = { $regex: [...locations.map(escapeRegex), 'pan\\s*india'].join('|'), $options: 'i' };
+    }
     if (experienceLevel) query.experienceLevel = { $regex: escapeRegex(experienceLevel), $options: 'i' };
     if (salary || salaryRange) {
       const salaryText = salary || salaryRange;
-      query.salary = { $regex: escapeRegex(salaryText), $options: 'i' };
+      query.salary = { $regex: `${escapeRegex(salaryText)}|not\\s+disclosed`, $options: 'i' };
     }
     if (datePosted) {
       const days = Number(datePosted);

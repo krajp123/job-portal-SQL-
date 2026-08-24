@@ -7,10 +7,11 @@ const STATUS_LABELS = {
   under_review: 'Under Review',
   valid: 'Valid',
   rejected: 'Rejected',
+  resolved: 'Resolved',
 };
 
 function statusClass(status) {
-  if (status === 'valid') return 'bg-green-50 text-green-700';
+  if (status === 'valid' || status === 'resolved') return 'bg-green-50 text-green-700';
   if (status === 'rejected') return 'bg-slate-100 text-slate-600';
   if (status === 'under_review') return 'bg-amber-50 text-amber-700';
   return 'bg-red-50 text-red-700';
@@ -23,6 +24,7 @@ export default function JobReports() {
   const [error, setError] = useState('');
   const [savingId, setSavingId] = useState('');
   const [drafts, setDrafts] = useState({});
+  const [deletingId, setDeletingId] = useState('');
 
   async function loadReports() {
     setLoading(true);
@@ -49,17 +51,35 @@ export default function JobReports() {
     setSavingId(report._id);
     setError('');
     try {
-      await adminAxiosInstance.patch(`/moderation/reports/${report._id}`, {
-        status: draft.status,
-        action: draft.action || 'none',
-        reviewNotes: draft.reviewNotes || '',
-      });
+      const endpoint = report.reportType === 'support'
+        ? `/moderation/support-reports/${report._id}`
+        : `/moderation/reports/${report._id}`;
+      await adminAxiosInstance.patch(endpoint, report.reportType === 'support'
+        ? { status: draft.status, reviewNotes: draft.reviewNotes || '' }
+        : { status: draft.status, action: draft.action || 'none', reviewNotes: draft.reviewNotes || '' });
       await loadReports();
       setDrafts((current) => ({ ...current, [report._id]: {} }));
     } catch (requestError) {
       setError(requestError.response?.data?.error || 'Unable to update this report.');
     } finally {
       setSavingId('');
+    }
+  }
+
+  async function deleteReport(report) {
+    if (!window.confirm('Delete this completed report?')) return;
+    setDeletingId(report._id);
+    setError('');
+    try {
+      const endpoint = report.reportType === 'support'
+        ? `/moderation/support-reports/${report._id}`
+        : `/moderation/reports/${report._id}`;
+      await adminAxiosInstance.delete(endpoint);
+      setReports((current) => current.filter((item) => item._id !== report._id));
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || 'Unable to delete this report.');
+    } finally {
+      setDeletingId('');
     }
   }
 
@@ -86,20 +106,43 @@ export default function JobReports() {
             const draft = drafts[report._id] || {};
             const job = report.job;
             return (
-              <article key={report._id} className="border border-[#EBC2AE] bg-white p-4 shadow-sm">
+              <article key={report._id} className="relative border border-[#EBC2AE] bg-white p-4 pr-12 shadow-sm sm:pr-14">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="text-sm font-semibold text-[#1D181A]">{job?.title || 'Job removed'}</h2>
+                      <h2 className="text-sm font-semibold text-[#1D181A]">{report.reportType === 'support' ? 'Help Center support request' : (job?.title || 'Job removed')}</h2>
                       <span className={`px-2 py-0.5 text-[10px] font-bold ${statusClass(report.status)}`}>{STATUS_LABELS[report.status] || report.status}</span>
                     </div>
-                    <p className="mt-1 text-[11px] text-[#80576A]">Reported {new Date(report.createdAt).toLocaleString('en-IN')} by {report.reportedBy?.name || report.reportedBy?.fullName || report.reportedBy?.email || report.reportedByType}</p>
-                    <p className="mt-3 text-xs leading-5 text-[#1D181A]"><span className="font-semibold">Reason:</span> {report.reason}</p>
+                    <p className="mt-1 text-[11px] text-[#80576A]">Submitted {new Date(report.createdAt).toLocaleString('en-IN')} by {report.reportedBy?.name || report.reportedBy?.fullName || report.reportedBy?.email || report.reportedByType}</p>
+                    {report.reportType === 'support' && report.sender && (
+                      <div className="mt-2 grid gap-x-5 gap-y-1 text-[11px] text-[#53657D] sm:grid-cols-2">
+                        <p><span className="font-semibold text-[#1D181A]">Name:</span> {report.sender.name}</p>
+                        <p><span className="font-semibold text-[#1D181A]">Email:</span> {report.sender.email}</p>
+                        <p><span className="font-semibold text-[#1D181A]">Phone:</span> {report.sender.phone}</p>
+                        {report.sender.role === 'candidate' && <p><span className="font-semibold text-[#1D181A]">Unique ID:</span> {report.sender.uniqueId}</p>}
+                        <p><span className="font-semibold text-[#1D181A]">Role:</span> {report.sender.role}</p>
+                      </div>
+                    )}
+                    <p className="mt-3 text-xs leading-5 text-[#1D181A]"><span className="font-semibold">{report.reportType === 'support' ? 'Concern:' : 'Reason:'}</span> {report.reportType === 'support' ? report.concern : report.reason}</p>
+                    {report.reportType === 'support' && <p className="mt-2 whitespace-pre-wrap text-xs leading-5 text-[#1D181A]"><span className="font-semibold">Message:</span> {report.message || report.reason}</p>}
                   </div>
                   {report.status === 'pending' && <AlertTriangle size={18} className="shrink-0 text-[#C75560]" />}
                   {report.status === 'valid' && <CheckCircle2 size={18} className="shrink-0 text-green-600" />}
                   {report.status === 'rejected' && <XCircle size={18} className="shrink-0 text-slate-400" />}
+                  {report.status === 'resolved' && <CheckCircle2 size={18} className="shrink-0 text-green-600" />}
                 </div>
+                {['valid', 'rejected', 'resolved'].includes(report.status) && (
+                  <button
+                    type="button"
+                    onClick={() => deleteReport(report)}
+                    disabled={deletingId === report._id}
+                    aria-label="Delete completed report"
+                    title="Delete completed report"
+                    className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border border-[#B7C5D8] text-[#7F96B2] transition-colors hover:border-[#C75560] hover:bg-[#FCECF0] hover:text-[#C75560] disabled:cursor-wait disabled:opacity-50 sm:right-4 sm:top-4"
+                  >
+                    <XCircle size={18} />
+                  </button>
+                )}
                 {report.status === 'pending' || report.status === 'under_review' ? (
                   <div className="mt-4 grid gap-2 border-t border-[#EBC2AE]/60 pt-3 md:grid-cols-[150px_180px_1fr_auto]">
                     <select value={draft.status || ''} onChange={(event) => updateDraft(report._id, 'status', event.target.value)} className="border border-[#EBC2AE] bg-[#FFFDFB] px-2 py-2 text-xs outline-none">
@@ -107,19 +150,20 @@ export default function JobReports() {
                       <option value="under_review">Under Review</option>
                       <option value="valid">Valid</option>
                       <option value="rejected">Rejected</option>
+                      {report.reportType === 'support' && <option value="resolved">Resolved</option>}
                     </select>
-                    <select value={draft.action || 'none'} onChange={(event) => updateDraft(report._id, 'action', event.target.value)} className="border border-[#EBC2AE] bg-[#FFFDFB] px-2 py-2 text-xs outline-none">
+                    {report.reportType !== 'support' && <select value={draft.action || 'none'} onChange={(event) => updateDraft(report._id, 'action', event.target.value)} className="border border-[#EBC2AE] bg-[#FFFDFB] px-2 py-2 text-xs outline-none">
                       <option value="none">No action</option>
                       <option value="warn_recruiter">Warn recruiter</option>
                       <option value="close_job">Close job</option>
                       <option value="suspend_recruiter">Suspend recruiter</option>
                       <option value="remove_job">Remove job</option>
-                    </select>
+                    </select>}
                     <input value={draft.reviewNotes || ''} onChange={(event) => updateDraft(report._id, 'reviewNotes', event.target.value)} placeholder="Review note for recruiter (optional)" className="border border-[#EBC2AE] bg-[#FFFDFB] px-2 py-2 text-xs outline-none focus:border-[#C75560]" />
                     <button type="button" onClick={() => reviewReport(report)} disabled={!draft.status || savingId === report._id} className="flex items-center justify-center gap-1.5 bg-[#C75560] px-3 py-2 text-xs font-semibold text-white hover:bg-[#D9654A] disabled:opacity-50"><Eye size={13} /> {savingId === report._id ? 'Saving...' : 'Apply review'}</button>
                   </div>
                 ) : (
-                  <p className="mt-3 border-t border-[#EBC2AE]/60 pt-3 text-[11px] text-[#80576A]">Action: {report.action || 'none'}{report.reviewNotes ? ` · ${report.reviewNotes}` : ''}</p>
+                  <p className="mt-3 border-t border-[#EBC2AE]/60 pt-3 text-[11px] text-[#80576A]">{report.reportType === 'support' ? 'Review' : 'Action'}: {report.reportType === 'support' ? (report.status === 'resolved' ? 'resolved' : 'none') : (report.action || 'none')}{report.reviewNotes ? ` · ${report.reviewNotes}` : ''}</p>
                 )}
               </article>
             );

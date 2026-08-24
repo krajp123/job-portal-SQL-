@@ -1,5 +1,6 @@
 const Job = require('../models/Job');
 const JobReport = require('../models/JobReport');
+const HelpCenterReport = require('../models/HelpCenterReport');
 const Recruiter = require('../models/Recruiter');
 const { getPlatformSettings } = require('../services/platformSettings.service');
 const { createAdminNotification } = require('../services/adminNotification.service');
@@ -71,9 +72,65 @@ exports.listReports = async (req, res) => {
       .populate('reviewedBy', 'name email')
       .limit(200)
       .lean();
-    res.json({ reports });
+    const helpReports = await HelpCenterReport.find(status ? { status: status === 'valid' ? 'resolved' : status } : {})
+      .sort({ createdAt: -1 })
+      .populate('submittedBy', 'name fullName email phone uniqueId companyName companyEmail')
+      .limit(200)
+      .lean();
+    const supportReports = helpReports.map((report) => ({
+      ...report,
+      reportType: 'support',
+      reason: report.message,
+      reportedByType: report.submittedByType,
+      reportedBy: report.submittedBy || { name: report.name, email: report.email, phone: report.phone },
+      sender: {
+        name: report.submittedBy?.name || report.submittedBy?.fullName || report.name,
+        email: report.submittedBy?.email || report.submittedBy?.companyEmail || report.email,
+        phone: report.submittedBy?.phone || report.phone || 'Not provided',
+        uniqueId: report.submittedBy?.uniqueId || (report.submittedByType === 'guest' ? 'Guest submission' : null),
+        role: report.submittedByType,
+      },
+      concern: report.concern,
+    }));
+    res.json({ reports: [...reports, ...supportReports].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+};
+
+exports.reviewHelpCenterReport = async (req, res) => {
+  try {
+    const { status, reviewNotes = '' } = req.body;
+    if (!['pending', 'under_review', 'resolved', 'rejected'].includes(status)) return res.status(400).json({ error: 'Invalid support review status' });
+    const report = await HelpCenterReport.findByIdAndUpdate(
+      req.params.id,
+      { status, reviewNotes: reviewNotes.trim(), reviewedBy: req.admin.id, reviewedAt: new Date() },
+      { new: true, runValidators: true },
+    ).lean();
+    if (!report) return res.status(404).json({ error: 'Support request not found' });
+    res.json({ report });
+  } catch (error) {
+    res.status(500).json({ error: error.message || 'Unable to update support request.' });
+  }
+};
+
+exports.deleteHelpCenterReport = async (req, res) => {
+  try {
+    const report = await HelpCenterReport.findByIdAndDelete(req.params.id).lean();
+    if (!report) return res.status(404).json({ error: 'Support request not found' });
+    res.json({ message: 'Support request deleted' });
+  } catch (error) {
+    res.status(500).json({ error: error.message || 'Unable to delete support request.' });
+  }
+};
+
+exports.deleteReport = async (req, res) => {
+  try {
+    const report = await JobReport.findByIdAndDelete(req.params.id).lean();
+    if (!report) return res.status(404).json({ error: 'Report not found' });
+    res.json({ message: 'Report deleted' });
+  } catch (error) {
+    res.status(500).json({ error: error.message || 'Unable to delete report.' });
   }
 };
 

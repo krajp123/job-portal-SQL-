@@ -883,14 +883,14 @@ function TopNav({ recruiterProfile, onMenuClick, notifications = [] }) {
         </button>
 
         <div className="flex items-center gap-2 shrink-0 min-w-0">
-          <div className={`h-8 w-8 shrink-0 overflow-hidden rounded-xl flex items-center justify-center shadow-md ${platformBranding.siteName || platformBranding.logo ? 'bg-gradient-to-br from-[#C75560] to-[#F7C56B] shadow-[#C75560]/20' : 'animate-pulse bg-[#F3E5DE]'}`}>
+          <div className={`h-10 w-10 shrink-0 overflow-hidden rounded-xl flex items-center justify-center shadow-md ${platformBranding.siteName || platformBranding.logo ? 'bg-gradient-to-br from-[#C75560] to-[#F7C56B] shadow-[#C75560]/20' : 'animate-pulse bg-[#F3E5DE]'}`}>
             {platformBranding.logo ? (
               <img src={platformBranding.logo} alt={`${brandName || 'Platform'} logo`} className="h-full w-full object-cover" />
             ) : brandName ? (
-              <span className="text-[10px] font-extrabold text-white">{brandName.slice(0, 2).toUpperCase()}</span>
+              <span className="text-xs font-extrabold text-white">{brandName.slice(0, 2).toUpperCase()}</span>
             ) : null}
           </div>
-          <p className="text-sm font-bold text-slate-900 truncate">
+          <p className="text-base font-bold text-slate-900 truncate">
             {brandName || <span className="block h-3 w-20 animate-pulse bg-[#F3E5DE]" aria-label="Loading platform name" />}
           </p>
         </div>
@@ -951,17 +951,19 @@ function TopNav({ recruiterProfile, onMenuClick, notifications = [] }) {
 
 /* ============================== WELCOME HERO ============================== */
 
-function TopSectionNav({ active, setActive }) {
+function TopSectionNav({ active, setActive, recruiterProfile }) {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
 
-  // Company & Recruiters will get their own dedicated pages later,
-  // so they shouldn't scroll to an in-page section — just highlight the tab.
-  const NO_SCROLL_KEYS = ["company", "recruiters"];
-
   const handleNavClick = (key) => {
     setActive(key);
-    if (NO_SCROLL_KEYS.includes(key)) return;
+    if (key === "recruiters") {
+      navigate('/recruiters');
+      return;
+    }
+    if (key === "company") return;
     const el = document.getElementById(`section-${key}`);
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -3155,7 +3157,7 @@ export default function RecruiterDashboard() {
         />
 
         <main className="flex-1 min-w-0 space-y-4">
-          <TopSectionNav active={active} setActive={setActive} />
+          <TopSectionNav active={active} setActive={setActive} recruiterProfile={recruiterProfile} />
 
           <div id="section-Home" className="scroll-mt-36">
             <StatsGrid />

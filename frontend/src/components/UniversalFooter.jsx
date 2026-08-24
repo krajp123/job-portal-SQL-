@@ -51,22 +51,20 @@ const SOCIAL_LINKS = [
 
 const QUICK_LINKS_PRIMARY = [
     { label: 'About Us', to: '/' },
-    { label: 'Candidate Home', to: '/candidate/dashboard' },
-    { label: 'Recruiter Home', to: '/recruiter/dashboard' },
     { label: 'Contact Us / Support', to: 'mailto:support@jobportal.com' },
 ];
 
 const QUICK_LINKS_SECONDARY = [
-    { label: 'Help Center', to: '/' },
-    { label: 'Privacy Policy', to: '/' },
-    { label: 'Terms and Services', to: '/' },
+    { label: 'Help Center', to: '/help-center' },
+    { label: 'Privacy Policy', to: '/privacy' },
+    { label: 'Terms and Services', to: '/terms' },
 ];
 
 export default function UniversalFooter() {
     return (
         <footer className="mt-auto border-t border-[#EBC2AE]" style={{ background: BG }}>
             <div className="mx-auto max-w-6xl px-6 py-10">
-                <div className="flex flex-col gap-10 md:flex-row md:justify-between">
+                <div className="flex flex-col gap-10 md:grid md:grid-cols-[minmax(0,1.5fr)_minmax(150px,1fr)_minmax(180px,1fr)] md:items-start md:gap-10">
                     <div className="flex flex-col gap-4">
                         <Link to="/" className="flex items-center gap-2.5">
                             <span className="text-[16px] font-bold text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>
@@ -93,11 +91,12 @@ export default function UniversalFooter() {
                     </div>
 
                     <div className="flex flex-col gap-2.5">
+                        <p className="mb-1 text-[12.5px] font-semibold text-[#1D181A]">Explore</p>
                         {QUICK_LINKS_PRIMARY.map((item) => (
                             <Link
                                 key={item.label}
                                 to={item.to}
-                                className="text-[13px] font-medium text-[#80576A] transition-colors hover:text-[#C75560]"
+                                className="rounded-sm text-[13px] font-medium text-[#80576A] outline-none transition-colors hover:text-[#C75560] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C75560]/45 focus-visible:ring-offset-2"
                             >
                                 {item.label}
                             </Link>
@@ -105,11 +104,12 @@ export default function UniversalFooter() {
                     </div>
 
                     <div className="flex flex-col gap-2.5">
+                        <p className="mb-1 text-[12.5px] font-semibold text-[#1D181A]">Legal</p>
                         {QUICK_LINKS_SECONDARY.map((item) => (
                             <Link
                                 key={item.label}
                                 to={item.to}
-                                className="text-[13px] font-medium text-[#80576A] transition-colors hover:text-[#C75560]"
+                                className="rounded-sm text-[13px] font-medium text-[#80576A] outline-none transition-colors hover:text-[#C75560] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C75560]/45 focus-visible:ring-offset-2"
                             >
                                 {item.label}
                             </Link>
