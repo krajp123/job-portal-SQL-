@@ -1,5 +1,7 @@
 const Message = require('../models/Message');
 const ChatPreference = require('../models/ChatPreference');
+const Candidate = require('../models/Candidate');
+const Recruiter = require('../models/Recruiter');
 const mongoose = require('mongoose');
 const { createNotification } = require('../services/notification.service');
 
@@ -34,6 +36,9 @@ exports.startConversation = async (req, res) => {
       text,
     });
 
+    const recruiter = await Recruiter.findById(req.user.id).select('fullName name companyName').lean();
+    const recruiterName = recruiter?.fullName || recruiter?.name || recruiter?.companyName || 'a recruiter';
+
     // Real-time push to the candidate, plus a notification-center entry.
     emitToUser(candidateId, 'newMessage', message);
     try {
@@ -41,7 +46,7 @@ exports.startConversation = async (req, res) => {
         candidate: candidateId,
         type: 'message',
         title: 'New message from a recruiter',
-        message: text.length > 80 ? `${text.slice(0, 80)}…` : text,
+        message: `You have a new message from ${recruiterName}.`,
         relatedId: req.user.id,
       });
     } catch (notifErr) {
@@ -89,6 +94,11 @@ exports.reply = async (req, res) => {
       ...(isCandidate ? { conversationOpenUntil } : {}),
     });
 
+    const sender = isCandidate
+      ? await Candidate.findById(req.user.id).select('name').lean()
+      : await Recruiter.findById(req.user.id).select('fullName name companyName').lean();
+    const senderName = sender?.name || sender?.fullName || sender?.companyName || (isCandidate ? 'a candidate' : 'a recruiter');
+
     if (!isCandidate) {
       await ChatPreference.findOneAndUpdate(
         { recruiter: req.user.id, candidate: candidateId },
@@ -102,8 +112,8 @@ exports.reply = async (req, res) => {
       await createNotification({
         ...(isCandidate ? { recruiter: recruiterId } : { candidate: candidateId }),
         type: 'message',
-        title: isCandidate ? 'New message from a candidate' : 'New message from a recruiter',
-        message: text.length > 80 ? `${text.slice(0, 80)}…` : text,
+        title: 'New message',
+        message: `You have a new message from ${senderName}.`,
         relatedId: isCandidate ? req.user.id : req.user.id,
       });
     } catch (notifErr) {

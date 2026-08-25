@@ -451,7 +451,7 @@ function AddMoneyModal({ open, onClose, onSuccess }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
-      <div className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-[28px] bg-white p-6 shadow-2xl sm:rounded-2xl">
+      <div className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-lg bg-white p-4 shadow-2xl sm:rounded-lg">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>
            Add Money 
@@ -462,7 +462,7 @@ function AddMoneyModal({ open, onClose, onSuccess }) {
         </div>
 
         <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-[#80576A]">Enter Amount</p>
-        <div className="mt-3 rounded-2xl border border-[#EBC2AE] bg-[#FFFFFF] px-3 py-2 shadow-sm focus-within:border-[#C75560] focus-within:ring-2 focus-within:ring-[#C75560]/10">
+        <div className="mt-3 rounded-lg border border-[#EBC2AE] bg-[#FFFFFF] px-3 py-2 shadow-sm focus-within:border-[#C75560] focus-within:ring-2 focus-within:ring-[#C75560]/10">
           <div className="flex items-center gap-2">
             <IndianRupee size={16} className="text-[#80576A]" />
             <input
@@ -484,7 +484,7 @@ function AddMoneyModal({ open, onClose, onSuccess }) {
               key={amt}
               type="button"
               onClick={() => setAmountInput(String(amt))}
-              className="rounded-2xl border px-3 py-2 text-sm font-semibold transition"
+              className="rounded-md border px-3 py-1.5 text-xs font-semibold transition"
               style={{
                 borderColor: Number(amountInput) === amt ? '#C75560' : '#EBC2AE',
                 background: Number(amountInput) === amt ? '#FFF0E8' : '#FFFFFF',
@@ -521,7 +521,7 @@ function AddMoneyModal({ open, onClose, onSuccess }) {
           })}
         </div>
 
-        <div className="mt-5 rounded-2xl bg-[#FFF0E8] p-4">
+        <div className="mt-4 rounded-lg bg-[#FFF0E8] p-3">
           <div className="flex items-center justify-between text-sm">
             <span className="text-[#6B7280]">Selected Amount</span>
             <span className="font-semibold text-[#1D181A]">{formatMoney(finalAmount)}</span>
@@ -542,7 +542,7 @@ function AddMoneyModal({ open, onClose, onSuccess }) {
           type="button"
           disabled={submitting}
           onClick={handleProceed}
-          className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#C75560] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#A94658] disabled:opacity-60"
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-[#C75560] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#A94658] disabled:opacity-60"
         >
           {submitting ? <Loader2 size={16} className="animate-spin" /> : <ArrowUpRight size={16} />}
           {submitting ? 'Processing...' : 'Proceed to Payment'}
@@ -591,7 +591,7 @@ function TransactionDetailsModal({ txnId, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
-      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-[28px] bg-white p-6 shadow-2xl sm:rounded-2xl">
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-lg bg-white p-4 shadow-2xl sm:rounded-lg">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>
             Transaction Details
@@ -610,7 +610,7 @@ function TransactionDetailsModal({ txnId, onClose }) {
         )}
 
         {!loading && error && (
-          <div className="mt-6 rounded-2xl bg-[#FBEAEA] p-4 text-sm font-medium text-[#B3261E]">{error}</div>
+          <div className="mt-4 rounded-lg bg-[#FBEAEA] p-3 text-xs font-medium text-[#B3261E]">{error}</div>
         )}
 
         {!loading && txn && (
@@ -662,7 +662,7 @@ export function InsufficientBalanceModal({ open, requiredAmount, currentBalance,
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-2xl">
+      <div className="w-full max-w-sm rounded-lg bg-white p-4 text-center shadow-2xl">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#FBEAEA] text-[#B3261E]">
           <AlertTriangle size={24} />
         </div>
@@ -676,14 +676,14 @@ export function InsufficientBalanceModal({ open, requiredAmount, currentBalance,
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 rounded-2xl border border-[#EBC2AE] bg-white px-4 py-2.5 text-sm font-semibold text-[#1D181A] hover:bg-[#FFF0E8]"
+            className="flex-1 rounded-lg border border-[#EBC2AE] bg-white px-4 py-2.5 text-xs font-semibold text-[#1D181A] hover:bg-[#FFF0E8]"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={onAddMoney}
-            className="flex-1 rounded-2xl bg-[#C75560] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#A94658]"
+            className="flex-1 rounded-lg bg-[#C75560] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[#A94658]"
           >
             Add Money
           </button>
@@ -697,7 +697,7 @@ export function InsufficientBalanceModal({ open, requiredAmount, currentBalance,
 
 function EmptyState({ icon: Icon, title, subtitle }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-2 rounded-3xl border border-dashed border-[#EBC2AE] bg-[#FFFBF9] px-6 py-14 text-center">
+    <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-[#EBC2AE] bg-[#FFFBF9] px-5 py-10 text-center">
       <Icon size={28} className="text-[#C7A08F]" />
       <p className="text-sm font-semibold text-[#1D181A]">{title}</p>
       {subtitle && <p className="max-w-sm text-sm text-[#6B7280]">{subtitle}</p>}
@@ -707,13 +707,13 @@ function EmptyState({ icon: Icon, title, subtitle }) {
 
 function ErrorState({ message, onRetry }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 rounded-3xl border border-[#F1C0C0] bg-[#FBEAEA] px-6 py-14 text-center">
+    <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-[#F1C0C0] bg-[#FBEAEA] px-5 py-10 text-center">
       <XCircle size={26} className="text-[#B3261E]" />
       <p className="text-sm font-semibold text-[#7A1D18]">{message}</p>
       <button
         type="button"
         onClick={onRetry}
-        className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-[#B3261E] shadow-sm hover:bg-[#FFF4F4]"
+        className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-xs font-semibold text-[#B3261E] shadow-sm hover:bg-[#FFF4F4]"
       >
         <RefreshCw size={14} /> Retry
       </button>
@@ -763,7 +763,7 @@ function TransactionRow({ txn, onClick }) {
       <button
         type="button"
         onClick={onClick}
-        className="hidden w-full grid-cols-[1.5fr_1fr_0.9fr_0.9fr_0.9fr] items-center gap-3 rounded-2xl px-4 py-3 text-left transition hover:bg-[#FFF7F2] md:grid"
+        className="hidden w-full grid-cols-[1.5fr_1fr_0.9fr_0.9fr_0.9fr] items-center gap-3 rounded-lg px-3 py-2.5 text-left text-xs transition hover:bg-[#FFF7F2] md:grid"
       >
         <div>
           <p className="text-sm font-semibold text-[#1D181A]">{txn.description}</p>
@@ -782,7 +782,7 @@ function TransactionRow({ txn, onClick }) {
       <button
         type="button"
         onClick={onClick}
-        className="flex w-full flex-col gap-2 rounded-2xl border border-[#EBC2AE] bg-white p-4 text-left md:hidden"
+        className="flex w-full flex-col gap-2 rounded-lg border border-[#EBC2AE] bg-white p-3 text-left md:hidden"
       >
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-[#1D181A]">{txn.description}</p>
@@ -905,10 +905,10 @@ export default function RecruiterWallet() {
   );
 
   return (
-    <div className="min-h-screen bg-[#FFF4EF] text-[#1D181A]" style={{ fontFamily: FONT_BODY }}>
+    <div className="portal-theme min-h-screen bg-[#FFF4EF] text-[#1D181A]" style={{ fontFamily: FONT_BODY }}>
       <RecruiterNavbar />
 
-      <main className="recruiter-page mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
+      <main className="recruiter-page mx-auto max-w-6xl px-4 py-4 sm:px-6 sm:py-5">
         {/* Header — slim, no card wrapper */}
         <div className="mb-5 flex items-center justify-between gap-4 border-b border-[#EBC2AE] pb-4">
           <div className="min-w-0">

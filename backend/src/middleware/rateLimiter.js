@@ -34,4 +34,12 @@ const adminApiLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-module.exports = { publicLimiter, adminLoginLimiter, adminApiLimiter };
+const supportRequestLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: isProduction ? 10 : 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many support requests. Please try again later.' },
+});
+
+module.exports = { publicLimiter, adminLoginLimiter, adminApiLimiter, supportRequestLimiter };

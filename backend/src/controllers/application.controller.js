@@ -2,10 +2,33 @@ const Application = require('../models/Application');
 const Job = require('../models/Job');
 const Recruiter = require('../models/Recruiter');
 const Candidate = require('../models/Candidate');
+const OfferLetter = require('../models/OfferLetter');
 const { checkFirstApplicationBadge, updateApplicationStreak } = require('../services/badge.service');
 const { createNotification } = require('../services/notification.service');
-const { sendShortlistEmail, sendInterviewScheduleEmail, sendRejectionEmail } = require('../services/email.service');
+const { sendEmail, sendShortlistEmail, sendInterviewScheduleEmail, sendRejectionEmail } = require('../services/email.service');
 const { getPlatformSettings } = require('../services/platformSettings.service');
+
+function emitToUser(userId, event, payload) {
+  try {
+    const { getIO } = require('../config/socket');
+    const io = getIO();
+    if (io && userId) io.to(`user:${userId}`).emit(event, payload);
+  } catch (error) {
+    console.error(`Unable to emit ${event}:`, error.message);
+  }
+}
+
+function candidateForRecruiter(candidate, hiredCandidateIds) {
+  if (!candidate) return candidate;
+  const plainCandidate = candidate.toObject ? candidate.toObject() : { ...candidate };
+  if (!hiredCandidateIds.has(String(plainCandidate._id))) {
+    plainCandidate.hiredBadge = {
+      ...(plainCandidate.hiredBadge || {}),
+      isHired: false,
+    };
+  }
+  return plainCandidate;
+}
 
 // Helper function to calculate skill matching
 const calculateSkillMatch = (candidateSkills = [], jobSkills = []) => {
@@ -71,6 +94,10 @@ exports.apply = async (req, res) => {
       console.error('Gamification update failed:', gamErr.message);
     }
 
+    emitToUser(job.postedBy, 'applicationUpdated', {
+      type: 'created',
+      application,
+    });
     res.status(201).json(application);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -91,7 +118,7 @@ exports.myApplications = async (req, res) => {
       })
       .sort({ appliedAt: -1 });
     
-    res.json(applications);
+    res.json(applications.filter((application) => application.job));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -115,9 +142,47 @@ exports.applicantsForRecruiter = async (req, res) => {
       })
       .sort({ appliedAt: -1 });
 
-    res.json(applications);
+    const validApplications = applications.filter((application) => application.job);
+    const hiredCandidateIds = new Set(
+      (await Application.distinct('candidate', { status: 'hired' })).map((id) => String(id))
+    );
+    const offerLetters = await OfferLetter.find({ application: { $in: validApplications.map((application) => application._id) } })
+      .select('_id application signedAcceptanceUrl signedUploadedAt')
+      .lean();
+    const offerLetterByApplication = new Map(offerLetters.map((offerLetter) => [String(offerLetter.application), offerLetter]));
+    res.json(validApplications.map((application) => ({
+      ...application.toObject(),
+      candidate: candidateForRecruiter(application.candidate, hiredCandidateIds),
+      offerLetter: offerLetterByApplication.get(String(application._id)) || null,
+    })));
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+// POST /api/applications/:id/email (recruiter only)
+exports.emailCandidate = async (req, res) => {
+  try {
+    const { subject, body } = req.body;
+    if (!subject?.trim() || !body?.trim()) {
+      return res.status(400).json({ error: 'Subject and message are required.' });
+    }
+
+    const application = await Application.findOne({ _id: req.params.id, recruiter: req.user.id })
+      .populate('candidate', 'name email')
+      .populate('job', 'title');
+    if (!application) return res.status(404).json({ error: 'Application not found' });
+    if (!application.candidate?.email) return res.status(400).json({ error: 'Candidate email is not available.' });
+
+    const result = await sendEmail({
+      to: application.candidate.email,
+      subject: subject.trim(),
+      body: body.trim(),
+    });
+    if (result?.sent === false) return res.status(503).json({ error: result.error || 'Email service is unavailable.' });
+    res.json({ message: 'Email sent successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Failed to send email.' });
   }
 };
 
@@ -142,7 +207,13 @@ exports.applicantsForJob = async (req, res) => {
       })
       .sort({ appliedAt: -1 });
 
-    res.json(applications);
+    const hiredCandidateIds = new Set(
+      (await Application.distinct('candidate', { status: 'hired' })).map((id) => String(id))
+    );
+    res.json(applications.map((application) => ({
+      ...application.toObject(),
+      candidate: candidateForRecruiter(application.candidate, hiredCandidateIds),
+    })));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -158,6 +229,12 @@ exports.withdraw = async (req, res) => {
 
     if (!application) return res.status(404).json({ error: 'Application not found' });
 
+    emitToUser(application.recruiter, 'applicationUpdated', {
+      type: 'withdrawn',
+      applicationId: application._id,
+      candidateId: application.candidate,
+      jobId: application.job,
+    });
     res.json({ message: 'Application withdrawn' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -300,7 +377,7 @@ exports.updateStatus = async (req, res) => {
 
     try {
       await createNotification({
-        candidate: application.candidate,
+        candidate: application.candidate?._id || application.candidate,
         type: 'application_status',
         title: 'Application update',
         message: `Your application for "${application.job?.title || 'a job'}" is now ${status}.`,
@@ -309,6 +386,15 @@ exports.updateStatus = async (req, res) => {
     } catch (notifErr) {
       console.error('Notification creation failed:', notifErr.message);
     }
+
+    emitToUser(application.candidate?._id || application.candidate, 'applicationUpdated', {
+      type: 'status_changed',
+      application: updatedApplication,
+    });
+    emitToUser(req.user.id, 'applicationUpdated', {
+      type: 'status_changed',
+      application: updatedApplication,
+    });
 
     res.json({
       application: updatedApplication,

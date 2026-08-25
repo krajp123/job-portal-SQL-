@@ -33,25 +33,17 @@ function TwitterIcon({ size = 14 }) {
     );
 }
 
-function YoutubeIcon({ size = 14 }) {
-    return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-            <path d="M22 12s0-3.2-.41-4.72a2.87 2.87 0 0 0-2-2.03C17.9 5 12 5 12 5s-5.9 0-7.59.25a2.87 2.87 0 0 0-2 2.03C2 8.8 2 12 2 12s0 3.2.41 4.72a2.87 2.87 0 0 0 2 2.03C6.1 19 12 19 12 19s5.9 0 7.59-.25a2.87 2.87 0 0 0 2-2.03C22 15.2 22 12 22 12zM10 15.2V8.8l5.5 3.2-5.5 3.2z" />
-        </svg>
-    );
-}
 
 const SOCIAL_LINKS = [
     { key: 'facebook', label: 'Facebook', href: 'https://facebook.com', icon: FacebookIcon },
     { key: 'instagram', label: 'Instagram', href: 'https://instagram.com', icon: InstagramIcon },
     { key: 'linkedin', label: 'LinkedIn', href: 'https://linkedin.com', icon: LinkedinIcon },
     { key: 'twitter', label: 'Twitter / X', href: 'https://twitter.com', icon: TwitterIcon },
-    { key: 'youtube', label: 'YouTube', href: 'https://youtube.com', icon: YoutubeIcon },
 ];
 
 const QUICK_LINKS_PRIMARY = [
-    { label: 'About Us', to: '/' },
-    { label: 'Contact Us / Support', to: 'mailto:support@jobportal.com' },
+    { label: 'About Us', to: '/about' },
+    { label: 'Contact Us / Support', to: '/contact' },
 ];
 
 const QUICK_LINKS_SECONDARY = [
@@ -66,7 +58,7 @@ export default function UniversalFooter() {
             <div className="mx-auto max-w-6xl px-6 py-10">
                 <div className="flex flex-col gap-10 md:grid md:grid-cols-[minmax(0,1.5fr)_minmax(150px,1fr)_minmax(180px,1fr)] md:items-start md:gap-10">
                     <div className="flex flex-col gap-4">
-                        <Link to="/" className="flex items-center gap-2.5">
+                        <Link to="/" className="flex self-start items-center gap-2.5">
                             <span className="text-[16px] font-bold text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>
                                 Career Route Portal
                             </span>
@@ -96,7 +88,7 @@ export default function UniversalFooter() {
                             <Link
                                 key={item.label}
                                 to={item.to}
-                                className="rounded-sm text-[13px] font-medium text-[#80576A] outline-none transition-colors hover:text-[#C75560] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C75560]/45 focus-visible:ring-offset-2"
+                                className="self-start rounded-sm text-[13px] font-medium text-[#80576A] outline-none transition-colors hover:text-[#C75560] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C75560]/45 focus-visible:ring-offset-2"
                             >
                                 {item.label}
                             </Link>
@@ -109,7 +101,7 @@ export default function UniversalFooter() {
                             <Link
                                 key={item.label}
                                 to={item.to}
-                                className="rounded-sm text-[13px] font-medium text-[#80576A] outline-none transition-colors hover:text-[#C75560] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C75560]/45 focus-visible:ring-offset-2"
+                                className="self-start rounded-sm text-[13px] font-medium text-[#80576A] outline-none transition-colors hover:text-[#C75560] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C75560]/45 focus-visible:ring-offset-2"
                             >
                                 {item.label}
                             </Link>

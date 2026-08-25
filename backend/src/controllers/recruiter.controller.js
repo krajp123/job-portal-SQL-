@@ -172,11 +172,14 @@ exports.getPublicProfile = async (req, res) => {
       return res.status(404).json({ error: 'Recruiter not found' });
     }
 
-    const [jobs, totalApplicationsReceived, totalHires, recentApplicationEvents, recentJobEvents, recentResumeDownloads] = await Promise.all([
-      Job.find({ postedBy: recruiter._id, status: { $in: ['open', 'active'] } })
+    const publicJobs = req.query.allJobs === 'true';
+    const jobsQuery = Job.find({ postedBy: recruiter._id, status: { $in: ['open', 'active'] } })
         .sort({ createdAt: -1 })
-        .limit(4)
-        .lean(),
+        .limit(publicJobs ? 200 : 4)
+        .lean();
+
+    const [jobs, totalApplicationsReceived, totalHires, recentApplicationEvents, recentJobEvents, recentResumeDownloads] = await Promise.all([
+      jobsQuery,
       Application.countDocuments({ recruiter: recruiter._id }),
       Application.countDocuments({ recruiter: recruiter._id, status: 'hired' }),
       Application.find({ recruiter: recruiter._id })
@@ -354,6 +357,13 @@ exports.getPublicProfile = async (req, res) => {
       companyCin: recruiter.companyCin || '',
       companyDescription: recruiter.companyDetails || recruiter.bio || '',
       companyLogoUrl: recruiter.companyLogoUrl || '',
+      coverImageUrl: recruiter.coverImageUrl || '',
+      industry: recruiter.industry || '',
+      companySize: recruiter.companySize || '',
+      companyType: recruiter.companyType || '',
+      tags: recruiter.tags || [],
+      whyJoinUs: recruiter.whyJoinUs || [],
+      diversityHighlights: recruiter.diversityHighlights || [],
       profilePictureUrl: recruiter.profilePictureUrl || '',
       location: recruiter.location || 'Remote / India',
       linkedinUrl: recruiter.linkedinUrl || '',
@@ -441,6 +451,10 @@ exports.updateMyProfile = async (req, res) => {
       companyCin,
       companyDetails,
       companyLogoUrl,
+      coverImageUrl,
+      tags,
+      whyJoinUs,
+      diversityHighlights,
       profilePictureUrl,
       location,
       industry,
@@ -483,6 +497,21 @@ exports.updateMyProfile = async (req, res) => {
     }
     if (companyCin !== undefined && typeof companyCin !== 'string') {
       return res.status(400).json({ error: 'Invalid CIN number' });
+    }
+    if (companyLogoUrl !== undefined && typeof companyLogoUrl !== 'string') {
+      return res.status(400).json({ error: 'Invalid company logo URL' });
+    }
+    if (coverImageUrl !== undefined && typeof coverImageUrl !== 'string') {
+      return res.status(400).json({ error: 'Invalid cover image URL' });
+    }
+    if (tags !== undefined && !Array.isArray(tags)) {
+      return res.status(400).json({ error: 'Tags must be an array' });
+    }
+    if (whyJoinUs !== undefined && !Array.isArray(whyJoinUs)) {
+      return res.status(400).json({ error: 'Why join us highlights must be an array' });
+    }
+    if (diversityHighlights !== undefined && !Array.isArray(diversityHighlights)) {
+      return res.status(400).json({ error: 'Diversity highlights must be an array' });
     }
     if (industry !== undefined && typeof industry !== 'string') {
       return res.status(400).json({ error: 'Invalid industry' });
@@ -556,6 +585,10 @@ exports.updateMyProfile = async (req, res) => {
     if (companyCin !== undefined) update.companyCin = companyCin;
     if (companyDetails !== undefined) update.companyDetails = companyDetails;
     if (companyLogoUrl !== undefined) update.companyLogoUrl = companyLogoUrl;
+    if (coverImageUrl !== undefined) update.coverImageUrl = coverImageUrl;
+    if (tags !== undefined) update.tags = tags.map((tag) => String(tag).trim()).filter(Boolean);
+    if (whyJoinUs !== undefined) update.whyJoinUs = whyJoinUs;
+    if (diversityHighlights !== undefined) update.diversityHighlights = diversityHighlights;
     if (industry !== undefined) update.industry = industry.trim();
     if (companySize !== undefined) update.companySize = companySize.trim();
     if (companyType !== undefined) update.companyType = companyType.trim();
@@ -607,6 +640,41 @@ exports.updateMyProfile = async (req, res) => {
   }
 };
 
+// POST /api/recruiter/me/upload-company-image
+exports.uploadCompanyImage = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
+
+    const imageType = req.body.imageType;
+    if (!['logo', 'cover'].includes(imageType)) {
+      return res.status(400).json({ error: 'Image type must be logo or cover' });
+    }
+
+    const recruiter = await Recruiter.findById(req.user.id);
+    if (!recruiter) return res.status(404).json({ error: 'Recruiter not found' });
+
+    const uploadResult = await new Promise((resolve, reject) => {
+      const uploadStream = require('../config/cloudinary').cloudinary.uploader.upload_stream(
+        {
+          folder: `recruiter-company/${imageType}`,
+          resource_type: 'image',
+          quality: 'auto',
+          fetch_format: 'auto',
+        },
+        (uploadError, result) => (uploadError ? reject(uploadError) : resolve(result))
+      );
+      uploadStream.end(req.file.buffer);
+    });
+
+    const field = imageType === 'logo' ? 'companyLogoUrl' : 'coverImageUrl';
+    await Recruiter.findByIdAndUpdate(req.user.id, { $set: { [field]: uploadResult.secure_url } });
+    res.json({ message: 'Company image uploaded successfully', [field]: uploadResult.secure_url });
+  } catch (err) {
+    console.error('Company image upload failed:', err);
+    res.status(500).json({ error: err.message || 'Failed to upload company image' });
+  }
+};
+
 // PUT /api/recruiter/me/settings/:section
 exports.updateMySettings = async (req, res) => {
   try {
@@ -619,6 +687,24 @@ exports.updateMySettings = async (req, res) => {
     }
 
     if (section === 'delete') {
+      const { password, reason } = req.body;
+      if (!password) {
+        return res.status(400).json({ error: 'Please enter your password to confirm account deletion.' });
+      }
+      if (!reason || typeof reason !== 'string' || !reason.trim()) {
+        return res.status(400).json({ error: 'Please provide a reason for deleting your account.' });
+      }
+
+      const recruiter = await Recruiter.findById(req.user.id).select('passwordHash');
+      if (!recruiter) {
+        return res.status(404).json({ error: 'Recruiter account not found' });
+      }
+
+      const isMatch = await comparePassword(password, recruiter.passwordHash);
+      if (!isMatch) {
+        return res.status(400).json({ error: 'Incorrect password. Please try again.' });
+      }
+
       const applications = await Application.find({ recruiter: req.user.id }).select('_id').lean();
       const applicationIds = applications.map((application) => application._id);
 
@@ -632,6 +718,7 @@ exports.updateMySettings = async (req, res) => {
       ]);
 
       await Recruiter.deleteOne({ _id: req.user.id });
+  console.log(`[Account deletion] Recruiter ${req.user.id} deleted their account. Reason: ${reason.trim()}`);
       return res.json({ message: 'Account deleted' });
     }
 

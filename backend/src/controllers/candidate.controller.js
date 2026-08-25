@@ -50,6 +50,12 @@ exports.getMyProfile = async (req, res) => {
   try {
     const candidate = await Candidate.findById(req.user.id).select('-passwordHash');
     if (!candidate) return res.status(401).json({ error: 'Candidate account not found' });
+    const confirmedAt = candidate.hiredBadge?.confirmedAt?.getTime?.();
+    const badgeExpired = confirmedAt && Date.now() - confirmedAt >= 30 * 24 * 60 * 60 * 1000;
+    if (badgeExpired && candidate.hiredBadge?.isHired) {
+      candidate.hiredBadge = { isHired: false };
+      await candidate.save();
+    }
     res.json(candidate);
   } catch (err) {
     res.status(500).json({ error: err.message });

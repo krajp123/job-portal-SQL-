@@ -3,14 +3,39 @@ const Candidate = require('../models/Candidate');
 const Recruiter = require('../models/Recruiter');
 const { createAdminNotification } = require('../services/adminNotification.service');
 
+const SUPPORT_CONCERNS = new Set([
+  'Account',
+  'Job search',
+  'Billing & payments',
+  'Job posting',
+  'Application / profile',
+  'Resume & documents',
+  'Applicants & hiring',
+  'Team & access',
+  'Report abuse',
+  'Other',
+]);
+
 exports.createReport = async (req, res) => {
   try {
     const { name, email, phone, concern, message } = req.body;
     if (![name, email, concern, message].every((value) => typeof value === 'string' && value.trim())) {
       return res.status(400).json({ error: 'Name, email, concern, and message are required.' });
     }
-    if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+    const normalizedName = name.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedConcern = concern.trim();
+    const normalizedMessage = message.trim();
+    const normalizedPhone = typeof phone === 'string' ? phone.trim() : '';
+
+    if (!/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
       return res.status(400).json({ error: 'Please provide a valid email address.' });
+    }
+    if (!SUPPORT_CONCERNS.has(normalizedConcern)) {
+      return res.status(400).json({ error: 'Please select a valid support topic.' });
+    }
+    if (normalizedName.length > 120 || normalizedEmail.length > 254 || normalizedPhone.length > 30 || normalizedMessage.length > 2000) {
+      return res.status(400).json({ error: 'One or more fields exceed the allowed length.' });
     }
 
     let account;
@@ -19,22 +44,26 @@ exports.createReport = async (req, res) => {
 
     const isAccountSubmission = Boolean(account);
     const report = await HelpCenterReport.create({
-      name: account?.name || account?.fullName || name.trim(),
-      email: account?.email || account?.companyEmail || email.trim(),
-      phone: account?.phone || (typeof phone === 'string' ? phone.trim() : ''),
-      concern: concern.trim(),
-      message: message.trim(),
+      name: account?.name || account?.fullName || normalizedName,
+      email: (account?.email || account?.companyEmail || normalizedEmail).trim().toLowerCase(),
+      phone: account?.phone || normalizedPhone,
+      concern: normalizedConcern,
+      message: normalizedMessage,
       submittedByType: isAccountSubmission ? req.user.role : 'guest',
       submittedBy: isAccountSubmission ? req.user.id : undefined,
       submittedByModel: isAccountSubmission ? (req.user.role === 'candidate' ? 'Candidate' : 'Recruiter') : undefined,
     });
 
-    await createAdminNotification({
-      key: 'supportRequest',
-      title: 'New Help Center request',
-      message: `${report.name} submitted a ${report.concern} support request.`,
-      relatedId: report._id,
-    });
+    try {
+      await createAdminNotification({
+        key: 'supportRequest',
+        title: 'New support request',
+        message: `${report.name} submitted a ${report.concern} support request.`,
+        relatedId: report._id,
+      });
+    } catch (notificationError) {
+      console.error('Support request notification failed:', notificationError.message);
+    }
 
     res.status(201).json({ message: 'Support request submitted.', reportId: report._id });
   } catch (error) {

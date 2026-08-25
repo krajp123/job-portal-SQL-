@@ -7,6 +7,8 @@ import CandidateWorkspaceRoute from './routes/CandidateWorkspaceRoute';
 import UniversalFooter from './components/UniversalFooter';
 
 import Home from './pages/Home';
+import AboutUs from './pages/AboutUs';
+import ContactSupport from './pages/ContactSupport';
 import HelpCenter from './pages/HelpCenter';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsAndServices from './pages/TermsAndServices';
@@ -24,6 +26,7 @@ import RecommendedJobs from './pages/candidate/RecommendedJobs';
 import AppliedJobs from './pages/candidate/AppliedJobs';
 import SavedJobs from './pages/candidate/SavedJobs';
 import CandidateSettings from './pages/candidate/Settings';
+import CandidateCompanies from './pages/candidate/Companies';
 
 // import RecruiterRegister from './pages/recruiter/Register';
 import RecruiterCompanyProfile from './pages/recruiter/CompanyProfile';
@@ -130,6 +133,8 @@ function AppRoutes() {
       <Routes>
       <Route element={<AppLayout />}>
         <Route path="/" element={<Home />} />
+        <Route path="/about" element={<AboutUs />} />
+        <Route path="/contact" element={<ContactSupport />} />
         <Route path="/help-center" element={<HelpCenter />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsAndServices />} />
@@ -150,6 +155,8 @@ function AppRoutes() {
           <Route path="/candidate/resume-match" element={<CandidateResumeMatch />} />
           <Route path="/candidate/messages" element={<CandidateMessages />} />
           <Route path="/candidate/settings" element={<CandidateSettings />} />
+          <Route path="/candidate/companies" element={<CandidateCompanies />} />
+          <Route path="/candidate/companies/:companyId" element={<RecruiterCompanyProfile readOnly />} />
         </Route>
 
         {/* <Route path="/recruiter/register" element={<RecruiterRegister />} /> */}

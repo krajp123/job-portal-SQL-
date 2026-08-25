@@ -142,7 +142,7 @@ export default function ResumeDownloadsPage() {
   };
 
   return (
-    <div className="min-h-screen w-full text-[#1D181A]" style={{ background: '#F8F5F0' }}>
+    <div className="portal-theme min-h-screen w-full text-[#1D181A]" style={{ background: '#F8F5F0' }}>
       <RecruiterNavbar />
       <div className="recruiter-page mx-auto w-full max-w-[1400px] px-3 py-3 sm:px-5 sm:py-4">
         <div className="mb-5 flex items-center justify-between gap-3">
@@ -156,12 +156,12 @@ export default function ResumeDownloadsPage() {
           </button>
           <div className="text-right">
             <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Recruiter history</p>
-            <h1 className="text-2xl font-bold text-slate-900">Resume downloads</h1>
+            <h1 className="text-xl font-bold text-slate-900">Resume downloads</h1>
           </div>
         </div>
 
-        <GlassCard className="p-5 sm:p-6">
-          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <GlassCard className="p-4 sm:p-5">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-sm font-semibold text-slate-800">All saved resume downloads</p>
               <p className="text-xs text-slate-400">Loaded in pages of {PAGE_SIZE} for faster browsing.</p>

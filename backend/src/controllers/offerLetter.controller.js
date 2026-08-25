@@ -1,26 +1,39 @@
 const OfferLetter = require('../models/OfferLetter');
 const Application = require('../models/Application');
 const { confirmHiredBadge } = require('../services/badge.service');
+
+function emitToUser(userId, event, payload) {
+  try {
+    const { getIO } = require('../config/socket');
+    const io = getIO();
+    if (io && userId) io.to(`user:${userId}`).emit(event, payload);
+  } catch (error) {
+    console.error(`Unable to emit ${event}:`, error.message);
+  }
+}
 const { createNotification } = require('../services/notification.service');
 const { sendOfferEmail } = require('../services/email.service');
-const { PutObjectCommand } = require('@aws-sdk/client-s3');
-const { r2Client, BUCKET_NAME, PUBLIC_URL } = require('../config/cloudflareR2');
+const { cloudinary, isCloudinaryConfigured } = require('../config/cloudinary');
+const path = require('path');
 
-async function uploadToR2(file, keyPrefix) {
-  if (!r2Client || !BUCKET_NAME || !PUBLIC_URL) {
-    throw new Error('Cloudflare R2 is not configured for local development.');
+async function uploadToCloudinary(file, keyPrefix) {
+  if (!isCloudinaryConfigured) {
+    throw new Error('Cloudinary is not configured. Add Cloudinary credentials before uploading documents.');
   }
 
-  const key = `${keyPrefix}/${Date.now()}-${file.originalname}`;
-  await r2Client.send(
-    new PutObjectCommand({
-      Bucket: BUCKET_NAME,
-      Key: key,
-      Body: file.buffer,
-      ContentType: file.mimetype,
-    })
-  );
-  return `${PUBLIC_URL}/${key}`;
+  const safeName = path.basename(file.originalname).replace(/[^a-zA-Z0-9._-]/g, '_');
+  const publicId = `${keyPrefix}/${Date.now()}-${safeName}`;
+
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      { public_id: publicId, resource_type: 'raw' },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result.secure_url);
+      }
+    );
+    uploadStream.end(file.buffer);
+  });
 }
 
 // POST /api/offer-letters (recruiter only) - step 1: send offer letter
@@ -33,7 +46,7 @@ exports.uploadOfferLetter = async (req, res) => {
       .populate({ path: 'job', select: 'title' });
     if (!application) return res.status(404).json({ error: 'Application not found' });
 
-    const offerLetterUrl = await uploadToR2(req.file, 'offer-letters');
+    const offerLetterUrl = await uploadToCloudinary(req.file, 'offer-letters');
 
     const offerLetter = await OfferLetter.create({ application: applicationId, offerLetterUrl });
 
@@ -90,7 +103,7 @@ exports.uploadSignedAcceptance = async (req, res) => {
       return res.status(403).json({ error: 'Not authorized for this offer letter' });
     }
 
-    const signedAcceptanceUrl = await uploadToR2(req.file, 'signed-acceptances');
+    const signedAcceptanceUrl = await uploadToCloudinary(req.file, 'signed-acceptances');
 
     offerLetter.signedAcceptanceUrl = signedAcceptanceUrl;
     offerLetter.signedUploadedAt = new Date();
@@ -100,6 +113,18 @@ exports.uploadSignedAcceptance = async (req, res) => {
     const candidate = await confirmHiredBadge({
       applicationId: offerLetter.application._id,
       signedAcceptanceUrl,
+    });
+
+    emitToUser(candidate._id, 'applicationUpdated', {
+      type: 'hired',
+      applicationId: offerLetter.application._id,
+      status: 'hired',
+      hiredBadge: candidate.hiredBadge,
+    });
+    emitToUser(offerLetter.application.recruiter, 'applicationUpdated', {
+      type: 'hired',
+      applicationId: offerLetter.application._id,
+      status: 'hired',
     });
 
     try {

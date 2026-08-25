@@ -1,4 +1,5 @@
 const OfferLetter = require('../../models/OfferLetter');
+const Application = require('../../models/Application');
 const Candidate = require('../../models/Candidate');
 const { logAdminAction } = require('../../services/audit.service');
 
@@ -27,6 +28,10 @@ exports.approve = async (req, res) => {
 
     offerLetter.confirmedByAdmin = true;
     await offerLetter.save();
+
+    await Application.findByIdAndUpdate(offerLetter.application._id, {
+      status: 'hired',
+    });
 
     const candidate = await Candidate.findByIdAndUpdate(
       offerLetter.application.candidate,

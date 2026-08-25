@@ -412,6 +412,10 @@ export default function RecruiterSettings() {
   /* ---- danger zone ---- */
   const [confirmAction, setConfirmAction] = useState(null); // 'deactivate' | 'delete' | null
   const [confirmText, setConfirmText] = useState('');
+  const [deleteStep, setDeleteStep] = useState('reason');
+  const [deleteReason, setDeleteReason] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     async function fetchSettings() {
@@ -461,7 +465,7 @@ export default function RecruiterSettings() {
     setToast(msg);
   }
 
-  async function persist(section, payload) {
+  async function persist(section, payload, onError) {
     setSaving(true);
     setError('');
     try {
@@ -469,7 +473,12 @@ export default function RecruiterSettings() {
       notify('Changes saved.');
       return true;
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to save changes.');
+      const message = err.response?.data?.error || 'Failed to save changes.';
+      if (onError) {
+        onError(message);
+      } else {
+        setError(message);
+      }
       return false;
     } finally {
       setSaving(false);
@@ -785,7 +794,7 @@ export default function RecruiterSettings() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#FFF8F2]" style={{ fontFamily: FONT_DISPLAY }}>
+      <div className="portal-theme min-h-screen bg-[#FFF8F2]" style={{ fontFamily: FONT_DISPLAY }}>
         <RecruiterNavbar />
         <div className="mx-auto flex max-w-5xl items-center justify-center px-5 py-24 text-sm text-slate-400">
           Loading settings…
@@ -795,7 +804,7 @@ export default function RecruiterSettings() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFF8F2] text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>
+    <div className="portal-theme min-h-screen bg-[#FFF8F2] text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>
       <RecruiterNavbar />
 
       {cropImage && (
@@ -841,7 +850,7 @@ export default function RecruiterSettings() {
         </div>
       )}
 
-      <main className="recruiter-page mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
+      <main className="recruiter-page mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-5">
         <div className="mb-8">
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#C75560]">Recruiter workspace</p>
           <h1 className="mt-2 text-3xl font-bold text-[#1D181A]">Settings</h1>
@@ -1680,7 +1689,16 @@ export default function RecruiterSettings() {
                     title="Delete account"
                     description="Permanently delete your recruiter account, job listings, and candidate data. This cannot be undone."
                   >
-                    <GhostButton tone="danger" onClick={() => { setConfirmAction('delete'); setConfirmText(''); }}>
+                    <GhostButton
+                      tone="danger"
+                      onClick={() => {
+                        setConfirmAction('delete');
+                        setDeleteStep('reason');
+                        setDeleteReason('');
+                        setConfirmPassword('');
+                        setDeleteError('');
+                      }}
+                    >
                       Delete account
                     </GhostButton>
                   </SettingRow>
@@ -1693,8 +1711,8 @@ export default function RecruiterSettings() {
 
       {/* --------------------------- CONFIRM MODAL --------------------------- */}
       {confirmAction && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
-          <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/40 px-4 py-4">
+          <div className="max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-600">
                 <AlertOctagon size={18} />
@@ -1708,32 +1726,99 @@ export default function RecruiterSettings() {
               </button>
             </div>
             <h3 className="mt-4 text-base font-bold text-[#1D181A]">
-              {confirmAction === 'delete' ? 'Delete your account?' : 'Deactivate your account?'}
+              {confirmAction === 'delete'
+                ? deleteStep === 'reason'
+                  ? 'Why are you leaving?'
+                  : 'Enter your password'
+                : 'Deactivate your account?'}
             </h3>
             <p className="mt-1.5 text-sm leading-6 text-slate-500">
               {confirmAction === 'delete'
-                ? 'This permanently removes your job listings, candidate data, and wallet history. Type DELETE to confirm.'
+                ? deleteStep === 'reason'
+                  ? 'Tell us why you want to delete your recruiter account.'
+                  : 'For your security, enter your current password to permanently delete your account.'
                 : 'Your job listings will be hidden from candidates until you sign back in. Type DEACTIVATE to confirm.'}
             </p>
-            <input
-              className={`${inputClass} mt-4`}
-              value={confirmText}
-              onChange={(e) => setConfirmText(e.target.value)}
-              placeholder={confirmAction === 'delete' ? 'DELETE' : 'DEACTIVATE'}
-            />
+            {confirmAction === 'delete' ? (
+              deleteStep === 'reason' ? (
+                <textarea
+                  rows={4}
+                  maxLength={1000}
+                  className={`${inputClass} mt-4 max-h-40 resize-none overflow-y-auto`}
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  placeholder="Share your reason for leaving"
+                  autoFocus
+                />
+              ) : (
+                <>
+                  <div className="mt-4 max-h-24 overflow-y-auto break-words rounded-xl border border-slate-100 bg-slate-50 px-3.5 py-3 text-sm text-slate-600">
+                    <span className="font-semibold text-slate-800">Reason: </span>{deleteReason}
+                  </div>
+                  <input
+                    type="password"
+                    className={`${inputClass} mt-3`}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    autoComplete="current-password"
+                    autoFocus
+                  />
+                  {deleteError && (
+                    <p className="mt-2 text-sm font-medium text-rose-600" role="alert">
+                      {deleteError}
+                    </p>
+                  )}
+                </>
+              )
+            ) : (
+              <input
+                className={`${inputClass} mt-4`}
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                placeholder="DEACTIVATE"
+                autoComplete="off"
+              />
+            )}
             <div className="mt-5 flex justify-end gap-2">
-              <GhostButton onClick={() => setConfirmAction(null)}>Cancel</GhostButton>
+              <GhostButton
+                onClick={() => {
+                  if (confirmAction === 'delete' && deleteStep === 'password') {
+                    setDeleteStep('reason');
+                    return;
+                  }
+                  setConfirmAction(null);
+                }}
+              >
+                {confirmAction === 'delete' && deleteStep === 'password' ? 'Back' : 'Cancel'}
+              </GhostButton>
               <button
                 type="button"
-                disabled={confirmText !== (confirmAction === 'delete' ? 'DELETE' : 'DEACTIVATE')}
+                disabled={
+                  confirmAction === 'delete'
+                    ? deleteStep === 'reason'
+                      ? !deleteReason.trim()
+                      : !confirmPassword
+                    : confirmText !== 'DEACTIVATE'
+                }
                 onClick={async () => {
-                  await persist(confirmAction, {});
+                  if (confirmAction === 'delete' && deleteStep === 'reason') {
+                    setDeleteStep('password');
+                    return;
+                  }
+                  const succeeded = await persist(
+                    confirmAction,
+                    confirmAction === 'delete' ? { password: confirmPassword, reason: deleteReason } : {},
+                    confirmAction === 'delete' ? setDeleteError : undefined
+                  );
+                  if (!succeeded) return;
                   setConfirmAction(null);
+                  setConfirmPassword('');
                   notify(confirmAction === 'delete' ? 'Account deleted.' : 'Account deactivated.');
                 }}
                 className="rounded-full bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {confirmAction === 'delete' ? 'Delete permanently' : 'Deactivate'}
+                {confirmAction === 'delete' ? (deleteStep === 'reason' ? 'Continue' : 'Delete permanently') : 'Deactivate'}
               </button>
             </div>
           </div>

@@ -26,6 +26,7 @@ import {
   HelpCircle,
 } from "lucide-react";
 import axiosInstance from "../../api/axiosInstance";
+import { connectSocket } from '../../socket';
 import {
   FONT_DISPLAY,
   FONT_BODY,
@@ -204,6 +205,19 @@ export default function AppliedJobs() {
     }
 
     loadAppliedJobs();
+  }, []);
+
+  useEffect(() => {
+    const socket = connectSocket();
+    const handleApplicationUpdate = () => {
+      axiosInstance.get('/applications/mine').then(({ data }) => {
+        const apps = data || [];
+        setApplications(apps);
+        setSelectedApp((current) => apps.find((app) => app._id === current?._id) || apps[0] || null);
+      }).catch(() => {});
+    };
+    socket.on('applicationUpdated', handleApplicationUpdate);
+    return () => socket.off('applicationUpdated', handleApplicationUpdate);
   }, []);
 
   async function withdrawApplication() {

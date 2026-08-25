@@ -44,14 +44,14 @@ export default function RecruiterInvites() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFF8F2] text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>
+    <div className="portal-theme min-h-screen bg-[#FFF8F2] text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>
       <RecruiterNavbar />
 
-      <main className="recruiter-page mx-auto w-full max-w-4xl px-4 py-5 sm:px-6 sm:py-6">
-        <h1 className="text-2xl font-bold">Invites</h1>
-        <p className="mt-2 text-sm text-slate-600">Invites from other recruiters to join their team.</p>
+      <main className="recruiter-page mx-auto w-full max-w-4xl px-4 py-4 sm:px-6 sm:py-5">
+        <h1 className="text-xl font-bold">Invites</h1>
+        <p className="mt-1.5 text-xs text-slate-600">Invites from other recruiters to join their team.</p>
 
-        <section className="mt-6 rounded-2xl border bg-white p-6">
+        <section className="mt-4 rounded-lg border bg-white p-4">
           {loading ? (
             <div className="text-sm text-slate-500">Loading invites…</div>
           ) : invites.length === 0 ? (

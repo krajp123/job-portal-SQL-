@@ -140,7 +140,7 @@ body {
     margin: 0 auto;
     padding: 0.55rem 0.65rem 0.55rem 0.85rem;
     border: 1px solid #2b2326;
-    border-radius: 999px;
+    border-radius: 24px;
     background: rgba(255, 253, 251, 0.94);
     box-shadow: 0 14px 28px -24px rgba(139, 55, 88, 0.65);
     backdrop-filter: blur(14px);
@@ -564,13 +564,13 @@ body {
 
 .portal-card {
     border: 1px solid var(--portal-border);
-    border-radius: 12px;
+    border-radius: 8px;
     background: var(--portal-ivory);
     box-shadow: 0 18px 36px -28px rgba(29, 24, 26, 0.34);
 }
 
 .recruiter-page {
-    font-size: 0.92rem;
+    font-size: 0.9rem;
 }
 
 .recruiter-page > main,
@@ -766,6 +766,41 @@ body {
     background: rgba(247, 197, 107, 0.14);
     color: #ffe4a6;
     text-transform: capitalize;
+}
+
+@keyframes hired-badge-pulse {
+    0%, 100% {
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(62, 155, 93, 0.28);
+    }
+    50% {
+        opacity: 0.62;
+        box-shadow: 0 0 0 5px rgba(62, 155, 93, 0);
+    }
+}
+
+.hired-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: none;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #e7f8ec, #c9f0d4);
+    color: #18733a;
+    font-size: 0.8rem;
+    font-weight: 900;
+    letter-spacing: 0.02em;
+    animation: hired-badge-pulse 1.8s ease-in-out infinite;
+}
+
+.hired-status-badge svg {
+    color: #24924d;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hired-status-badge {
+        animation: none;
+    }
 }
 
 .candidate-dashboard-metrics {

@@ -1,4 +1,5 @@
 const Job = require('../models/Job');
+const Application = require('../models/Application');
 const JobReport = require('../models/JobReport');
 const HelpCenterReport = require('../models/HelpCenterReport');
 const Recruiter = require('../models/Recruiter');
@@ -102,6 +103,7 @@ exports.reviewHelpCenterReport = async (req, res) => {
   try {
     const { status, reviewNotes = '' } = req.body;
     if (!['pending', 'under_review', 'resolved', 'rejected'].includes(status)) return res.status(400).json({ error: 'Invalid support review status' });
+    if (typeof reviewNotes !== 'string') return res.status(400).json({ error: 'Review notes must be text.' });
     const report = await HelpCenterReport.findByIdAndUpdate(
       req.params.id,
       { status, reviewNotes: reviewNotes.trim(), reviewedBy: req.admin.id, reviewedAt: new Date() },
@@ -159,7 +161,12 @@ exports.reviewReport = async (req, res) => {
     ).lean();
     if (status === 'valid') {
       if (action === 'close_job') await Job.findByIdAndUpdate(report.job._id, { status: 'closed', adminClosed: true, moderationStatus: 'reviewed' });
-      if (action === 'remove_job') await Job.findByIdAndDelete(report.job._id);
+      if (action === 'remove_job') {
+        await Promise.all([
+          Job.findByIdAndDelete(report.job._id),
+          Application.deleteMany({ job: report.job._id }),
+        ]);
+      }
       if (action === 'suspend_recruiter') {
         await Recruiter.findByIdAndUpdate(report.job.postedBy, { accountStatus: 'suspended' });
         const recruiterJobs = await Job.find({ postedBy: report.job.postedBy, status: { $in: ['open', 'active'] } }).select('_id status').lean();

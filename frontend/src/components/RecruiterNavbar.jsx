@@ -5,6 +5,7 @@ import RecruiterProfileMenu from './RecruiterProfileMenu';
 import { FONT_DISPLAY } from '../theme';
 import axiosInstance from '../api/axiosInstance';
 import { fetchPlatformBranding, getCachedPlatformBranding } from '../api/platformBranding';
+import { connectSocket } from '../socket';
 
 const links = [
     { to: '/recruiter/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -24,35 +25,64 @@ function navClass(isActive) {
 export default function RecruiterNavbar() {
     const navigate = useNavigate();
     const [platformBranding, setPlatformBranding] = useState(getCachedPlatformBranding);
+    const [logoError, setLogoError] = useState(false);
+    const [brandingLoaded, setBrandingLoaded] = useState(() => {
+        const cached = getCachedPlatformBranding();
+        return Boolean(cached.siteName || cached.logo);
+    });
+    const [unreadMessages, setUnreadMessages] = useState(0);
+
+    useEffect(() => {
+        let mounted = true;
+        const loadUnreadMessages = async () => {
+            try {
+                const { data } = await axiosInstance.get('/messages/mine');
+                if (mounted) setUnreadMessages((data || []).reduce((total, conversation) => total + Number(conversation.unreadCount || 0), 0));
+            } catch {
+                // The message badge is non-critical.
+            }
+        };
+        loadUnreadMessages();
+        const socket = connectSocket();
+        const handleNewMessage = () => loadUnreadMessages();
+        socket.on('newMessage', handleNewMessage);
+        return () => {
+            mounted = false;
+            socket.off('newMessage', handleNewMessage);
+        };
+    }, []);
 
     useEffect(() => {
         let active = true;
         fetchPlatformBranding()
             .then((branding) => {
-                if (active) setPlatformBranding(branding);
+                if (active) {
+                    setPlatformBranding(branding);
+                    setBrandingLoaded(true);
+                }
             })
             .catch(() => {
-                // Keep the last cached branding when the endpoint is unavailable.
+                if (active) setBrandingLoaded(true);
             });
         return () => { active = false; };
     }, []);
 
-    const brandName = platformBranding.siteName;
+    const brandName = platformBranding.siteName || 'HireLoop';
 
     return (
-        <header className="sticky top-0 z-30 overflow-visible border-b border-[#EBC2AE] bg-[#FFFDFC]/95 backdrop-blur-md">
+        <header className="sticky top-0 z-50 overflow-visible border-b border-[#EBC2AE] bg-[#FFFDFC]/95 backdrop-blur-md">
             <div className="mx-auto flex w-full max-w-6xl items-center gap-3 overflow-visible px-4 py-2.5 sm:px-6">
                 <Link to="/recruiter/dashboard" className="flex min-w-[140px] shrink-0 items-center gap-2" aria-label={`${brandName || 'Platform'} recruiter dashboard`}>
-                    <span className={`flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl text-sm font-extrabold shadow-sm ${platformBranding.siteName || platformBranding.logo ? 'bg-gradient-to-br from-[#C75560] to-[#E7A24B] text-white' : 'animate-pulse bg-[#F3E5DE]'}`}>
-                        {platformBranding.logo ? (
-                            <img src={platformBranding.logo} alt={`${brandName} logo`} className="h-full w-full object-cover" />
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#C75560] to-[#E7A24B] text-sm font-extrabold text-white shadow-sm">
+                        {platformBranding.logo && !logoError ? (
+                            <img src={platformBranding.logo} alt={`${brandName} logo`} onError={() => setLogoError(true)} className="h-full w-full object-cover" />
                         ) : (
-                            brandName ? brandName.slice(0, 2).toUpperCase() : null
+                            brandingLoaded ? brandName.slice(0, 2).toUpperCase() : <BriefcaseBusiness size={19} />
                         )}
                     </span>
                     <span className="flex flex-col">
                         <span className="text-[17px] font-bold tracking-tight text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>
-                            {brandName || <span className="block h-3 w-24 animate-pulse bg-[#F3E5DE]" aria-label="Loading platform name" />}
+                            {brandName}
                         </span>
                         <span className="hidden text-[10px] font-semibold uppercase tracking-[0.12em] text-[#80576A] sm:block">Recruiter workspace</span>
                     </span>
@@ -75,7 +105,7 @@ export default function RecruiterNavbar() {
                         title="Message"
                         aria-label="Message"
                     >
-                        <MessageCircle size={15} className="text-[#C75560]" />
+                        <span className="relative"><MessageCircle size={15} className="text-[#C75560]" />{unreadMessages > 0 && <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#C75560] px-1 text-[9px] font-bold text-white">{unreadMessages > 9 ? '9+' : unreadMessages}</span>}</span>
                         <span className="hidden sm:inline">Message</span>
                     </button>
 

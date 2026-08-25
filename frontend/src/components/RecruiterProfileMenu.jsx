@@ -22,6 +22,7 @@ export default function RecruiterProfileMenu({ recruiterProfile: initialProfile 
   const [invites, setInvites] = useState([]);
   const [invitesLoading, setInvitesLoading] = useState(false);
   const [inviteCount, setInviteCount] = useState(0);
+  const [profileImageError, setProfileImageError] = useState(false);
   // Initialize with initialProfile if provided, otherwise null
   const [recruiterProfile, setRecruiterProfile] = useState(initialProfile || null);
   // Only show loading if we don't have initial data
@@ -114,15 +115,16 @@ export default function RecruiterProfileMenu({ recruiterProfile: initialProfile 
         aria-label="Open profile menu"
         className="relative inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2.5 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-50"
       >
-        {!profileLoading && profilePictureUrl ? (
+        {!profileLoading && profilePictureUrl && !profileImageError ? (
           <img
             src={profilePictureUrl}
             alt={`${displayName} profile`}
+            onError={() => setProfileImageError(true)}
             className="h-8 w-8 rounded-full object-cover ring-2 ring-white"
           />
-        ) : (
+        ) : !profileLoading ? (
           <Avatar name={displayName} size={32} ring />
-        )}
+        ) : null}
         {inviteCount > 0 && (
           <span className="absolute right-0 top-0 translate-x-1/2 -translate-y-1/4 inline-flex h-5 w-5 items-center justify-center rounded-full bg-rose-600 text-[11px] font-semibold text-white">
             {inviteCount}

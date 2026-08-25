@@ -30,6 +30,7 @@ import {
     PlayCircle,
 } from 'lucide-react';
 import axiosInstance from '../../api/axiosInstance';
+import { connectSocket } from '../../socket';
 import { useAuth } from '../../context/AuthContext';
 // import GamificationPanel from '../../components/GamificationPanel';
 import Avatar from '../../components/Avatar';
@@ -466,7 +467,11 @@ export default function Dashboard() {
 
     useEffect(() => {
         loadDashboard();
+        const socket = connectSocket();
+        const handleApplicationUpdate = () => loadDashboard();
+        socket.on('applicationUpdated', handleApplicationUpdate);
         // eslint-disable-next-line react-hooks/exhaustive-deps
+        return () => socket.off('applicationUpdated', handleApplicationUpdate);
     }, []);
 
     function handleLogout() {

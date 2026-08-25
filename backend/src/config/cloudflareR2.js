@@ -14,7 +14,7 @@ if (R2_ACCOUNT_ID && R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY) {
     },
   });
 } else {
-  console.warn('Cloudflare R2 is not fully configured. Offer letter uploads are disabled for local development.');
+  console.warn('Cloudflare R2 is not configured. Local filesystem upload fallback is enabled for development.');
 }
 
 const BUCKET_NAME = R2_BUCKET_NAME;

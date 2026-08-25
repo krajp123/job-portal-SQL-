@@ -333,7 +333,9 @@ exports.resumeContact = async (req, res) => {
 // GET /api/companies/top
 exports.topCompanies = async (req, res) => {
   try {
-    const jobs = await Job.find({ status: 'open' }).select('postedBy').populate('postedBy', 'companyName');
+    const jobs = await Job.find({ status: 'open' })
+      .select('postedBy')
+      .populate('postedBy', 'companyName companyType industry companySize location companyWebsite companyLogoUrl');
     const companies = new Map();
 
     for (const job of jobs) {
@@ -345,6 +347,12 @@ exports.topCompanies = async (req, res) => {
         _id: recruiter._id,
         name: recruiter.companyName || 'Company',
         openJobs: 0,
+        companyType: recruiter.companyType || '',
+        industry: recruiter.industry || '',
+        companySize: recruiter.companySize || '',
+        location: recruiter.location || '',
+        companyWebsite: recruiter.companyWebsite || '',
+        companyLogoUrl: recruiter.companyLogoUrl || '',
       };
 
       company.openJobs += 1;
@@ -433,6 +441,7 @@ exports.remove = async (req, res) => {
   try {
     const job = await Job.findOneAndDelete({ _id: req.params.id, postedBy: req.user.id });
     if (!job) return res.status(404).json({ error: 'Job not found' });
+    await Application.deleteMany({ job: job._id });
     res.json({ message: 'Job deleted successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });

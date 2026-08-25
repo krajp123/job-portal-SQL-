@@ -23,6 +23,7 @@ router.get('/:recruiterId/public-profile', recruiterController.getPublicProfile)
 router.get('/me/profile', verifyTokenAndStatus, requireRole('recruiter'), recruiterController.getMyProfile);
 router.get('/dashboard/overview', verifyTokenAndStatus, requireRole('recruiter'), recruiterController.getDashboardOverview);
 router.put('/me/profile', verifyTokenAndStatus, requireRole('recruiter'), recruiterController.updateMyProfile);
+router.post('/me/upload-company-image', verifyTokenAndStatus, requireRole('recruiter'), uploadProfilePicture.single('companyImage'), recruiterController.uploadCompanyImage);
 router.put('/me/settings/:section', verifyTokenAndStatus, requireRole('recruiter'), recruiterController.updateMySettings);
 router.get('/me/team', verifyTokenAndStatus, requireRole('recruiter'), recruiterController.listTeamMembers);
 router.post('/me/team/invite', verifyTokenAndStatus, requireRole('recruiter'), recruiterController.inviteTeamMember);

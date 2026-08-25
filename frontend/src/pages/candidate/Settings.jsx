@@ -459,6 +459,7 @@ function AccountTab({ user, profile, loadingProfile, onProfileUpdate }) {
             <div className="flex flex-col gap-2 sm:flex-row">
               <input
                 type="email"
+                autoComplete="off"
                 value={emailDraft}
                 onChange={(e) => setEmailDraft(e.target.value)}
                 className="flex-1 rounded-xl border border-stone-200 px-3.5 py-2.5 text-sm text-stone-900 focus:border-[#8B1E2F] focus:outline-none focus:ring-2 focus:ring-[#8B1E2F]/10"
@@ -1059,12 +1060,37 @@ function PreferencesTab({ profile, loadingProfile, onProfileUpdate }) {
 
 function DocumentsTab({ profile, loadingProfile, onProfileUpdate }) {
   const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [statusMessage, setStatusMessage] = useState('');
   const [error, setError] = useState('');
 
   const resumeUrl = profile?.profile?.resumeUrl || '';
-  const resumeName = resumeUrl ? decodeURIComponent(resumeUrl.split('/').pop()?.split('?')[0] || 'Resume.pdf') : '';
+  const resumeName = profile?.profile?.resumeFilename || (resumeUrl ? decodeURIComponent(resumeUrl.split('/').pop()?.split('?')[0] || 'Resume.pdf') : '');
+
+  async function handleResumeDelete() {
+    setDeleting(true);
+    setStatusMessage('');
+    setError('');
+
+    try {
+      const { data } = await axiosInstance.delete('/profile/resume');
+      const updatedCandidate = data.candidate || data;
+      if (typeof onProfileUpdate === 'function') {
+        onProfileUpdate(updatedCandidate);
+      }
+      setStatusMessage('Resume removed successfully.');
+    } catch (err) {
+      setError(err?.response?.data?.error || 'Failed to remove resume.');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  function closeDeleteConfirmation() {
+    if (!deleting) setDeleteConfirmOpen(false);
+  }
 
   async function handleResumeUpload(event) {
     const file = event.target.files?.[0];
@@ -1126,14 +1152,26 @@ function DocumentsTab({ profile, loadingProfile, onProfileUpdate }) {
                 <p className="text-sm text-stone-500">Uploaded resume on your profile</p>
               </div>
             </div>
-            <a
-              href={resumeUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-3 py-2 text-[13px] font-semibold text-stone-700 transition hover:bg-stone-50"
-            >
-              <Download size={14} /> Download
-            </a>
+            <div className="flex items-center gap-2">
+              <a
+                href={resumeUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-3 py-2 text-[13px] font-semibold text-stone-700 transition hover:bg-stone-50"
+              >
+                <Download size={14} /> Download
+              </a>
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmOpen(true)}
+                disabled={deleting}
+                aria-label="Delete resume"
+                title="Delete resume"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#F5C2C7] bg-white text-[#B3261E] transition hover:bg-[#FFF0F0] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+              </button>
+            </div>
           </div>
         ) : (
           <p className="rounded-xl border border-dashed border-stone-200 px-4 py-6 text-center text-sm text-stone-500">
@@ -1162,6 +1200,57 @@ function DocumentsTab({ profile, loadingProfile, onProfileUpdate }) {
           </div>
         )}
       </div>
+      {deleteConfirmOpen && (
+        <ModalPortal onClose={closeDeleteConfirmation}>
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/50 p-4 backdrop-blur-[2px]"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) closeDeleteConfirmation();
+            }}
+          >
+            <div className="w-full max-w-sm rounded-2xl border border-stone-200 bg-white p-6 shadow-2xl">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-bold text-stone-900" style={{ fontFamily: FONT_DISPLAY }}>Remove resume?</h2>
+                  <p className="mt-2 text-sm leading-6 text-stone-500">
+                    This will remove <span className="font-semibold text-stone-700">{resumeName}</span> from your profile.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeDeleteConfirmation}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full text-stone-400 transition hover:bg-stone-100 hover:text-stone-700"
+                  aria-label="Close confirmation"
+                >
+                  <X size={17} />
+                </button>
+              </div>
+              <div className="mt-6 flex justify-end gap-2 border-t border-stone-100 pt-5">
+                <button
+                  type="button"
+                  onClick={closeDeleteConfirmation}
+                  disabled={deleting}
+                  className="rounded-lg border border-stone-200 px-4 py-2.5 text-sm font-semibold text-stone-600 transition hover:bg-stone-50 disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await handleResumeDelete();
+                    setDeleteConfirmOpen(false);
+                  }}
+                  disabled={deleting}
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#B3261E] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#941F18] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {deleting && <Loader2 size={14} className="animate-spin" />}
+                  {deleting ? 'Removing…' : 'Remove resume'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
     </SettingsCard>
   );
 }
@@ -1422,6 +1511,7 @@ export default function Settings() {
   const [profile, setProfile] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [profileError, setProfileError] = useState('');
+  const [profileImageError, setProfileImageError] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -1469,6 +1559,7 @@ export default function Settings() {
     .slice(0, 2)
     .map((s) => s[0]?.toUpperCase())
     .join('');
+  const profilePictureUrl = profile?.profile?.profilePictureUrl || profile?.profilePictureUrl;
 
   return (
     <div className="portal-theme min-h-[100dvh] w-full overflow-x-clip" style={{ background: PAGE_BG, fontFamily: FONT_BODY }}>
@@ -1504,16 +1595,37 @@ export default function Settings() {
             </p>
           </div>
           <div className="flex items-center gap-3 rounded-xl border border-stone-200/70 bg-white px-4 py-3" style={{ boxShadow: RAIL_SHADOW }}>
-            <div
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
-              style={{ background: `linear-gradient(135deg, ${MAROON}, ${MAROON_DEEP})` }}
-            >
-              {initials || <User size={16} />}
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-stone-900">{profile?.name || user?.name || 'Your profile'}</p>
-              <p className="truncate text-[12px] text-stone-500">{profile?.email || user?.email || 'you@example.com'}</p>
-            </div>
+            {loadingProfile ? (
+              <div className="flex w-[210px] items-center gap-3 animate-pulse">
+                <div className="h-10 w-10 shrink-0 rounded-full bg-stone-200" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="h-3 w-24 rounded bg-stone-200" />
+                  <div className="h-2.5 w-36 rounded bg-stone-100" />
+                </div>
+              </div>
+            ) : (
+              <>
+                <div
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+                  style={{ background: `linear-gradient(135deg, ${MAROON}, ${MAROON_DEEP})` }}
+                >
+                  {profilePictureUrl && !profileImageError ? (
+                    <img
+                      src={profilePictureUrl}
+                      alt="Profile"
+                      onError={() => setProfileImageError(true)}
+                      className="h-10 w-10 rounded-full object-cover"
+                    />
+                  ) : (
+                    initials || <User size={16} />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-stone-900">{profile?.name || user?.name || 'Your profile'}</p>
+                  <p className="truncate text-[12px] text-stone-500">{profile?.email || user?.email || 'Email unavailable'}</p>
+                </div>
+              </>
+            )}
           </div>
         </div>
 

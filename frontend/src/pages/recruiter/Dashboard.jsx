@@ -4,6 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import RecruiterProfileMenu from "../../components/RecruiterProfileMenu";
 import NotificationCenter from "../../components/NotificationCenter";
 import axiosInstance from "../../api/axiosInstance";
+import { connectSocket } from "../../socket";
 import { fetchPlatformBranding, getCachedPlatformBranding } from "../../api/platformBranding";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -402,7 +403,7 @@ const STATUS_STYLES = {
 
 const GlassCard = ({ className = "", children, ...props }) => (
   <div
-    className={`rounded-xl border backdrop-blur-xl shadow-[0_20px_44px_-32px_rgba(29,24,26,0.24)] ${className}`}
+    className={`rounded-lg border backdrop-blur-xl shadow-[0_16px_34px_-28px_rgba(29,24,26,0.24)] ${className}`}
     style={{ background: IVORY, borderColor: LIGHT_BORDER }}
     {...props}
   >
@@ -416,7 +417,7 @@ const Avatar = ({
   tone = "from-[#C75560] to-[#F7C56B]",
 }) => (
   <div
-    className={`${size} shrink-0 rounded-2xl bg-gradient-to-br ${tone} flex items-center justify-center text-white text-xs font-bold shadow-md shadow-slate-200/50`}
+    className={`${size} shrink-0 rounded-lg bg-gradient-to-br ${tone} flex items-center justify-center text-[11px] font-bold shadow-md shadow-slate-200/50`}
   >
     {initials}
   </div>
@@ -424,7 +425,7 @@ const Avatar = ({
 
 const Pill = ({ children, className = "" }) => (
   <span
-    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${className}`}
+    className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium ${className}`}
   >
     {children}
   </span>
@@ -963,7 +964,10 @@ function TopSectionNav({ active, setActive, recruiterProfile }) {
       navigate('/recruiters');
       return;
     }
-    if (key === "company") return;
+    if (key === "company") {
+      navigate('/recruiter/company-profile');
+      return;
+    }
     const el = document.getElementById(`section-${key}`);
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1158,6 +1162,10 @@ function StatsGrid() {
     }
 
     loadStats();
+    const socket = connectSocket();
+    const handleApplicationUpdate = () => loadStats();
+    socket.on("applicationUpdated", handleApplicationUpdate);
+    return () => socket.off("applicationUpdated", handleApplicationUpdate);
   }, []);
 
   const updateEdges = () => {
@@ -1250,9 +1258,9 @@ function StatsGrid() {
         <ChevronRight size={18} />
       </button>
 
-      <div className="border border-slate-200 rounded-[28px] bg-white shadow-sm p-4">
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-sm font-semibold text-slate-800">
+      <div className="border border-slate-200 rounded-lg bg-white shadow-sm p-3">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-semibold text-slate-800">
             Dashboard stats
           </p>
           {statsLoading ? null : statsError ? (
@@ -1309,10 +1317,10 @@ function StatsGrid() {
                       </div>
                       <SignalRing value={s.ring} size={34} stroke={4} />
                     </div>
-                    <p className="text-2xl font-bold text-slate-900 mt-3">
+                    <p className="text-xl font-bold text-slate-900 mt-2">
                       {s.value}
                     </p>
-                    <p className="text-xs text-slate-500">{s.label}</p>
+                    <p className="text-[11px] text-slate-500">{s.label}</p>
                     <p
                       className={`text-xs font-medium mt-1.5 inline-flex items-center gap-1 ${s.up ? "text-emerald-600" : "text-rose-500"}`}
                     >
@@ -2178,9 +2186,9 @@ function ActiveJobs({ onJobsLoaded } = {}) {
 
   return (
     <>
-      <GlassCard className="p-5">
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-sm font-semibold text-slate-800">Active jobs</p>
+      <GlassCard className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-semibold text-slate-800">Active jobs</p>
           <a
             href="/recruiter/jobs"
             className="text-xs font-medium text-[#C75560] flex items-center gap-1 hover:gap-1.5 transition-all"
@@ -2277,7 +2285,7 @@ function ActiveJobs({ onJobsLoaded } = {}) {
                     onClick={() => openDetail(job)}
                     role="button"
                     tabIndex={0}
-                    className="shrink-0 w-[85%] xs:w-[70%] sm:w-[52%] md:w-[38%] lg:w-[31%] cursor-pointer rounded-2xl ring-1 ring-slate-200 p-4 hover:ring-[#C75560]/20 hover:shadow-sm transition-all"
+                    className="shrink-0 w-[85%] xs:w-[70%] sm:w-[52%] md:w-[38%] lg:w-[31%] cursor-pointer rounded-lg ring-1 ring-slate-200 p-3 hover:ring-[#C75560]/20 hover:shadow-sm transition-all"
                     style={{ scrollSnapAlign: "start" }}
                   >
                     <div className="flex items-start justify-between">
@@ -2430,6 +2438,9 @@ function RecentApplications({ onApplicationsLoaded }) {
     }
 
     loadApplications();
+    const socket = connectSocket();
+    const handleApplicationUpdate = () => loadApplications();
+    socket.on("applicationUpdated", handleApplicationUpdate);
 
     // Status changes (e.g. shortlisting a candidate) happen on the separate
     // /recruiter/applicants page. If that page was opened in another tab, or
@@ -2442,6 +2453,7 @@ function RecentApplications({ onApplicationsLoaded }) {
     window.addEventListener("focus", handleRefetch);
     document.addEventListener("visibilitychange", handleRefetch);
     return () => {
+      socket.off("applicationUpdated", handleApplicationUpdate);
       window.removeEventListener("focus", handleRefetch);
       document.removeEventListener("visibilitychange", handleRefetch);
     };
@@ -2461,9 +2473,9 @@ function RecentApplications({ onApplicationsLoaded }) {
   };
 
   return (
-    <GlassCard className="p-5 overflow-hidden">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-        <p className="text-sm font-semibold text-slate-800">
+    <GlassCard className="p-4 overflow-hidden">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
+        <p className="text-xs font-semibold text-slate-800">
           Recent applications
         </p>
         <button
@@ -2525,7 +2537,7 @@ function RecentApplications({ onApplicationsLoaded }) {
                       <td className="py-3 pr-4">
                         <div className="flex items-center gap-3">
                           {profilePictureUrl ? (
-                            <img src={profilePictureUrl} alt={candidate.name} className="h-9 w-9 rounded-2xl object-cover" />
+                            <img src={profilePictureUrl} alt={candidate.name} className="h-8 w-8 rounded-lg object-cover" />
                           ) : (
                             <Avatar initials={initials} size="h-9 w-9" />
                           )}
@@ -2600,12 +2612,12 @@ function RecentApplications({ onApplicationsLoaded }) {
               return (
                 <div
                   key={app._id}
-                  className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm"
+                  className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       {profilePictureUrl ? (
-                        <img src={profilePictureUrl} alt={candidate.name} className="h-10 w-10 rounded-2xl object-cover" />
+                        <img src={profilePictureUrl} alt={candidate.name} className="h-9 w-9 rounded-lg object-cover" />
                       ) : (
                         <Avatar initials={initials} size="h-10 w-10" />
                       )}
@@ -2754,20 +2766,20 @@ function PipelineKanban({ applications = [] }) {
   };
 
   return (
-    <GlassCard className="p-5">
-      <p className="text-sm font-semibold text-slate-800 mb-4">
+    <GlassCard className="p-4">
+      <p className="text-xs font-semibold text-slate-800 mb-3">
         Candidate pipeline
       </p>
 
       {/* Stage tab navbar */}
-      <div className="flex flex-wrap items-center gap-1 rounded-2xl bg-slate-50 p-1.5 ring-1 ring-slate-100 mb-4 overflow-x-auto">
+      <div className="flex flex-wrap items-center gap-1 rounded-lg bg-slate-50 p-1 ring-1 ring-slate-100 mb-3 overflow-x-auto">
         {stages.map((stage) => {
           const isActive = activeStage === stage;
           return (
             <button
               key={stage}
               onClick={() => handleStageClick(stage)}
-              className={`relative shrink-0 flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-medium transition-colors
+              className={`relative shrink-0 flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] sm:text-xs font-medium transition-colors
                 ${isActive ? activeTone[stage] : "text-slate-500 hover:text-slate-800"}`}
             >
               {isActive && (
@@ -2857,12 +2869,12 @@ function PipelineKanban({ applications = [] }) {
                         className="rounded-xl ring-1 ring-slate-200 bg-white p-3 flex items-center gap-3 cursor-pointer shadow-sm"
                       >
                         {profilePictureUrl ? (
-                          <img src={profilePictureUrl} alt={name} className="h-10 w-10 rounded-2xl object-cover shrink-0" />
+                          <img src={profilePictureUrl} alt={name} className="h-9 w-9 rounded-lg object-cover shrink-0" />
                         ) : (
                           <Avatar initials={initials} size="h-10 w-10" />
                         )}
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-800 truncate">
+                          <p className="text-xs font-semibold text-slate-800 truncate">
                             {name}
                           </p>
                           <p className="text-xs text-slate-500 truncate">
@@ -2924,8 +2936,8 @@ function PipelineKanban({ applications = [] }) {
 function RecentActivity({ feed = [] }) {
   const items = feed.slice(0, 5);
   return (
-    <GlassCard className="p-5">
-      <p className="text-sm font-semibold text-slate-800 mb-4">
+    <GlassCard className="p-4">
+      <p className="text-xs font-semibold text-slate-800 mb-3">
         Recent activity
       </p>
       {items.length === 0 ? (
@@ -2940,7 +2952,7 @@ function RecentActivity({ feed = [] }) {
                 <a.icon size={13} className="text-[#C75560]" />
               </div>
               <div>
-                <p className="text-sm text-slate-700">{a.text}</p>
+                <p className="text-xs text-slate-700">{a.text}</p>
                 <p className="text-xs text-slate-400">
                   {postedAgo(a.timestamp)}
                 </p>
@@ -2959,10 +2971,10 @@ function ResumeDownloadsPanel({ downloads = [], loading, error, onRefresh, onDow
   const hasMore = downloads.length > 2;
 
   return (
-    <GlassCard className="mb-5 p-5">
-      <div className="mb-4 flex items-center justify-between gap-3">
+    <GlassCard className="mb-4 p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-slate-800">Downloaded Resumes</p>
+          <p className="text-xs font-semibold text-slate-800">Downloaded Resumes</p>
         </div>
         <button
           type="button"
@@ -2992,7 +3004,7 @@ function ResumeDownloadsPanel({ downloads = [], loading, error, onRefresh, onDow
             {visibleDownloads.map((item) => (
               <div
                 key={item.id}
-                className="rounded-2xl border border-slate-200 bg-white p-3"
+                className="rounded-lg border border-slate-200 bg-white p-3"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">

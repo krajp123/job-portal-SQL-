@@ -79,6 +79,11 @@ export default function Messages() {
     const scrollRef = useRef(null);
     const threadRequestRef = useRef(0);
     const sendingRef = useRef(false);
+    const activeIdRef = useRef(null);
+
+    useEffect(() => {
+        activeIdRef.current = activeId;
+    }, [activeId]);
 
     async function loadConversations() {
         setLoadingConvos(true);
@@ -125,6 +130,7 @@ export default function Messages() {
             // If the incoming message belongs to the open thread, append it live
             setActiveId((current) => {
                 if (current && String(msg.recruiter) === String(current)) {
+                    setCandidateRepliesEnabled(true);
                     setThread((prev) => prev.some((message) => String(message._id) === String(msg._id)) ? prev : [...prev, msg]);
                     axiosInstance.patch(`/messages/${current}/read`).catch(() => {});
                     loadConversations().then(() => {
@@ -139,8 +145,19 @@ export default function Messages() {
             });
         }
         socket.on('newMessage', handleNewMessage);
+        function handleMessageNotification(notification) {
+            if (notification?.type !== 'message' || !notification.relatedId) return;
+            loadConversations();
+            if (String(activeIdRef.current) === String(notification.relatedId)) {
+                axiosInstance.get(`/messages/${notification.relatedId}`)
+                    .then(({ data }) => setThread(data || []))
+                    .catch(() => {});
+            }
+        }
+        socket.on('notification', handleMessageNotification);
         return () => {
             socket.off('newMessage', handleNewMessage);
+            socket.off('notification', handleMessageNotification);
         };
     }, []);
 
@@ -235,7 +252,7 @@ export default function Messages() {
 
     return (
         <div className="portal-theme flex min-h-[100dvh] w-full flex-col overflow-x-hidden bg-[#FFF7F2]" style={{ fontFamily: FONT_BODY }}>
-            <CandidateNavbar />
+            <CandidateNavbar hideMobileLinks />
             <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-5 sm:px-6">
                 <div className="mb-4">
                     <h1 className="text-2xl font-bold text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>Messages</h1>

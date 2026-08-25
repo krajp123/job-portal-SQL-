@@ -9,6 +9,7 @@ import { fetchPlatformBranding, getCachedPlatformBranding } from '../api/platfor
 import { FONT_DISPLAY, MAROON } from '../theme';
 import NotificationCenter from './NotificationCenter';
 import Avatar from './Avatar';
+import { connectSocket } from '../socket';
 
 const NAV_FRAME = 'max-w-[960px]';
 
@@ -25,18 +26,39 @@ function navigationClass(isActive) {
     }`;
 }
 
-export default function CandidateNavbar({ profile, onOpenAccountMenu }) {
+export default function CandidateNavbar({ profile, onOpenAccountMenu, hideMobileLinks = false }) {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const [accountOpen, setAccountOpen] = useState(false);
     const [menuOpenSlide, setMenuOpenSlide] = useState(false);
     const [jobsDropdownOpen, setJobsDropdownOpen] = useState(false);
+    const [unreadMessages, setUnreadMessages] = useState(0);
     const accountMenuRef = useRef(null);
     const jobsDropdownRef = useRef(null);
 
     const [resolvedProfile, setResolvedProfile] = useState(profile || null);
     const [platformBranding, setPlatformBranding] = useState(getCachedPlatformBranding);
     const profileFetchAttempted = useRef(false);
+
+    useEffect(() => {
+        let mounted = true;
+        const loadUnreadMessages = async () => {
+            try {
+                const { data } = await axiosInstance.get('/messages/mine');
+                if (mounted) setUnreadMessages((data || []).reduce((total, conversation) => total + Number(conversation.unreadCount || 0), 0));
+            } catch {
+                // The message badge is non-critical and can retry on the next event.
+            }
+        };
+        loadUnreadMessages();
+        const socket = connectSocket();
+        const handleNewMessage = () => loadUnreadMessages();
+        socket.on('newMessage', handleNewMessage);
+        return () => {
+            mounted = false;
+            socket.off('newMessage', handleNewMessage);
+        };
+    }, []);
 
     useEffect(() => {
         let mounted = true;
@@ -304,8 +326,9 @@ export default function CandidateNavbar({ profile, onOpenAccountMenu }) {
                 </nav>
                 <div className="candidate-page-nav-actions">
                     <NotificationCenter className="candidate-page-nav-icon" />
-                    <Link to="/candidate/messages" aria-label="Messages" title="Messages" className="candidate-page-nav-icon lg:hidden">
+                    <Link to="/candidate/messages" aria-label="Messages" title="Messages" className="candidate-page-nav-icon relative lg:hidden">
                         <MessageCircle size={16} />
+                        {unreadMessages > 0 && <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#C75560] px-1 text-[9px] font-bold text-white">{unreadMessages > 9 ? '9+' : unreadMessages}</span>}
                     </Link>
 
                     <div ref={accountMenuRef} className="relative">
@@ -348,16 +371,18 @@ export default function CandidateNavbar({ profile, onOpenAccountMenu }) {
                 </div>
             </div>
 
-            <nav className={`candidate-page-mobile-links mx-auto flex items-center gap-1 lg:hidden ${NAV_FRAME}`} aria-label="Candidate mobile navigation">
-                <NavLink to="/candidate/dashboard" end className={({ isActive }) => navigationClass(isActive)}>
-                    Home
-                </NavLink>
-                <NavLink to="/candidate/jobs" className={({ isActive }) => navigationClass(isActive)}>
-                    Jobs
-                </NavLink>
-                <NavLink to="/candidate/messages" className={({ isActive }) => navigationClass(isActive)}>Messages</NavLink>
-                <NavLink to="/candidate/resume-match" className={({ isActive }) => navigationClass(isActive)}><Bot size={14} /></NavLink>
-            </nav>
+            {!hideMobileLinks && (
+                <nav className={`candidate-page-mobile-links mx-auto flex items-center gap-1 lg:hidden ${NAV_FRAME}`} aria-label="Candidate mobile navigation">
+                    <NavLink to="/candidate/dashboard" end className={({ isActive }) => navigationClass(isActive)}>
+                        Home
+                    </NavLink>
+                    <NavLink to="/candidate/jobs" className={({ isActive }) => navigationClass(isActive)}>
+                        Jobs
+                    </NavLink>
+                    <NavLink to="/candidate/messages" className={({ isActive }) => navigationClass(isActive)}>Messages</NavLink>
+                    <NavLink to="/candidate/resume-match" className={({ isActive }) => navigationClass(isActive)}><Bot size={14} /></NavLink>
+                </nav>
+            )}
         </header>
     );
 }

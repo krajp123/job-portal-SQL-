@@ -293,7 +293,8 @@ const TRENDING_BY_PERSONA = {
     recruiter: ['How do I create a recruiter account?', 'How do I post a job?', 'How do I manage applicants?', 'How do I download a candidate resume?'],
 };
 
-const CONCERN_OPTIONS = ['Account', 'Billing & payments', 'Job posting', 'Application / profile', 'Report abuse', 'Other'];
+const CANDIDATE_CONCERN_OPTIONS = ['Account', 'Job search', 'Application / profile', 'Resume & documents', 'Report abuse', 'Other'];
+const RECRUITER_CONCERN_OPTIONS = ['Account', 'Billing & payments', 'Job posting', 'Applicants & hiring', 'Team & access', 'Report abuse', 'Other'];
 
 /* ------------------------------------------------------------------ */
 /*  Persona toggle — keeps Recruiter and Job Seekers content separate, */
@@ -691,6 +692,7 @@ function NoTopicSelectedHint() {
 
 function ContactSection() {
     const { user } = useAuth();
+    const CONCERN_OPTIONS = user?.role === 'recruiter' ? RECRUITER_CONCERN_OPTIONS : CANDIDATE_CONCERN_OPTIONS;
     const [form, setForm] = useState({ name: '', email: '', phone: '', concern: '', message: '' });
     const [submitted, setSubmitted] = useState(false);
     const [submitting, setSubmitting] = useState(false);

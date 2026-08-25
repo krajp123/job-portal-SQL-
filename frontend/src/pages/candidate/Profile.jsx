@@ -3163,6 +3163,11 @@ export default function Profile() {
                                             <h1 className="truncate text-[24px] font-bold text-stone-900" style={{ fontFamily: FONT_DISPLAY }}>
                                                 {profile?.name || 'Candidate'}
                                             </h1>
+                                            {profile?.hiredBadge?.isHired && (
+                                                <span className="hired-status-badge shrink-0 px-3.5 py-1.5" title="Visible for 30 days after signed offer confirmation">
+                                                    <Award size={16} /> Hired
+                                                </span>
+                                            )}
                                             <button
                                                 onClick={openBasicInfoModal}
                                                 aria-label="Edit profile info"

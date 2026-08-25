@@ -14,6 +14,7 @@ import {
   Languages as LanguagesIcon,
   Loader2,
   ExternalLink,
+  Upload,
   Mail,
   MessageCircle,
   RotateCcw,
@@ -27,6 +28,7 @@ import {
 import axiosInstance from '../../api/axiosInstance';
 import RecruiterNavbar from '../../components/RecruiterNavbar';
 import { FONT_DISPLAY } from '../../theme';
+import { connectSocket } from '../../socket';
 
 // lucide-react's newer versions dropped brand/logo icons (Github, Twitter, etc.)
 // from the package, so this one is a small inline SVG instead of an import.
@@ -144,6 +146,12 @@ function timeAgo(dateStr) {
   if (days === 1) return 'Yesterday';
   if (days < 7) return `${days} days ago`;
   return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
+
+function hasActiveHiredBadge(candidate) {
+  const confirmedAt = candidate?.hiredBadge?.confirmedAt;
+  if (!candidate?.hiredBadge?.isHired || !confirmedAt) return false;
+  return Date.now() - new Date(confirmedAt).getTime() < 30 * 24 * 60 * 60 * 1000;
 }
 
 function getCandidateField(candidate, field) {
@@ -401,6 +409,15 @@ export default function Applicants() {
   const [offerFile, setOfferFile] = useState(null);
   const [offerError, setOfferError] = useState('');
   const [offerUploading, setOfferUploading] = useState(false);
+  const [confirmationCandidate, setConfirmationCandidate] = useState(null);
+  const [confirmationFile, setConfirmationFile] = useState(null);
+  const [confirmationError, setConfirmationError] = useState('');
+  const [confirmationUploading, setConfirmationUploading] = useState(false);
+  const [emailCandidate, setEmailCandidate] = useState(null);
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [emailSending, setEmailSending] = useState(false);
   const [downloadLoadingId, setDownloadLoadingId] = useState('');
   const [resumePaymentModalOpen, setResumePaymentModalOpen] = useState(false);
   const [resumePaymentCandidate, setResumePaymentCandidate] = useState(null);
@@ -424,6 +441,17 @@ export default function Applicants() {
         window.clearTimeout(toastTimerRef.current);
       }
     };
+  }, []);
+
+  useEffect(() => {
+    const socket = connectSocket();
+    const handleApplicationUpdate = () => {
+      axiosInstance.get('/applications/recruiter')
+        .then(({ data }) => setApplicants(data || []))
+        .catch(() => {});
+    };
+    socket.on('applicationUpdated', handleApplicationUpdate);
+    return () => socket.off('applicationUpdated', handleApplicationUpdate);
   }, []);
 
   useEffect(() => {
@@ -823,6 +851,48 @@ export default function Applicants() {
     openOfferModal(application);
   }
 
+  function openConfirmationModal(application) {
+    setConfirmationCandidate(application);
+    setConfirmationFile(null);
+    setConfirmationError('');
+  }
+
+  function closeConfirmationModal() {
+    setConfirmationCandidate(null);
+    setConfirmationFile(null);
+    setConfirmationError('');
+  }
+
+  async function submitConfirmation() {
+    if (!confirmationCandidate?.offerLetter?._id) {
+      setConfirmationError('Send the offer letter before uploading confirmation.');
+      return;
+    }
+    if (!confirmationFile) {
+      setConfirmationError('Please select the signed confirmation file first.');
+      return;
+    }
+
+    setConfirmationUploading(true);
+    setConfirmationError('');
+    try {
+      const formData = new FormData();
+      formData.append('file', confirmationFile);
+      await axiosInstance.post(`/applications/offer-letters/${confirmationCandidate.offerLetter._id}/signed`, formData);
+      showToast('Confirmation uploaded and candidate marked hired.');
+      setApplicants((prev) => prev.map((app) => (
+        app._id === confirmationCandidate._id
+          ? { ...app, status: 'hired', offerLetter: { ...app.offerLetter, signedAcceptanceUrl: true } }
+          : app
+      )));
+      closeConfirmationModal();
+    } catch (requestError) {
+      setConfirmationError(requestError.response?.data?.error || 'Failed to upload confirmation.');
+    } finally {
+      setConfirmationUploading(false);
+    }
+  }
+
   // Rejections aren't final — a recruiter can walk one back into the "reviewed"
   // stage if it was a mistake or the candidate should be reconsidered.
   function reopenApplication(application) {
@@ -839,6 +909,38 @@ export default function Applicants() {
       window.clearTimeout(toastTimerRef.current);
     }
     toastTimerRef.current = window.setTimeout(() => setToastMessage(''), 2800);
+  }
+
+  function openEmailComposer(application) {
+    setEmailCandidate(application);
+    setEmailSubject(`Regarding your application for ${application.job?.title || 'the role'}`);
+    setEmailBody('');
+    setEmailError('');
+  }
+
+  function closeEmailComposer() {
+    setEmailCandidate(null);
+    setEmailSubject('');
+    setEmailBody('');
+    setEmailError('');
+  }
+
+  async function submitCandidateEmail() {
+    if (!emailCandidate || !emailSubject.trim() || !emailBody.trim()) {
+      setEmailError('Subject and message are required.');
+      return;
+    }
+    setEmailSending(true);
+    setEmailError('');
+    try {
+      await axiosInstance.post(`/applications/${emailCandidate._id}/email`, { subject: emailSubject, body: emailBody });
+      showToast('Email sent successfully.');
+      closeEmailComposer();
+    } catch (requestError) {
+      setEmailError(requestError.response?.data?.error || 'Failed to send email.');
+    } finally {
+      setEmailSending(false);
+    }
   }
 
   function closeInterviewModal() {
@@ -917,7 +1019,9 @@ export default function Applicants() {
 
       if (data.offerLetter) {
         setApplicants((prev) =>
-          prev.map((app) => (app._id === offerCandidate._id ? { ...app, status: STATUS_VALUE_FOR_KEY.selected, updatedAt: new Date().toISOString() } : app))
+          prev.map((app) => (app._id === offerCandidate._id
+            ? { ...app, status: STATUS_VALUE_FOR_KEY.selected, offerLetter: data.offerLetter, updatedAt: new Date().toISOString() }
+            : app))
         );
       }
     } catch (requestError) {
@@ -933,7 +1037,7 @@ export default function Applicants() {
       <RecruiterNavbar />
       <main className="recruiter-page mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-5">
         {/* Header + job switcher + KPI strip + search/filters: sticky, stays fixed while the list below scrolls with the page */}
-        <div className="sticky top-0 z-30 -mx-5 bg-[#FFF9F5] px-5 pb-4 sm:-mx-8 sm:px-8">
+        <div className="sticky top-0 z-20 -mx-5 bg-[#FFF9F5] px-5 pb-4 sm:-mx-8 sm:px-8">
           <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#C75560]">Recruiter workspace</p>
@@ -1047,6 +1151,7 @@ export default function Applicants() {
                   const experienceYears = getCandidateExperienceYears(c);
                   const skillsArray = getCandidateArray(c, 'skills');
                   const jobTitle = app.job?.title || 'Unknown Job';
+                  const hiredBadgeActive = hasActiveHiredBadge(c);
                   return (
                     <div
                       key={app._id}
@@ -1073,7 +1178,10 @@ export default function Applicants() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
-                          <h3 className="truncate text-[14px] font-bold text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>{name}</h3>
+                          <div className="flex min-w-0 items-center gap-2">
+                            <h3 className="truncate text-[14px] font-bold text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>{name}</h3>
+                            {hiredBadgeActive && <span className="hired-status-badge shrink-0 px-2.5 py-1 text-[11px]"><Award size={13} /> Hired</span>}
+                          </div>
                           {matchScore != null && (
                             <span className="shrink-0 text-[11px] font-bold text-[#C75560]">{matchScore}% Match</span>
                           )}
@@ -1118,6 +1226,8 @@ export default function Applicants() {
                     onScheduleInterview={() => openInterviewModal(selectedApplicant)}
                     onShortlist={() => shortlistApplication(selectedApplicant)}
                     onSendOffer={() => sendOffer(selectedApplicant)}
+                    onEmailCandidate={() => openEmailComposer(selectedApplicant)}
+                    onUploadConfirmation={() => openConfirmationModal(selectedApplicant)}
                     onReject={() => updateApplicationStatus(selectedApplicant._id, STATUS_VALUE_FOR_KEY.rejected)}
                     onReopen={() => reopenApplication(selectedApplicant)}
                     onClose={() => {
@@ -1259,6 +1369,73 @@ export default function Applicants() {
         </div>
       )}
 
+      {confirmationCandidate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6 sm:px-6">
+          <div className="w-full max-w-xl rounded-[18px] bg-[#FFF9F5] p-6 shadow-2xl ring-1 ring-black/10">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#C75560]">Offer confirmation</p>
+                <h2 className="mt-2 text-2xl font-bold text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>Upload confirmation</h2>
+                <p className="mt-2 text-sm text-[#80576A]">
+                  Upload the signed offer confirmation from <strong>{confirmationCandidate.candidate?.name || 'this candidate'}</strong>.
+                </p>
+              </div>
+              <button type="button" onClick={closeConfirmationModal} className="rounded-full border border-[#EBC2AE] bg-white p-2 text-[#54263F]" aria-label="Close confirmation modal">
+                <X size={18} />
+              </button>
+            </div>
+            <label className="block text-[13px] font-semibold text-[#54263F]">
+              Signed confirmation file
+              <input
+                type="file"
+                accept="application/pdf,image/jpeg,image/png"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (!file) return;
+                  setConfirmationFile(file);
+                  setConfirmationError('');
+                }}
+                className="mt-2 w-full rounded-[12px] border border-[#EBC2AE] bg-white px-3 py-2 text-sm text-[#1D181A] outline-none"
+              />
+            </label>
+            {confirmationFile && <p className="mt-3 rounded-lg border border-[#EBC2AE] bg-white px-4 py-3 text-sm text-[#54263F]">Selected file: <strong>{confirmationFile.name}</strong></p>}
+            {confirmationError && <p className="mt-4 rounded-lg border border-[#E9B6AF] bg-[#FFF0EE] px-3 py-2 text-[12px] font-medium text-[#B3261E]">{confirmationError}</p>}
+            <div className="mt-6 flex justify-end gap-3">
+              <button type="button" onClick={closeConfirmationModal} className="rounded-full border border-[#EBC2AE] bg-white px-4 py-2 text-sm font-semibold text-[#54263F]">Cancel</button>
+              <button type="button" onClick={submitConfirmation} disabled={confirmationUploading} className="rounded-full bg-[#C75560] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                {confirmationUploading ? 'Uploading…' : 'Upload confirmation'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {emailCandidate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6 sm:px-6">
+          <div className="w-full max-w-xl rounded-[18px] bg-[#FFF9F5] p-6 shadow-2xl ring-1 ring-black/10">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#C75560]">Candidate email</p>
+                <h2 className="mt-2 text-2xl font-bold text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>Email Candidate</h2>
+                <p className="mt-2 text-sm text-[#80576A]">Send a message to <strong>{emailCandidate.candidate?.name || 'this candidate'}</strong>.</p>
+              </div>
+              <button type="button" onClick={closeEmailComposer} className="rounded-full border border-[#EBC2AE] bg-white p-2 text-[#54263F]" aria-label="Close email composer"><X size={18} /></button>
+            </div>
+            <label className="block text-[13px] font-semibold text-[#54263F]">Subject
+              <input value={emailSubject} onChange={(event) => setEmailSubject(event.target.value)} className="mt-2 w-full rounded-[12px] border border-[#EBC2AE] bg-white px-3 py-2 text-sm text-[#1D181A] outline-none focus:border-[#C75560]" />
+            </label>
+            <label className="mt-4 block text-[13px] font-semibold text-[#54263F]">Message
+              <textarea value={emailBody} onChange={(event) => setEmailBody(event.target.value)} rows={6} placeholder="Write your message..." className="mt-2 w-full resize-y rounded-[12px] border border-[#EBC2AE] bg-white px-3 py-2 text-sm text-[#1D181A] outline-none focus:border-[#C75560]" />
+            </label>
+            {emailError && <p className="mt-4 rounded-lg border border-[#E9B6AF] bg-[#FFF0EE] px-3 py-2 text-[12px] font-medium text-[#B3261E]">{emailError}</p>}
+            <div className="mt-6 flex justify-end gap-3">
+              <button type="button" onClick={closeEmailComposer} className="rounded-full border border-[#EBC2AE] bg-white px-4 py-2 text-sm font-semibold text-[#54263F]">Cancel</button>
+              <button type="button" onClick={submitCandidateEmail} disabled={emailSending} className="rounded-full bg-[#C75560] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{emailSending ? 'Sending…' : 'Send email'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {resumePaymentModalOpen && resumePaymentCandidate && (
         <div className="invoice-overlay-in fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6 sm:px-6">
           <div className="invoice-pop-in w-full max-w-lg rounded-none bg-[#FFF9F5] p-5 shadow-2xl ring-1 ring-black/10 sm:p-6">
@@ -1385,7 +1562,8 @@ function IconAction({ icon: Icon, label, href, onClick, disabled, title, tone = 
     </>
   );
   if (href && !disabled) {
-    return <a href={href} target="_blank" rel="noreferrer" className={className} title={title}>{content}</a>;
+    const isMailLink = href.startsWith('mailto:');
+    return <a href={href} {...(!isMailLink ? { target: '_blank', rel: 'noreferrer' } : {})} className={className} title={title}>{content}</a>;
   }
   return (
     <button type="button" onClick={disabled ? undefined : onClick} disabled={disabled} className={className} title={title}>
@@ -1577,6 +1755,8 @@ function CandidateDetail({
   onScheduleInterview,
   onShortlist,
   onSendOffer,
+  onEmailCandidate,
+  onUploadConfirmation,
   onReject,
   onReopen,
   isUpdatingStatus,
@@ -1628,6 +1808,7 @@ function CandidateDetail({
     c.githubUrl ||
     profile.githubUrl ||
     c.profile?.socialLinks?.github;
+  const hiredBadgeActive = hasActiveHiredBadge(c);
 
   const experienceItems = experienceEntries.map(getExperienceDisplay).filter(Boolean);
   const educationItems = education.map(getEducationDisplay).filter(Boolean);
@@ -1649,7 +1830,10 @@ function CandidateDetail({
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-[19px] font-bold text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>{c.name || 'Candidate'}</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-[19px] font-bold text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>{c.name || 'Candidate'}</h2>
+                  {hiredBadgeActive && <span className="hired-status-badge px-3 py-1.5 text-[13px]"><Award size={15} /> Hired</span>}
+                </div>
                 <div className="mt-1 space-y-1 text-[13px] text-[#80576A]">
                   <p>{c.uniqueId || profile.uniqueId ? `Candidate ID: ${c.uniqueId || profile.uniqueId}` : 'Candidate ID: —'}</p>
                   <p>{email ? `Email: ${email}` : 'Email: —'}</p>
@@ -1674,7 +1858,7 @@ function CandidateDetail({
           <IconAction icon={ExternalLink} label="LinkedIn" href={linkedinUrl} disabled={!linkedinUrl} />
           <IconAction icon={Sparkles} label="Portfolio" href={portfolioUrl} disabled={!portfolioUrl} />
           <IconAction icon={GithubIcon} label="GitHub" href={githubUrl} disabled={!githubUrl} />
-          <IconAction icon={Mail} label="Email" href={email ? `mailto:${email}` : undefined} disabled={!email} />
+          <IconAction icon={Mail} label="Email" onClick={onEmailCandidate} disabled={!email} />
           <IconAction
             icon={MessageCircle}
             label="Message"
@@ -1789,7 +1973,7 @@ function CandidateDetail({
                 onClick={onShortlist}
                 disabled={isUpdatingStatus || statusKey === 'rejected' || statusKey === 'shortlisted' || statusKey === 'interview' || statusKey === 'selected'}
               />
-              <ActionRow icon={Mail} label="Email Candidate" href={email ? `mailto:${email}` : undefined} disabled={!email} />
+              <ActionRow icon={Mail} label="Email Candidate" onClick={onEmailCandidate} disabled={!email} title={!email ? 'Candidate email is not available' : undefined} />
               <ActionRow
                 icon={Calendar}
                 label="Schedule Interview"
@@ -1803,6 +1987,13 @@ function CandidateDetail({
                 onClick={onSendOffer}
                 disabled={isUpdatingStatus || statusKey === 'rejected' || statusKey === 'selected' || !isShortlistUnlocked}
                 title={!isShortlistUnlocked ? 'Shortlist the candidate before sending an offer' : undefined}
+              />
+              <ActionRow
+                icon={Upload}
+                label="Upload Confirmation"
+                onClick={onUploadConfirmation}
+                disabled={!application.offerLetter?._id || Boolean(application.offerLetter.signedAcceptanceUrl) || statusKey === 'rejected'}
+                title={!application.offerLetter?._id ? 'Send the offer letter first to unlock confirmation upload' : application.offerLetter.signedAcceptanceUrl ? 'Confirmation already uploaded' : undefined}
               />
               <ActionRow
                 icon={XCircle}

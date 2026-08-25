@@ -24,7 +24,21 @@ const recruiterSchema = new mongoose.Schema(
     companySize: { type: String, trim: true },
     companyType: { type: String, trim: true },
     companyLogoUrl: { type: String },
+    coverImageUrl: { type: String },
     companyDetails: { type: String },
+    tags: [{ type: String, trim: true }],
+    whyJoinUs: [
+      {
+        title: { type: String, trim: true },
+        description: { type: String, trim: true },
+      },
+    ],
+    diversityHighlights: [
+      {
+        title: { type: String, trim: true },
+        description: { type: String, trim: true },
+      },
+    ],
     profilePictureUrl: { type: String }, // Recruiter's own profile picture
     bio: { type: String, trim: true },
     location: { type: String, trim: true },

@@ -72,9 +72,9 @@ export default function Recruiters() {
     }, []);
 
     return (
-        <div className="min-h-screen bg-[#FFF4EF] text-[#1D181A]">
+        <div className="portal-theme min-h-screen bg-[#FFF4EF] text-[#1D181A]">
             <RecruiterNavbar />
-            <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+            <main className="recruiter-page mx-auto max-w-6xl px-4 py-5 sm:px-6 lg:px-8">
                 <button
                     type="button"
                     onClick={() => navigate('/recruiter/dashboard')}
@@ -83,7 +83,7 @@ export default function Recruiters() {
                     <ArrowLeft size={17} /> Back to dashboard
                 </button>
 
-                <section className="rounded-2xl border border-[#EBC2AE] bg-white p-6 shadow-[0_16px_36px_-24px_rgba(73,43,49,0.35)] sm:p-8">
+                <section className="rounded-lg border border-[#EBC2AE] bg-white p-4 shadow-[0_14px_30px_-24px_rgba(73,43,49,0.35)] sm:p-5">
                     <div className="flex items-start justify-between gap-4 border-b border-[#F3E9E3] pb-6">
                         <div>
                             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#C75560]">Company directory</p>

@@ -38,7 +38,7 @@ export default function CareerWorkspacePanel({ profile, user, completeness, miss
             {compactRail && <nav aria-label="Candidate navigation" className="mt-3 flex flex-col items-center gap-2 rounded-2xl border border-[#EBC2AE] bg-[#FFFDFC] p-2 shadow-[0_12px_26px_-22px_rgba(29,24,26,0.28)]">
                 <Link to="/candidate/dashboard" aria-label="Home" title="Home" className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: `${PANEL_ACCENT}18`, color: PANEL_ACCENT }}><Home size={17} /></Link>
                 <Link to="/candidate/jobs/applied" aria-label="Applied Jobs" title="Applied Jobs" className="flex h-10 w-10 items-center justify-center rounded-xl text-[#6B6259] hover:bg-[#FFF5D9] hover:text-[#9A671A]"><Briefcase size={17} /></Link>
-                <Link to="/candidate/dashboard#top-companies" aria-label="Companies" title="Companies" className="flex h-10 w-10 items-center justify-center rounded-xl text-[#6B6259] hover:bg-[#FFF5D9] hover:text-[#9A671A]"><Building2 size={17} /></Link>
+                <Link to="/candidate/companies" aria-label="Companies" title="Companies" className="flex h-10 w-10 items-center justify-center rounded-xl text-[#6B6259] hover:bg-[#FFF5D9] hover:text-[#9A671A]"><Building2 size={17} /></Link>
             </nav>}
 
             <AnimatePresence initial={false}>

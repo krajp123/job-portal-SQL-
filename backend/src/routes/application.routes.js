@@ -26,6 +26,7 @@ router.get('/recruiter', verifyTokenAndStatus, requireRole('recruiter'), applica
 router.get('/job/:jobId', verifyTokenAndStatus, requireRole('recruiter'), applicationController.applicantsForJob);
 router.patch('/:id/status', verifyTokenAndStatus, requireRole('recruiter'), applicationController.updateStatus);
 router.post('/:id/view', verifyTokenAndStatus, requireRole('recruiter'), applicationController.trackView);
+router.post('/:id/email', verifyTokenAndStatus, requireRole('recruiter'), applicationController.emailCandidate);
 
 // Offer letter / Hired badge flow (recruiter only)
 router.post(

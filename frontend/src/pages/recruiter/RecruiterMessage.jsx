@@ -138,6 +138,11 @@ export default function RecruiterMessagesPreview() {
     const inputRef = useRef(null);
     const sendingRef = useRef(false);
     const threadRequestRef = useRef(0);
+    const activeIdRef = useRef(null);
+
+    useEffect(() => {
+        activeIdRef.current = activeId;
+    }, [activeId]);
 
     async function loadConversations() {
         try {
@@ -202,7 +207,20 @@ export default function RecruiterMessagesPreview() {
             });
         };
         socket.on('newMessage', handleNewMessage);
-        return () => socket.off('newMessage', handleNewMessage);
+        function handleMessageNotification(notification) {
+            if (notification?.type !== 'message' || !notification.relatedId) return;
+            loadConversations();
+            if (String(activeIdRef.current) === String(notification.relatedId)) {
+                axiosInstance.get(`/messages/${notification.relatedId}`)
+                    .then(({ data }) => setThread(data || []))
+                    .catch(() => {});
+            }
+        }
+        socket.on('notification', handleMessageNotification);
+        return () => {
+            socket.off('newMessage', handleNewMessage);
+            socket.off('notification', handleMessageNotification);
+        };
     }, []);
 
     useEffect(() => {
@@ -291,6 +309,12 @@ export default function RecruiterMessagesPreview() {
             const endpoint = activeConversation || thread.length ? '/messages/reply' : '/messages/start';
             const { data } = await axiosInstance.post(endpoint, { candidateId: activeId, text });
             setThread((previous) => previous.some((item) => item._id === data._id) ? previous : [...previous, data]);
+            setCandidateRepliesEnabled(true);
+            setConversations((previous) => previous.map((conversation) => (
+                String(conversation._id) === String(activeId)
+                    ? { ...conversation, chatPreference: { ...conversation.chatPreference, candidateRepliesEnabled: true } }
+                    : conversation
+            )));
             loadConversations();
         } catch (requestError) {
             setDraft(text);
@@ -313,11 +337,11 @@ export default function RecruiterMessagesPreview() {
     }
 
     return (
-        <div className="flex min-h-[100dvh] w-full flex-col overflow-x-hidden bg-[#FFF7F2]">
+        <div className="portal-theme flex min-h-[100dvh] w-full flex-col overflow-x-hidden bg-[#FFF7F2]">
             <RecruiterNavbar />
             <div className="recruiter-page mx-auto mb-3 w-full max-w-6xl px-4 pt-3 sm:px-6 sm:pt-4">
-                <h1 className="mt-1 text-2xl font-bold text-[#1D181A]">Messages</h1>
-                <p className="mt-1 text-sm text-[#80576A]">
+                <h1 className="mt-1 text-xl font-bold text-[#1D181A]">Messages</h1>
+                <p className="mt-1 text-xs text-[#80576A]">
                     Connect with candidates from one focused inbox.
                     {totalUnread > 0 && <span className="ml-1 font-semibold text-[#C75560]">{totalUnread} unread</span>}
                 </p>

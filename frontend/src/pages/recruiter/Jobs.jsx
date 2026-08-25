@@ -1341,12 +1341,12 @@ export default function RecruiterJobs() {
         <div className="portal-theme min-h-screen" style={{ background: '#FFF7F2' }}>
             <RecruiterNavbar />
 
-            <main className="recruiter-page mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
+            <main className="recruiter-page mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-5">
                 {/* Header */}
                 <div className="mb-7 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                         <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#C75560]">Recruiter workspace</p>
-                        <h1 className="mt-1 text-3xl font-bold text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>
+                        <h1 className="mt-1 text-2xl font-bold text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>
                             Your job posts
                         </h1>
                         <p className="mt-2 max-w-xl text-[13.5px] leading-6 text-[#80576A]">
