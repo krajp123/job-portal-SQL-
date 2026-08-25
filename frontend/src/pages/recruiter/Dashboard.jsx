@@ -667,7 +667,12 @@ function Sidebar({
           {renderNav(true)}
           <div className="my-1 h-px w-8 bg-slate-100" />
           <button
+            type="button"
             title="Help Center"
+            onClick={() => {
+              setMobileOpen(false);
+              navigate("/help-center");
+            }}
             className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-50 hover:text-slate-800"
           >
             <HelpCircle size={18} />
@@ -686,7 +691,12 @@ function Sidebar({
           {renderNav(false)}
           <div className="px-3 pb-3 pt-2 border-t border-slate-100 space-y-0.5">
             <button
+              type="button"
               title="Help Center"
+              onClick={() => {
+                setMobileOpen(false);
+                navigate("/help-center");
+              }}
               className="flex items-center gap-3 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-800 w-full px-3 py-2.5"
             >
               <HelpCircle size={18} /> Help Center

@@ -53,8 +53,6 @@ const walletSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Index for efficient queries
-walletSchema.index({ recruiter: 1 });
 walletSchema.index({ 'transactions.createdAt': -1 });
 walletSchema.index({ 'transactions.status': 1 });
 walletSchema.index({ 'transactions.type': 1 });
