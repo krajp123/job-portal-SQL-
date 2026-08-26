@@ -31,6 +31,10 @@ import {
 } from "../../theme";
 import CandidateNavbar from "../../components/CandidateNavbar";
 
+function displayExperienceLevel(value) {
+  return /^0(?:\s*[-+]\s*0?)?\s*years?/i.test(String(value || '').trim()) ? 'Freshers' : value;
+}
+
 export default function RecommendedJobs() {
   const navigate = useNavigate();
   const [jobs, setJobs] = useState([]);
@@ -206,7 +210,7 @@ export default function RecommendedJobs() {
                       {job.experienceLevel && (
                         <div className="flex items-center gap-1">
                           <Briefcase size={16} />
-                          {job.experienceLevel}
+                          {displayExperienceLevel(job.experienceLevel)}
                         </div>
                       )}
                     </div>

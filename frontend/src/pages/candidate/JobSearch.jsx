@@ -32,6 +32,10 @@ import {
 } from "../../theme";
 import CandidateNavbar from "../../components/CandidateNavbar";
 
+function displayExperienceLevel(value) {
+  return /^0(?:\s*[-+]\s*0?)?\s*years?/i.test(String(value || '').trim()) ? 'Freshers' : value;
+}
+
 const EXPERIENCE_LEVELS = ["Fresher", "1-3 years", "3-5 years", "5+ years"];
 
 const SALARY_OPTIONS = [
@@ -638,7 +642,7 @@ export default function JobSearch() {
                                     size={14}
                                     className="text-stone-400"
                                   />
-                                  {job.experienceLevel}
+                                  {displayExperienceLevel(job.experienceLevel)}
                                 </span>
                                 <span className="mx-3 text-stone-300">|</span>
                               </>

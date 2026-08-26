@@ -624,8 +624,8 @@ function AdminTable({ admins, meta, loading, mutatingIds, onUpdateAdmin, onReset
 
       <AdminFilterBar filters={filters} onChange={setFilters} />
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[820px] text-left text-xs">
+      <div className="hidden overflow-x-auto md:block">
+        <table className="w-full min-w-full text-left text-xs md:min-w-[820px]">
           <thead>
             <tr className="border-b border-[#F3DED2] bg-[#FFF0E8] text-[10px] uppercase tracking-wide text-[#80576A]">
               <th className="px-3 py-2">Name</th>
@@ -695,6 +695,45 @@ function AdminTable({ admins, meta, loading, mutatingIds, onUpdateAdmin, onReset
             </tbody>
           )}
         </table>
+      </div>
+
+      <div className="space-y-2 p-3 md:hidden">
+        {loading ? (
+          <div className="space-y-2">
+            {[...Array(3)].map((_, index) => <div key={index} className="h-28 animate-pulse bg-[#F3DED2]" />)}
+          </div>
+        ) : admins.length === 0 ? (
+          <p className="px-2 py-6 text-center text-xs text-[#80576A]">{meta.total === 0 ? 'No admin accounts yet. Create the first one.' : 'No admins match your filters.'}</p>
+        ) : (
+          admins.map((admin) => {
+            const isSelf = String(admin._id) === String(currentAdminId);
+            const isMutating = mutatingIds.has(admin._id);
+            return (
+              <div key={admin._id} className={`border border-[#F3DED2] bg-white p-3 ${isMutating ? 'opacity-60' : ''}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-[#1D181A]">{admin.name} {isSelf && <span className="text-[10px] font-normal text-[#80576A]">(you)</span>}</p>
+                    <p className="mt-0.5 break-all text-xs text-[#80576A]">{admin.email}</p>
+                  </div>
+                  <StatusPill isActive={admin.isActive} isLocked={admin.isLocked} />
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-[#80576A]">
+                  <span>Role: <strong className="text-[#1D181A]">{admin.role}</strong></span>
+                  <span>Created: <strong className="text-[#1D181A]">{formatDate(admin.createdAt)}</strong></span>
+                  <span className="col-span-2">Last login: <strong className="text-[#1D181A]">{formatDateTime(admin.lastLoginAt)}</strong></span>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[#F3DED2] pt-3">
+                  <select value={admin.role} disabled={isSelf || isMutating} onChange={(event) => requestRoleChange(admin, event.target.value)} className="border border-[#EBC2AE] bg-white px-2 py-1 text-xs font-semibold text-[#1D181A] disabled:opacity-50">
+                    <option value="admin">Admin</option>
+                    <option value="superadmin">Superadmin</option>
+                  </select>
+                  <button type="button" disabled={isMutating} onClick={() => setResetTarget(admin)} className="inline-flex items-center gap-1 border border-[#EBC2AE] px-2 py-1 text-xs font-semibold text-[#80576A] hover:bg-[#FFF0E8] disabled:opacity-50"><KeyRound size={12} /> Reset</button>
+                  <button type="button" disabled={isSelf || isMutating} onClick={() => requestStatusToggle(admin)} className="ml-auto inline-flex items-center gap-1 border border-[#EBC2AE] px-2 py-1 text-xs font-semibold text-[#80576A] hover:bg-[#FFF0E8] disabled:opacity-50"><Power size={12} /> {admin.isActive ? 'Deactivate' : 'Activate'}</button>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
 
       <Pagination page={meta.page} totalPages={meta.totalPages} total={meta.total} itemLabel="admins" onPageChange={(page) => setFilters((current) => ({ ...current, page }))} />
@@ -794,8 +833,8 @@ function AuditLogPanel({ toast }) {
         />
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-left text-xs">
+      <div className="hidden overflow-x-auto md:block">
+        <table className="w-full min-w-full text-left text-xs md:min-w-[760px]">
           <thead>
             <tr className="border-b border-[#F3DED2] bg-[#FFF0E8] text-[10px] uppercase tracking-wide text-[#80576A]">
               <th className="px-3 py-2">Time</th>
@@ -823,6 +862,25 @@ function AuditLogPanel({ toast }) {
             </tbody>
           )}
         </table>
+      </div>
+
+      <div className="space-y-2 p-3 md:hidden">
+        {loading ? (
+          [...Array(3)].map((_, index) => <div key={index} className="h-24 animate-pulse bg-[#F3DED2]" />)
+        ) : logs.length === 0 ? (
+          <p className="px-2 py-6 text-center text-xs text-[#80576A]">No activity matches your filters.</p>
+        ) : (
+          logs.map((log) => (
+            <div key={log._id} className="border border-[#F3DED2] bg-white p-3">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-xs font-semibold text-[#1D181A]">{log.action}</p>
+                <p className="shrink-0 text-[10px] text-[#80576A]">{formatDateTime(log.createdAt)}</p>
+              </div>
+              <p className="mt-1 text-xs text-[#80576A]">{log.admin?.name || 'System'} · {log.targetType || '—'}</p>
+              <p className="mt-2 break-words text-[11px] leading-4 text-[#80576A]">{log.details ? JSON.stringify(log.details) : '—'}</p>
+            </div>
+          ))
+        )}
       </div>
 
       <Pagination page={meta.page} totalPages={meta.totalPages} total={meta.total} itemLabel="records" onPageChange={(page) => load(page)} />

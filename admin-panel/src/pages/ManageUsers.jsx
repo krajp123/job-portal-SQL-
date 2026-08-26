@@ -32,7 +32,7 @@ export default function ManageUsers() {
       </div>
 
       <div className="overflow-x-auto border border-[#1D181A] bg-[#FFFDFB]">
-      <table className="w-full min-w-[560px] border-collapse text-xs text-left">
+      <table className="w-full min-w-full border-collapse text-xs text-left md:min-w-[560px]">
         <thead>
           <tr className="border border-[#1D181A] bg-[#FFF4EF]">
             <th>Name</th>

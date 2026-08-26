@@ -1117,8 +1117,8 @@ function WalletHistoryDrawer({ recruiter, transactions, onClose, resolvedRange }
   const history = transactions
     .filter((t) => t.recruiter.id === recruiter.id && t.wallet && isWithinResolvedRange(t.date, resolvedRange))
     .sort((a, b) => b.date - a.date);
-  const totalRecharge = history.filter((t) => t.wallet.change > 0).reduce((s, t) => s + t.wallet.change, 0);
-  const totalSpent = history.filter((t) => t.wallet.change < 0).reduce((s, t) => s + Math.abs(t.wallet.change), 0);
+  const totalRecharge = history.filter((t) => t.status === 'Success' && t.wallet.change > 0).reduce((s, t) => s + t.wallet.change, 0);
+  const totalSpent = history.filter((t) => t.status === 'Success' && t.wallet.change < 0).reduce((s, t) => s + Math.abs(t.wallet.change), 0);
   const resumeDownloads = history.filter((t) => t.type === 'Resume Download').length;
   const currentBalance = history[0]?.wallet.newBalance ?? 0;
 
@@ -1165,8 +1165,8 @@ function WalletHistoryDrawer({ recruiter, transactions, onClose, resolvedRange }
                 <p className="font-medium text-[#1D181A]">{t.description}</p>
                 <p className="text-[11px] text-[#80576A]">{formatDateTime(t.date)}</p>
               </div>
-              <span className={`font-semibold tabular-nums ${t.wallet.change > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                {t.wallet.change > 0 ? '+' : ''}{formatINR(t.wallet.change)}
+              <span className={`font-semibold tabular-nums ${t.status === 'Pending' ? 'text-[#9A671A]' : t.wallet.change > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                {t.status === 'Pending' ? `Pending ${formatINR(t.wallet.change)}` : `${t.wallet.change > 0 ? '+' : ''}${formatINR(t.wallet.change)}`}
               </span>
             </div>
           ))}
@@ -1244,7 +1244,7 @@ function AllTransactionsTab({ transactions, loading, onView, onViewRecruiter, on
 
       {/* Desktop table — sticky first + action columns */}
       <div className="hidden overflow-x-auto sm:block">
-        <table className="w-full min-w-[1230px] table-fixed text-left text-xs leading-tight">
+        <table className="w-full min-w-full table-fixed text-left text-xs leading-tight md:min-w-[1230px]">
           <colgroup>
             <col className="w-[180px]" />
             <col className="w-[125px]" />
@@ -1284,7 +1284,7 @@ function AllTransactionsTab({ transactions, loading, onView, onViewRecruiter, on
                   <td className="break-words px-1.5 py-1.5 align-top leading-tight text-[#1D181A]">{t.recruiter.company}</td>
                   <td className="px-1.5 py-1.5 align-top"><TypeTag type={t.type} /></td>
                   <td className="px-1.5 py-1.5 align-top leading-tight text-[#80576A] break-words">{t.description}</td>
-                  <td className="px-1.5 py-1.5 align-top font-semibold tabular-nums text-[#1D181A]">{formatINR(t.amount)}</td>
+                  <td className={`px-1.5 py-1.5 align-top font-semibold tabular-nums ${t.status === 'Pending' ? 'text-[#9A671A]' : 'text-[#1D181A]'}`}>{t.status === 'Pending' ? `Pending ${formatINR(t.amount)}` : formatINR(t.amount)}</td>
                   <td className="px-1.5 py-1.5 align-top leading-tight text-[#1D181A] break-words">{t.paymentMethod}</td>
                   <td className="px-1.5 py-1.5 align-top"><StatusBadge status={t.status} /></td>
                   <td className="px-1.5 py-1.5 align-top whitespace-normal leading-tight text-[#80576A]">{formatDateTime(t.date)}</td>
@@ -1338,7 +1338,7 @@ function WalletTransactionsTab({ transactions, onViewWallet }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-[#EBC2AE] bg-[#FFFDFB] shadow-sm">
       <div className="hidden overflow-x-auto sm:block">
-        <table className="w-full min-w-[900px] table-fixed text-left text-xs">
+        <table className="w-full min-w-full table-fixed text-left text-xs md:min-w-[900px]">
           <thead>
             <tr className="border-b border-[#F3DED2] bg-[#FFF0E8] text-[10px] font-bold uppercase tracking-wide text-[#80576A]">
               <th className="sticky left-0 z-10 bg-[#FFF0E8] px-2 py-2">Recruiter</th>
@@ -1407,7 +1407,7 @@ function ResumeDownloadsTab({ transactions, onView }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-[#EBC2AE] bg-[#FFFDFB] shadow-sm">
       <div className="hidden overflow-x-auto sm:block">
-        <table className="w-full min-w-[1150px] table-fixed text-left text-xs">
+        <table className="w-full min-w-full table-fixed text-left text-xs md:min-w-[1150px]">
           <colgroup>
             <col className="w-[190px]" />
             <col className="w-[130px]" />
@@ -1516,7 +1516,7 @@ function RefundsTab({ refunds, setRefunds, notify, onUpdateStatus, resolvedRange
     <>
       <div className="overflow-hidden rounded-2xl border border-[#EBC2AE] bg-[#FFFDFB] shadow-sm">
         <div className="hidden overflow-x-auto sm:block">
-          <table className="w-full min-w-[1000px] table-fixed text-left text-xs">
+          <table className="w-full min-w-full table-fixed text-left text-xs md:min-w-[1000px]">
             <thead>
               <tr className="border-b border-[#F3DED2] bg-[#FFF0E8] text-[10px] font-bold uppercase tracking-wide text-[#80576A]">
                 <th className="sticky left-0 z-10 bg-[#FFF0E8] px-2 py-2">Refund ID</th>

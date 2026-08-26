@@ -8,6 +8,8 @@ const AdminAuditLog = require('../../models/AdminAuditLog');
 const { logAdminAction } = require('../../services/audit.service');
 const { sendPasswordResetLinkEmail, sendCandidateAccountStatusEmail } = require('../../services/email.service');
 const JobReport = require('../../models/JobReport');
+const { razorpayInstance } = require('../../config/razorpay');
+const crypto = require('crypto');
 
 function buildDateSeries(days) {
   const series = [];
@@ -811,6 +813,8 @@ exports.adjustRecruiterWallet = async (req, res) => {
     const { amount, reason } = req.body;
     const delta = Number(amount || 0);
 
+    if (delta >= 0) return res.status(403).json({ error: 'Wallet credits must be completed through online payment.' });
+
     const recruiter = await Recruiter.findById(req.params.id);
     if (!recruiter) return res.status(404).json({ error: 'Recruiter not found' });
 
@@ -858,6 +862,51 @@ exports.adjustRecruiterWallet = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+// POST /admin-api/users/recruiters/:id/wallet/payment-order
+exports.createRecruiterWalletPaymentOrder = async (req, res) => {
+  try {
+    const amount = Number(req.body.amount);
+    if (!Number.isInteger(amount) || amount < 1) return res.status(400).json({ error: 'Enter a valid amount in INR.' });
+    if (!razorpayInstance) return res.status(503).json({ error: 'Online payments are not configured.' });
+    const recruiter = await Recruiter.findById(req.params.id).select('_id companyName');
+    if (!recruiter) return res.status(404).json({ error: 'Recruiter not found' });
+    const order = await razorpayInstance.orders.create({ amount: amount * 100, currency: 'INR', receipt: `admin_wallet_${Date.now()}` });
+    const payment = await Payment.create({ userType: 'recruiter', userId: recruiter._id, userTypeRef: 'Recruiter', purpose: 'wallet_recharge', amount, razorpayOrderId: order.id, status: 'pending' });
+    res.json({ orderId: order.id, amount, currency: 'INR', key: process.env.RAZORPAY_KEY_ID, paymentRecordId: payment._id, companyName: recruiter.companyName });
+  } catch (err) {
+    console.error('Failed to create admin wallet payment order:', err);
+    res.status(500).json({ error: 'Could not start the wallet payment.' });
+  }
+};
+
+// POST /admin-api/users/recruiters/:id/wallet/payment-verify
+exports.verifyRecruiterWalletPayment = async (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, paymentRecordId, reason } = req.body;
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !paymentRecordId) return res.status(400).json({ error: 'Missing payment details.' });
+    const expectedSignature = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET).update(`${razorpay_order_id}|${razorpay_payment_id}`).digest('hex');
+    if (expectedSignature !== razorpay_signature) return res.status(400).json({ error: 'Payment verification failed.' });
+    const payment = await Payment.findOne({ _id: paymentRecordId, razorpayOrderId: razorpay_order_id, purpose: 'wallet_recharge', userId: req.params.id });
+    if (!payment) return res.status(404).json({ error: 'Payment record not found.' });
+    if (payment.status === 'success') return res.json({ message: 'Payment already applied.', walletBalance: (await Wallet.findOne({ recruiter: req.params.id }))?.balance || 0 });
+    const wallet = await Wallet.findOneAndUpdate({ recruiter: req.params.id }, { $setOnInsert: { recruiter: req.params.id, balance: 0, totalAdded: 0, totalSpent: 0, resumesDownloaded: 0, transactions: [] } }, { upsert: true, new: true });
+    wallet.balance += payment.amount;
+    wallet.totalAdded += payment.amount;
+    wallet.transactions.push({ type: 'recharge', description: `Wallet Recharge via Razorpay${reason ? `: ${String(reason).trim()}` : ''}`, reference: razorpay_order_id, paymentReference: razorpay_payment_id, amount: payment.amount, balanceAfter: wallet.balance, status: 'success', createdAt: new Date() });
+    await wallet.save();
+    payment.status = 'success';
+    payment.razorpayPaymentId = razorpay_payment_id;
+    payment.walletCreditDetails = { walletTransactionId: wallet.transactions[wallet.transactions.length - 1]._id };
+    await payment.save();
+    const recruiter = await Recruiter.findByIdAndUpdate(req.params.id, { walletBalance: wallet.balance }, { new: true });
+    await logAdminAction({ adminId: req.admin.id, action: 'RECRUITER_WALLET_PAYMENT', targetType: 'Recruiter', targetId: recruiter._id, details: { amount: payment.amount, paymentId: razorpay_payment_id, reason }, ip: req.ip });
+    res.json({ message: 'Wallet funded successfully.', walletBalance: wallet.balance });
+  } catch (err) {
+    console.error('Failed to verify admin wallet payment:', err);
+    res.status(500).json({ error: 'Could not complete the wallet payment.' });
   }
 };
 

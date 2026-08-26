@@ -10,6 +10,7 @@ const Message = require('../models/Message');
 const Wallet = require('../models/Wallet');
 const OfferLetter = require('../models/OfferLetter');
 const Payment = require('../models/Payment');
+const CandidatePerformanceEvent = require('../models/CandidatePerformanceEvent');
 const { hashPassword, comparePassword } = require('../utils/hashPassword');
 const { isValidEmail, isValidPhone, isStrongEnoughPassword } = require('../utils/validators');
 const walletController = require('./wallet.controller');
@@ -381,7 +382,8 @@ exports.getPublicProfile = async (req, res) => {
       hiringLocations: recruiter.location ? [recruiter.location] : ['Remote'],
       rating: 4.8,
       reviews: 24,
-      verified: recruiter.accountStatus === 'active',
+      verificationStatus: recruiter.verificationStatus || 'pending',
+      verified: recruiter.verificationStatus === 'verified',
       jobs: jobsWithCounts,
       activity,
     };
@@ -793,6 +795,12 @@ exports.downloadCandidateResume = async (req, res) => {
       }
       throw chargeError;
     }
+
+    await CandidatePerformanceEvent.create({
+      candidate: candidate._id,
+      recruiter: req.user.id,
+      type: 'resume_download',
+    });
 
     const fileName = resolveResumeFileName(candidate);
 

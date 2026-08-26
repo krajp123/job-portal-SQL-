@@ -33,6 +33,7 @@ export default function CandidateNavbar({ profile, onOpenAccountMenu, hideMobile
     const [menuOpenSlide, setMenuOpenSlide] = useState(false);
     const [jobsDropdownOpen, setJobsDropdownOpen] = useState(false);
     const [unreadMessages, setUnreadMessages] = useState(0);
+    const [performance, setPerformance] = useState(null);
     const accountMenuRef = useRef(null);
     const jobsDropdownRef = useRef(null);
 
@@ -117,6 +118,20 @@ export default function CandidateNavbar({ profile, onOpenAccountMenu, hideMobile
 
         fetchProfilePicture();
     }, [profile]);
+
+    useEffect(() => {
+        let mounted = true;
+        axiosInstance.get('/candidate/me/performance')
+            .then(({ data }) => {
+                if (mounted) setPerformance(data);
+            })
+            .catch(() => {
+                // Performance is non-critical; keep the profile fallback values.
+            });
+        return () => {
+            mounted = false;
+        };
+    }, []);
 
     function handleAccountMenu() {
         if (onOpenAccountMenu) {
@@ -266,7 +281,7 @@ export default function CandidateNavbar({ profile, onOpenAccountMenu, hideMobile
                                         <div className="grid grid-cols-2 gap-3">
                                             <div className="rounded-[12px] p-3.5" style={{ background: '#F5F3F0' }}>
                                                 <p className="text-[20px] font-bold text-stone-900" style={{ fontFamily: FONT_DISPLAY }}>
-                                                    {profile?.searchAppearances ?? 0}
+                                                    {performance?.searchAppearances ?? profile?.searchAppearances ?? 0}
                                                 </p>
                                                 <p className="text-[11.5px] text-[#6B6259]">Search Appearances</p>
                                                 <Link
@@ -280,7 +295,7 @@ export default function CandidateNavbar({ profile, onOpenAccountMenu, hideMobile
                                             </div>
                                             <div className="rounded-[12px] p-3.5" style={{ background: '#F5F3F0' }}>
                                                 <p className="text-[20px] font-bold text-stone-900" style={{ fontFamily: FONT_DISPLAY }}>
-                                                    {profile?.recruiterActions ?? 0}
+                                                    {performance?.recruiterActions ?? profile?.recruiterActions ?? 0}
                                                 </p>
                                                 <p className="text-[11.5px] text-[#6B6259]">Recruiter Actions</p>
                                                 <Link

@@ -32,6 +32,7 @@ import {
 import axiosInstance from '../../api/axiosInstance';
 import RecruiterNavbar from '../../components/RecruiterNavbar';
 import { FONT_DISPLAY } from '../../theme';
+import { ApplicationRequirementsBuilder } from '../../components/ApplicationForm';
 
 /* ------------------------------------------------------------------ */
 /* Design tokens — same palette as the rest of the recruiter portal    */
@@ -172,6 +173,7 @@ const INITIAL_FORM = {
     rolesResponsibilities: '',
     requiredQualifications: '',
     preferredQualifications: '',
+    applicationFields: [],
 };
 
 function stripHtml(html) {
@@ -713,8 +715,9 @@ export default function PostJob() {
     }
 
     function buildPayload(statusOverride) {
-        const experienceLevel =
-            form.maxExperience !== ''
+        const experienceLevel = Number(form.minExperience || 0) === 0
+            ? 'Freshers'
+            : form.maxExperience !== ''
                 ? `${form.minExperience || 0} - ${form.maxExperience} years`
                 : `${form.minExperience || 0}+ years`;
 
@@ -777,6 +780,10 @@ export default function PostJob() {
             descriptionSections: Object.fromEntries(
                 descriptionSections.map(([heading, html]) => [heading, html])
             ),
+            applicationForm: {
+                enabled: form.applicationFields.length > 0,
+                fields: form.applicationFields,
+            },
         };
     }
 
@@ -1176,6 +1183,10 @@ export default function PostJob() {
                                     onChange={(v) => update({ preferredQualifications: v })}
                                     placeholder="Nice-to-haves that make a candidate stand out."
                                     minHeight={90}
+                                />
+                                <ApplicationRequirementsBuilder
+                                    value={form.applicationFields}
+                                    onChange={(applicationFields) => update({ applicationFields })}
                                 />
                             </div>
                         )}

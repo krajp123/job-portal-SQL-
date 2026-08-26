@@ -138,6 +138,8 @@ router.patch('/users/recruiters/:id/notes', adminUsersController.updateRecruiter
 
 // ---- Recruiter wallet management ----
 router.patch('/users/recruiters/:id/wallet/adjust', adminUsersController.adjustRecruiterWallet);
+router.post('/users/recruiters/:id/wallet/payment-order', adminUsersController.createRecruiterWalletPaymentOrder);
+router.post('/users/recruiters/:id/wallet/payment-verify', adminUsersController.verifyRecruiterWalletPayment);
 
 // ---- Recruiter analytics ----
 router.get('/users/recruiters/:id/analytics', adminUsersController.getRecruiterAnalytics);

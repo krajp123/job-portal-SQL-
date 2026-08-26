@@ -147,7 +147,7 @@ export default function ReopenRequests() {
       </div>
 
       <div className="w-full max-w-full overflow-x-auto border border-[#1D181A] bg-[#FFFDFB]">
-        <table className="min-w-[980px] w-full table-fixed border-collapse text-xs sm:text-[11px]">
+        <table className="min-w-full w-full table-fixed border-collapse text-xs sm:text-[11px] md:min-w-[980px]">
           <thead>
             <tr>
               {['Job', 'Recruiter', 'Message', 'Status', 'Requested', 'Actions'].map((label) => (

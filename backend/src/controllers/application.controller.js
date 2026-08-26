@@ -3,10 +3,48 @@ const Job = require('../models/Job');
 const Recruiter = require('../models/Recruiter');
 const Candidate = require('../models/Candidate');
 const OfferLetter = require('../models/OfferLetter');
+const CandidatePerformanceEvent = require('../models/CandidatePerformanceEvent');
 const { checkFirstApplicationBadge, updateApplicationStreak } = require('../services/badge.service');
 const { createNotification } = require('../services/notification.service');
 const { sendEmail, sendShortlistEmail, sendInterviewScheduleEmail, sendRejectionEmail } = require('../services/email.service');
 const { getPlatformSettings } = require('../services/platformSettings.service');
+
+const APPLICATION_FIELD_TYPES = new Set(['text', 'textarea', 'number', 'radio', 'checkbox', 'select', 'skills', 'date', 'url', 'file']);
+
+function validateApplicationAnswers(fields, submittedAnswers) {
+  const answers = Array.isArray(submittedAnswers) ? submittedAnswers : [];
+  const configured = new Map((fields || []).map((field) => [field.fieldId, field]));
+  const submittedIds = new Set();
+  const normalized = [];
+
+  for (const answer of answers) {
+    const field = configured.get(String(answer?.fieldId || ''));
+    if (!field || submittedIds.has(field.fieldId)) throw new Error('Invalid application field.');
+    submittedIds.add(field.fieldId);
+    const value = answer.value;
+    const empty = value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0);
+    if (field.required && empty) throw new Error('Please complete all required fields.');
+    if (empty) continue;
+    const choiceOptions = field.options?.length ? field.options : field.fieldType === 'radio' ? ['Yes', 'No'] : [];
+    if (['radio', 'select'].includes(field.fieldType) && choiceOptions.length && !choiceOptions.includes(String(value))) throw new Error('Invalid application field.');
+    if (field.fieldType === 'checkbox') {
+      if (field.options?.length && (!Array.isArray(value) || value.some((item) => !field.options.includes(String(item))))) throw new Error('Invalid application field.');
+    }
+    if (field.fieldType === 'skills' && (!Array.isArray(value) || value.some((item) => typeof item !== 'string' || !item.trim()) || value.length > 50)) throw new Error('Invalid application field.');
+    if (field.fieldType === 'number' && (!Number.isFinite(Number(value)) || String(value).length > 30)) throw new Error('Invalid application field.');
+    if (field.fieldType === 'url') {
+      try { new URL(String(value)); } catch { throw new Error('Invalid application field.'); }
+    }
+    if (field.fieldType === 'date' && Number.isNaN(Date.parse(String(value)))) throw new Error('Invalid application field.');
+    if (!APPLICATION_FIELD_TYPES.has(field.fieldType)) throw new Error('Invalid application field.');
+    normalized.push({ fieldId: field.fieldId, label: field.label, fieldType: field.fieldType, value });
+  }
+
+  for (const field of fields || []) {
+    if (field.required && !submittedIds.has(field.fieldId)) throw new Error('Please complete all required fields.');
+  }
+  return normalized;
+}
 
 function emitToUser(userId, event, payload) {
   try {
@@ -49,12 +87,12 @@ const calculateSkillMatch = (candidateSkills = [], jobSkills = []) => {
 // POST /api/applications (candidate only)
 exports.apply = async (req, res) => {
   try {
-    const { jobId } = req.body;
+    const { jobId, answers } = req.body;
     const Candidate = require('../models/Candidate');
 
     const job = await Job.findById(jobId);
     if (!job || job.status !== 'open') {
-      return res.status(400).json({ error: 'Job not available' });
+      return res.status(400).json({ error: 'This job is no longer accepting applications.' });
     }
 
     const [candidate, settings] = await Promise.all([
@@ -67,8 +105,24 @@ exports.apply = async (req, res) => {
 
     const existing = await Application.findOne({ candidate: req.user.id, job: jobId });
     if (existing) {
-      return res.status(409).json({ error: 'You already applied to this job' });
+      return res.status(409).json({ error: 'You have already applied for this job.' });
     }
+
+    let validatedAnswers;
+    try {
+      validatedAnswers = validateApplicationAnswers(job.applicationForm?.enabled ? job.applicationForm.fields : [], answers);
+    } catch (validationError) {
+      return res.status(400).json({ error: validationError.message });
+    }
+
+    const profile = candidate?.profile || {};
+    validatedAnswers = [
+      { fieldId: 'full_name', label: 'Full Name', fieldType: 'text', value: candidate?.name || '' },
+      { fieldId: 'email', label: 'Email', fieldType: 'text', value: candidate?.email || '' },
+      { fieldId: 'phone', label: 'Phone Number', fieldType: 'text', value: candidate?.phone || profile.phone || '' },
+      { fieldId: 'resume', label: 'Resume', fieldType: 'file', value: profile.resumeUrl ? { fileId: profile.resumeUrl, fileName: profile.resumeFilename || 'Resume' } : null },
+      ...validatedAnswers,
+    ];
 
     // Get candidate profile for skill matching
     const candidateSkills = candidate?.profile?.skills || [];
@@ -84,6 +138,7 @@ exports.apply = async (req, res) => {
       matchedSkills,
       skillsMatch,
       experienceMatch: candidate?.workStatus === 'experienced',
+      answers: validatedAnswers,
     });
 
     // Gamification (non-fatal if either fails)
@@ -100,7 +155,8 @@ exports.apply = async (req, res) => {
     });
     res.status(201).json(application);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    if (err?.code === 11000) return res.status(409).json({ error: 'You have already applied for this job.' });
+    res.status(500).json({ error: 'Could not submit your application.' });
   }
 };
 
@@ -289,6 +345,15 @@ exports.updateStatus = async (req, res) => {
       { new: true }
     ).populate({ path: 'candidate', select: 'name email' }).populate({ path: 'job', select: 'title' });
 
+    if (status === 'shortlisted') {
+      await CandidatePerformanceEvent.create({
+        candidate: application.candidate._id || application.candidate,
+        recruiter: req.user.id,
+        type: 'application_shortlisted',
+        metadata: { applicationId: application._id, jobId: application.job?._id || application.job },
+      });
+    }
+
     const emailStatus = {
       shortlisted: null,
       interviewScheduled: null,
@@ -428,6 +493,13 @@ exports.trackView = async (req, res) => {
       updateObj,
       { new: true }
     ).populate('job', 'title');
+
+    await CandidatePerformanceEvent.create({
+      candidate: application.candidate,
+      recruiter: req.user.id,
+      type: 'profile_view',
+      metadata: { applicationId: application._id },
+    });
 
     res.json(updatedApplication);
   } catch (err) {

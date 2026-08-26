@@ -31,6 +31,7 @@ import {
 import axiosInstance from '../../api/axiosInstance';
 import RecruiterNavbar from '../../components/RecruiterNavbar';
 import { FONT_DISPLAY } from '../../theme';
+import { ApplicationRequirementsBuilder } from '../../components/ApplicationForm';
 
 /* ------------------------------------------------------------------ */
 /* Design tokens — reuses the same palette as the rest of the portal   */
@@ -545,6 +546,7 @@ function EditJobModal({ job, submitting, error, onSubmit, onCancel }) {
         salary: '',
         experienceLevel: '',
         skillsRequired: '',
+        applicationFields: [],
     });
 
     useEffect(() => {
@@ -556,6 +558,7 @@ function EditJobModal({ job, submitting, error, onSubmit, onCancel }) {
                 salary: job.salary || '',
                 experienceLevel: job.experienceLevel || '',
                 skillsRequired: Array.isArray(job.skillsRequired) ? job.skillsRequired.join(', ') : '',
+                applicationFields: job.applicationForm?.fields || [],
             });
         }
     }, [job]);
@@ -579,6 +582,7 @@ function EditJobModal({ job, submitting, error, onSubmit, onCancel }) {
                 .split(',')
                 .map((value) => value.trim())
                 .filter(Boolean),
+            applicationForm: { enabled: form.applicationFields.length > 0, fields: form.applicationFields },
         });
     }
 
@@ -602,7 +606,7 @@ function EditJobModal({ job, submitting, error, onSubmit, onCancel }) {
                         exit={{ opacity: 0, y: 10, scale: 0.98 }}
                         transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                         onClick={(e) => e.stopPropagation()}
-                        className="relative w-full max-w-[560px] rounded-[18px] border border-[#EBC2AE] bg-white p-6 shadow-[0_30px_70px_-24px_rgba(29,24,26,0.4)]"
+                        className="relative max-h-[90vh] w-full max-w-[760px] overflow-y-auto rounded-[18px] border border-[#EBC2AE] bg-white p-6 shadow-[0_30px_70px_-24px_rgba(29,24,26,0.4)]"
                     >
                         <div className="flex items-start justify-between gap-3">
                             <div>
@@ -649,6 +653,10 @@ function EditJobModal({ job, submitting, error, onSubmit, onCancel }) {
                                     <input name="skillsRequired" value={form.skillsRequired} onChange={handleChange} className="h-10 w-full rounded-[12px] border border-[#EBC2AE] bg-[#FFF9F5] px-3 text-[13px] outline-none focus:border-[#C75560]" />
                                 </div>
                             </div>
+                            <ApplicationRequirementsBuilder
+                                value={form.applicationFields}
+                                onChange={(applicationFields) => setForm((current) => ({ ...current, applicationFields }))}
+                            />
 
                             {error && (
                                 <p className="rounded-lg border border-[#E9B6AF] bg-[#FFF0EE] px-3 py-2 text-[12px] font-medium text-[#B3261E]">

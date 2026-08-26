@@ -7,6 +7,7 @@ const pdfParse = require('pdf-parse');
 const sanitizeHtml = require('sanitize-html');
 const { sendEmail } = require('../services/email.service');
 const { getPlatformSettings } = require('../services/platformSettings.service');
+const { createNotification } = require('../services/notification.service');
 
 function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -30,6 +31,28 @@ function sanitizeDescriptionSections(sections) {
     if (safeHtml) clean[String(heading).slice(0, 80)] = safeHtml;
   }
   return Object.keys(clean).length > 0 ? clean : undefined;
+}
+
+const APPLICATION_FIELD_TYPES = new Set(['text', 'textarea', 'number', 'radio', 'checkbox', 'select', 'skills', 'date', 'url', 'file']);
+
+function normalizeApplicationForm(form) {
+  if (!form || typeof form !== 'object') return undefined;
+  const seen = new Set();
+  const fields = Array.isArray(form.fields) ? form.fields.map((field) => {
+    const fieldId = String(field?.fieldId || '').trim().slice(0, 100);
+    const label = String(field?.label || '').trim().slice(0, 200);
+    const fieldType = String(field?.fieldType || '').trim();
+    if (!fieldId || !label || !APPLICATION_FIELD_TYPES.has(fieldType) || seen.has(fieldId)) return null;
+    seen.add(fieldId);
+    return {
+      fieldId,
+      label,
+      fieldType,
+      required: Boolean(field.required),
+      options: Array.isArray(field.options) ? field.options.map((option) => String(option).trim().slice(0, 120)).filter(Boolean).slice(0, 50) : [],
+    };
+  }).filter(Boolean) : [];
+  return { enabled: Boolean(form.enabled) && fields.length > 0, fields };
 }
 
 const STOP_WORDS = new Set([
@@ -148,11 +171,34 @@ exports.create = async (req, res) => {
       salary,
       skillsRequired,
       experienceLevel,
+      applicationForm: normalizeApplicationForm(req.body.applicationForm),
       postedBy: req.user.id,
       status: moderationMatches.length ? 'draft' : requestedStatus === 'open' ? 'open' : 'draft',
       moderationStatus: moderationMatches.length ? 'flagged' : 'clear',
       moderationMatches,
     });
+
+    // Instant preference alerts are best-effort and never block publishing.
+    try {
+      const matchingCandidates = await Candidate.find({
+        accountStatus: 'active',
+        'profile.alertFrequency': 'instant',
+        $or: [
+          { 'profile.preferredRoles': { $regex: escapeRegex(String(title || '')), $options: 'i' } },
+          { 'profile.preferredLocations': { $regex: escapeRegex(String(location || '')), $options: 'i' } },
+          { 'profile.preferredSkills': { $in: (skillsRequired || []).map((skill) => new RegExp(escapeRegex(skill), 'i')) } },
+        ],
+      }).select('_id');
+      await Promise.all(matchingCandidates.map((candidate) => createNotification({
+        candidate: candidate._id,
+        type: 'job_alert',
+        title: 'New job matching your preferences',
+        message: `${title} is now open${location ? ` in ${location}` : ''}.`,
+        relatedId: job._id,
+      })));
+    } catch (alertError) {
+      console.error('Instant job alerts failed:', alertError.message);
+    }
 
     res.status(201).json(job);
   } catch (err) {
@@ -235,20 +281,26 @@ exports.suggestions = async (req, res) => {
 // GET /api/jobs/recommended (candidate only)
 exports.recommended = async (req, res) => {
   try {
-    const candidate = await Candidate.findById(req.user.id).select('profile.skills').lean();
-    const skills = (candidate?.profile?.skills || []).filter(Boolean);
-    const query = { status: 'open' };
+    const candidate = await Candidate.findById(req.user.id).select('profile').lean();
+    const preferences = candidate?.profile || {};
+    const candidateSkills = [...(preferences.skills || []), ...(preferences.preferredSkills || [])].filter(Boolean).map((value) => String(value).toLowerCase());
+    const roles = (preferences.preferredRoles || []).filter(Boolean).map((value) => String(value).toLowerCase());
+    const locations = (preferences.preferredLocations || []).filter(Boolean).map((value) => String(value).toLowerCase());
+    const minSalary = Number(preferences.preferredMinSalary);
+    const maxSalary = Number(preferences.preferredMaxSalary);
+    const jobs = await Job.find({ status: 'open' }).sort({ createdAt: -1 }).limit(100).populate('postedBy', 'companyName companyLogoUrl').lean();
+    const scoredJobs = jobs.map((job) => {
+      const searchable = `${job.title || ''} ${job.role || ''} ${job.description || ''}`.toLowerCase();
+      const jobLocation = String(job.location || '').toLowerCase();
+      const skillScore = candidateSkills.filter((skill) => (job.skillsRequired || []).some((jobSkill) => String(jobSkill).toLowerCase().includes(skill))).length;
+      const roleScore = roles.some((role) => searchable.includes(role)) ? 3 : 0;
+      const locationScore = locations.some((location) => jobLocation.includes(location)) ? 2 : 0;
+      const salaryNumbers = String(job.salary || '').match(/\d+(?:\.\d+)?/g)?.map(Number) || [];
+      const salaryScore = Number.isFinite(minSalary) && minSalary > 0 && salaryNumbers.some((salary) => salary >= minSalary && (!Number.isFinite(maxSalary) || maxSalary <= 0 || salary <= maxSalary)) ? 1 : 0;
+      return { job, score: skillScore + roleScore + locationScore + salaryScore };
+    }).sort((a, b) => b.score - a.score || new Date(b.job.createdAt) - new Date(a.job.createdAt));
 
-    if (skills.length > 0) {
-      query.skillsRequired = { $in: skills.map((skill) => new RegExp(escapeRegex(skill), 'i')) };
-    }
-
-    const jobs = await Job.find(query)
-      .sort({ createdAt: -1 })
-      .limit(12)
-      .populate('postedBy', 'companyName companyLogoUrl');
-
-    res.json(jobs);
+    res.json(scoredJobs.slice(0, 12).map(({ job }) => job));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -390,7 +442,7 @@ exports.myJobs = async (req, res) => {
 // PATCH /api/jobs/:id (recruiter only)
 exports.update = async (req, res) => {
   try {
-    const allowedFields = ['title', 'role', 'category', 'industry', 'description', 'descriptionSections', 'location', 'salary', 'skillsRequired', 'experienceLevel'];
+    const allowedFields = ['title', 'role', 'category', 'industry', 'description', 'descriptionSections', 'location', 'salary', 'skillsRequired', 'experienceLevel', 'applicationForm'];
     const updates = {};
 
     for (const field of allowedFields) {
@@ -404,6 +456,8 @@ exports.update = async (req, res) => {
                 .filter(Boolean);
         } else if (field === 'descriptionSections') {
           updates[field] = sanitizeDescriptionSections(req.body[field]);
+        } else if (field === 'applicationForm') {
+          updates[field] = normalizeApplicationForm(req.body[field]);
         } else {
           updates[field] = req.body[field];
         }

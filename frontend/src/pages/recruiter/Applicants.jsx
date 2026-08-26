@@ -40,6 +40,27 @@ function GithubIcon({ size = 16 }) {
   );
 }
 
+function ApplicationAnswerValue({ answer }) {
+  const value = answer?.value;
+  if (value === undefined || value === null || value === '') {
+    return <span className="text-[#A77D8D]">Not provided</span>;
+  }
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    const url = value.fileId || value.url;
+    const label = value.fileName || value.name || 'Open attachment';
+    return url ? (
+      <a href={url} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1.5 truncate font-semibold text-[#A51D35] hover:underline">
+        <FileText size={14} className="shrink-0" /> <span className="truncate">{label}</span> <ExternalLink size={12} className="shrink-0" />
+      </a>
+    ) : <span className="text-[#6B6259]">Attachment unavailable</span>;
+  }
+  if (Array.isArray(value)) return <span>{value.join(', ') || 'Not provided'}</span>;
+  if (typeof value === 'string' && /^https?:\/\//i.test(value)) {
+    return <a href={value} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1 truncate font-semibold text-[#A51D35] hover:underline">{value} <ExternalLink size={12} className="shrink-0" /></a>;
+  }
+  return <span>{String(value)}</span>;
+}
+
 /**
  * ---------------------------------------------------------------------------
  * Data shape this page is written against. The current API only reliably
@@ -581,7 +602,18 @@ export default function Applicants() {
       const expectedSalary = getCandidateField(c, 'expectedSalary');
 
       if (term) {
-        const haystack = `${name} ${title} ${skillsArray.join(' ')}`.toLowerCase();
+        const haystack = [
+          name,
+          title,
+          c.uniqueId,
+          c.email,
+          location,
+          app.job?.title,
+          ...skillsArray,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
         if (!haystack.includes(term)) return false;
       }
       if (statusFilter && normalizeStatus(app.status) !== statusFilter) return false;
@@ -1033,9 +1065,9 @@ export default function Applicants() {
   }
 
   return (
-    <div className="portal-theme overflow-x-hidden">
+    <div className="portal-theme min-h-0 overflow-x-hidden">
       <RecruiterNavbar />
-      <main className="recruiter-page mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-5">
+      <main className="recruiter-page mx-auto min-h-0 w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-5">
         {/* Header + job switcher + KPI strip + search/filters: sticky, stays fixed while the list below scrolls with the page */}
         <div className="sticky top-0 z-20 -mx-5 bg-[#FFF9F5] px-5 pb-4 sm:-mx-8 sm:px-8">
           <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -1060,7 +1092,7 @@ export default function Applicants() {
               <ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#80576A]" />
             </div>
             <span className="mt-1.5 text-[12px] font-medium text-[#80576A]">
-              {jobFilteredApplicants.length} applicant{jobFilteredApplicants.length === 1 ? '' : 's'}
+              {visibleApplicants.length} applicant{visibleApplicants.length === 1 ? '' : 's'}
               {selectedJobTitle ? ` for ${selectedJobTitle}` : ''}
             </span>
           </label>
@@ -1085,19 +1117,19 @@ export default function Applicants() {
 
         {/* Search + filters (part of the fixed top section now) */}
         <div className="mb-6 border-b border-[#F1DDD4] pb-3.5">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-            <div className="relative flex-1">
+          <div className="flex flex-col gap-3">
+            <div className="relative w-full max-w-xl">
               <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#80576A]" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search candidates..."
-                className="w-full rounded-[10px] border border-[#EBC2AE] bg-white py-2.5 pl-9 pr-3 text-[13.5px] text-[#1D181A] outline-none transition placeholder:text-[#B9A2AC] focus:border-[#C75560]"
+                className="block h-11 w-full rounded-[10px] border border-[#EBC2AE] bg-white py-2.5 pl-9 pr-3 text-[13.5px] text-[#1D181A] outline-none transition placeholder:text-[#B9A2AC] focus:border-[#C75560]"
               />
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex w-full flex-wrap items-center gap-2">
               <FilterSelect label="Experience" value={experienceFilter} onChange={setExperienceFilter} options={[
                 { value: '1', label: '1+ yrs' }, { value: '3', label: '3+ yrs' }, { value: '5', label: '5+ yrs' }, { value: '8', label: '8+ yrs' },
               ]} />
@@ -1131,7 +1163,7 @@ export default function Applicants() {
             <p className="mt-2 max-w-sm text-[13px] leading-6 text-[#80576A]">As candidates apply to this job, their information will appear here.</p>
           </div>
         ) : (
-          <div className={`grid grid-cols-1 gap-6 ${selectedApplicant ? 'lg:grid-cols-[minmax(300px,32%)_1fr]' : ''}`}>
+          <div className={`grid min-h-0 grid-cols-1 items-start gap-6 ${selectedApplicant ? 'lg:grid-cols-[minmax(300px,32%)_1fr]' : ''}`}>
             {/* Left: candidate list */}
             <section className={`flex flex-col gap-3 transition-transform duration-600 ease-out ${selectedApplicant ? 'lg:sticky lg:top-[290px] lg:-translate-x-6 lg:opacity-80' : 'lg:translate-x-0 lg:opacity-100'}`}>
               {visibleApplicants.length === 0 ? (
@@ -1928,6 +1960,22 @@ function CandidateDetail({
             )} />
           </div>
         </div>
+        {Array.isArray(application.answers) && application.answers.length > 0 && (
+          <div className="mt-4 overflow-hidden rounded-[12px] border border-[#EBC2AE] bg-[#FFFDFC] shadow-sm">
+            <div className="flex items-center justify-between gap-3 border-b border-[#F1DDD4] bg-[#FFF9F5] px-4 py-3">
+              <div><p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#C75560]">Candidate details</p><p className="mt-0.5 text-[15px] font-bold text-[#1D181A]">Application Responses</p></div>
+              <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-[#80576A]">{application.answers.length} responses</span>
+            </div>
+            <div className="grid gap-2.5 p-3 sm:grid-cols-2">
+              {application.answers.map((answer) => (
+                <div key={answer.fieldId} className="min-w-0 rounded-[9px] border border-[#F1DDD4] bg-white px-3 py-2.5">
+                  <p className="min-w-0 truncate text-[11px] font-semibold text-[#80576A]">{answer.label}</p>
+                  <p className="mt-1.5 break-words whitespace-pre-wrap text-[13px] font-semibold leading-5 text-[#1D181A]"><ApplicationAnswerValue answer={answer} /></p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Actions + Activity Timeline — side by side, each stacked vertically,

@@ -130,7 +130,7 @@ export default function JobApplicants() {
           ) : (
             <>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[760px]">
+                <table className="w-full min-w-full md:min-w-[760px]">
                   <thead className="bg-[#FFFBF9]">
                     <tr className="border-b border-[#F3E9E3]">
                       <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-[0.08em] text-[#A08A93]">Name</th>

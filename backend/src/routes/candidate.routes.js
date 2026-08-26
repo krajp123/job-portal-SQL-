@@ -6,7 +6,7 @@ const candidateController = require('../controllers/candidate.controller');
 const candidateVerification = require('../controllers/candidateVerification.controller');
 const candidatePasswordReset = require('../controllers/candidatePasswordReset.controller');
 const upload = require('../middleware/uploadHandler');
-const { verifyTokenAndStatus } = require('../middleware/auth');
+const { verifyTokenAndStatus, optionalVerifyToken } = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
 
 // Public — pre-registration email/phone verification
@@ -25,13 +25,14 @@ router.post('/password/reset', candidatePasswordReset.resetPasswordByToken);
 router.post('/register/create-order', upload.single('experienceCertificate'), candidateAuth.createRegistrationOrder);
 router.post('/register/verify-payment', candidateAuth.verifyRegistrationPayment);
 router.post('/login', candidateAuth.login);
-router.get('/search', candidateController.search); // recruiters use this too, could add verifyToken + requireRole('recruiter')
+router.get('/search', optionalVerifyToken, candidateController.search);
 
 // Authenticated (candidate only)
 // NOTE: these /me/* routes MUST be registered before the '/:uniqueId' wildcard
 // below, otherwise Express matches GET /me/profile against '/:uniqueId'
 // (uniqueId="me") first and getMyProfile / getSavedJobs never run.
 router.get('/me/profile', verifyTokenAndStatus, requireRole('candidate'), candidateController.getMyProfile);
+router.get('/me/performance', verifyTokenAndStatus, requireRole('candidate'), candidateController.getMyPerformance);
 router.put('/me/profile', verifyTokenAndStatus, requireRole('candidate'), candidateController.updateMyProfile);
 router.post('/me/email/send', verifyTokenAndStatus, requireRole('candidate'), candidateController.sendEmailChangeOtp);
 router.post('/me/email/confirm', verifyTokenAndStatus, requireRole('candidate'), candidateController.verifyEmailChangeOtp);
@@ -64,6 +65,6 @@ router.post('/me/saved-jobs/:jobId', verifyTokenAndStatus, requireRole('candidat
 router.delete('/me/saved-jobs/:jobId', verifyTokenAndStatus, requireRole('candidate'), candidateController.unsaveJob);
 
 // Wildcard — must stay LAST among GET routes on this router
-router.get('/:uniqueId', candidateController.getByUniqueId);
+router.get('/:uniqueId', optionalVerifyToken, candidateController.getByUniqueId);
 
 module.exports = router;

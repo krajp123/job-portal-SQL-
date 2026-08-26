@@ -17,6 +17,19 @@ const jobSchema = new mongoose.Schema(
     skillsRequired: [{ type: String }],
     experienceLevel: { type: String },
 
+    applicationForm: {
+      enabled: { type: Boolean, default: false },
+      fields: [
+        {
+          fieldId: { type: String, required: true },
+          fieldType: { type: String, required: true },
+          label: { type: String, required: true },
+          required: { type: Boolean, default: false },
+          options: [{ type: String }],
+        },
+      ],
+    },
+
     postedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Recruiter', required: true },
     adminClosed: { type: Boolean, default: false },
     // 'open'/'closed' are used by list/closeJob; 'active'/'draft' are sent by

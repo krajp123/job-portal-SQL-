@@ -2,6 +2,7 @@ const Message = require('../models/Message');
 const ChatPreference = require('../models/ChatPreference');
 const Candidate = require('../models/Candidate');
 const Recruiter = require('../models/Recruiter');
+const CandidatePerformanceEvent = require('../models/CandidatePerformanceEvent');
 const mongoose = require('mongoose');
 const { createNotification } = require('../services/notification.service');
 
@@ -34,6 +35,12 @@ exports.startConversation = async (req, res) => {
       startedByRecruiter: true,
       sender: 'recruiter',
       text,
+    });
+
+    await CandidatePerformanceEvent.create({
+      candidate: candidateId,
+      recruiter: req.user.id,
+      type: 'message_started',
     });
 
     const recruiter = await Recruiter.findById(req.user.id).select('fullName name companyName').lean();

@@ -179,7 +179,7 @@ export default function Dashboard() {
       <div className="w-full max-w-7xl px-4 py-2 sm:px-5 md:px-6 lg:px-8">
         <div className="space-y-4 animate-pulse">
           <div className="h-24 bg-slate-200 rounded-lg" />
-          <div className="grid grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5">
             {Array(5).fill(0).map((_, i) => (
               <div key={i} className="h-32 bg-slate-200 rounded-lg" />
             ))}

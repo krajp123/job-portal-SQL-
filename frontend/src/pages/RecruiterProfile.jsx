@@ -424,7 +424,7 @@ export default function RecruiterProfile() {
                 <div className="pb-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h1 className="text-2xl font-bold tracking-tight text-[#1D181A]">{recruiter.name}</h1>
-                    {recruiter.verified && (
+                    {recruiter.verificationStatus === 'verified' && (
                       <span className="flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
                         <CheckCircle2 size={11} /> Verified
                       </span>

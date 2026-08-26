@@ -1133,7 +1133,7 @@ export default function Settings() {
                   >
                     <div className="[overflow-anchor:none]">
                     <div className={`w-full max-w-full overflow-x-auto border border-[#1D181A] bg-[#FFFDFB] ${auditLoading && settings.security.auditLog.length ? 'opacity-60' : ''}`}>
-                      <table className="min-w-[900px] w-full table-fixed border-collapse text-xs sm:text-[11px]">
+                      <table className="min-w-full w-full table-fixed border-collapse text-xs sm:text-[11px] md:min-w-[900px]">
                         <thead>
                           <tr>
                             {['Date', 'Time', 'Admin', 'Action'].map((label) => (

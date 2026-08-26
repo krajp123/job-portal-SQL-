@@ -41,6 +41,15 @@ const applicationSchema = new mongoose.Schema(
     highlighted: { type: Boolean, default: false }, // if application is highlighted
     
     notes: { type: String }, // internal notes from recruiter
+
+    answers: [
+      {
+        fieldId: { type: String, required: true },
+        label: { type: String, required: true },
+        fieldType: { type: String, required: true },
+        value: { type: mongoose.Schema.Types.Mixed },
+      },
+    ],
   },
   { timestamps: true }
 );

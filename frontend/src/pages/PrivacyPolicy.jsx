@@ -199,13 +199,13 @@ export default function PrivacyPolicy() {
     };
 
     return (
-        <div className="min-h-screen bg-[#FFF9F5] text-[#241A1E]">
+        <div className="min-h-screen overflow-x-hidden bg-[#FFF9F5] text-[#241A1E]">
             {user?.role === 'recruiter' ? <RecruiterNavbar /> : <CandidateNavbar />}
 
             <main>
                 {/* Masthead */}
                 <section
-                    className="relative overflow-hidden bg-gradient-to-br from-[#5C1B26] via-[#7A2333] to-[#C75560] px-6 pb-8 pt-6 sm:px-10 sm:pb-10 sm:pt-8"
+                    className="relative overflow-hidden bg-gradient-to-br from-[#5C1B26] via-[#7A2333] to-[#C75560] px-4 pb-7 pt-5 sm:px-10 sm:pb-10 sm:pt-8"
                     style={{ clipPath: 'ellipse(100% 100% at 50% 0%)' }}
                 >
                     <div
@@ -240,7 +240,7 @@ export default function PrivacyPolicy() {
                                 </p>
                             </div>
 
-                            <div className="flex shrink-0 items-center gap-3 rounded-md border border-white/25 bg-white/10 px-3 py-2 backdrop-blur-sm">
+                            <div className="flex w-full min-w-0 items-center gap-2 rounded-md border border-white/25 bg-white/10 px-2.5 py-2 backdrop-blur-sm sm:w-auto sm:gap-3 sm:px-3">
                                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white/15 text-white">
                                     <ShieldCheck size={20} />
                                 </span>
@@ -251,7 +251,7 @@ export default function PrivacyPolicy() {
                                     >
                                         Doc {DOC_ID}
                                     </p>
-                                    <p className="text-sm font-bold text-white">Effective {EFFECTIVE_DATE}</p>
+                                    <p className="break-words text-xs font-bold text-white sm:text-sm">Effective {EFFECTIVE_DATE}</p>
                                 </div>
                             </div>
                         </div>
@@ -262,7 +262,7 @@ export default function PrivacyPolicy() {
 
                 {/* Intro strip */}
                 <section
-                    className="relative mt-4 overflow-hidden border-b border-[#D7DED5] bg-[#EEF1EC] px-6 py-5 sm:mt-6 sm:px-10 sm:py-6"
+                    className="relative mt-3 overflow-hidden border-b border-[#D7DED5] bg-[#EEF1EC] px-4 py-4 sm:mt-6 sm:px-10 sm:py-6"
                     style={{
                         backgroundImage:
                             'linear-gradient(90deg, rgba(92,27,38,0.04) 1px, transparent 1px), linear-gradient(rgba(92,27,38,0.04) 1px, transparent 1px)',
@@ -287,9 +287,9 @@ export default function PrivacyPolicy() {
                 </section>
 
                 {/* Body: index rail + sections */}
-                <section className="mx-auto max-w-6xl px-6 py-12 sm:px-10 sm:py-16">
+                <section className="mx-auto max-w-6xl px-4 py-8 sm:px-10 sm:py-16">
                     {/* Mobile index (horizontal pills) */}
-                    <div className="mb-8 -mx-6 flex gap-2 overflow-x-auto px-6 pb-2 lg:hidden">
+                    <div className="mb-6 -mx-4 flex gap-2 overflow-x-auto px-4 pb-2 lg:hidden">
                         {SECTIONS.map((s) => (
                             <button
                                 key={s.id}
@@ -350,14 +350,14 @@ export default function PrivacyPolicy() {
                         </nav>
 
                         {/* Sections */}
-                        <div className="space-y-6">
+                        <div className="min-w-0 space-y-4 sm:space-y-6">
                             {SECTIONS.map(({ id, num, title, icon: Icon, paragraphs, list }) => (
                                 <article
                                     key={id}
                                     id={id}
                                     data-section-id={id}
                                     ref={(el) => (sectionRefs.current[id] = el)}
-                                    className="scroll-mt-24 rounded-md border border-[#EADBD4] bg-white p-4 shadow-[0_18px_35px_-28px_rgba(73,43,49,0.35)] sm:scroll-mt-28 sm:p-6"
+                                    className="scroll-mt-20 rounded-md border border-[#EADBD4] bg-white p-3.5 shadow-[0_18px_35px_-28px_rgba(73,43,49,0.35)] sm:scroll-mt-28 sm:p-6"
                                 >
                                     <div className="flex items-center gap-3">
                                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[#FFF0E8] text-[#C75560]">
@@ -371,7 +371,7 @@ export default function PrivacyPolicy() {
                                                 &sect; {num}
                                             </p>
                                             <h2
-                                                className="text-lg font-bold text-[#2B2326] sm:text-xl"
+                                                className="break-words text-base font-bold text-[#2B2326] sm:text-xl"
                                                 style={{ fontFamily: "'Space Grotesk', sans-serif" }}
                                             >
                                                 {title}
@@ -381,7 +381,7 @@ export default function PrivacyPolicy() {
 
                                     <div className="mt-4 space-y-3 border-t border-[#F3E9E3] pt-4">
                                         {paragraphs.map((p, i) => (
-                                            <p key={i} className="text-[14px] leading-7 text-[#4A3E43]">
+                                            <p key={i} className="break-words text-[13px] leading-6 text-[#4A3E43] sm:text-[14px] sm:leading-7">
                                                 {p}
                                             </p>
                                         ))}
@@ -389,7 +389,7 @@ export default function PrivacyPolicy() {
                                         {list && (
                                             <ul className="mt-2 space-y-2.5">
                                                 {list.map((item, i) => (
-                                                    <li key={i} className="flex gap-2.5 text-[14px] leading-6 text-[#4A3E43]">
+                                                    <li key={i} className="flex gap-2.5 break-words text-[13px] leading-6 text-[#4A3E43] sm:text-[14px]">
                                                         <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#E7B667]" />
                                                         <span>
                                                             {item.label && (

@@ -1171,7 +1171,7 @@ export default function CandidateProfile() {
 
           {filteredApplications.length ? (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-left text-[12px]">
+              <table className="w-full min-w-full text-left text-[12px] md:min-w-[640px]">
                 <thead>
                   <tr className="border-b border-[#F0E1D6] text-[9px] uppercase tracking-[0.08em] text-[#A08A93]">
                     <th className="px-2 py-2 font-bold">Job title</th>

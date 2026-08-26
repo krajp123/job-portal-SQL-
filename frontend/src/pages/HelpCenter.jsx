@@ -304,7 +304,7 @@ const RECRUITER_CONCERN_OPTIONS = ['Account', 'Billing & payments', 'Job posting
 
 function PersonaToggle({ persona, onChange }) {
     return (
-        <div className="bg-[#FFF9F5] px-6 py-2.5 sm:px-10">
+        <div className="bg-[#FFF9F5] px-4 py-2 sm:px-10">
             <div className="mx-auto flex max-w-5xl justify-center">
                 <div className="inline-flex rounded-full bg-[#2B2326] p-1 shadow-[0_8px_18px_-12px_rgba(43,35,38,0.8)]" role="group" aria-label="Choose help center audience">
                 {PERSONAS.map((item) => {
@@ -494,12 +494,12 @@ function HelpHero({ persona, query, onQueryChange, onSelectTopic, showTopicSearc
     }
 
     return (
-        <section className="relative overflow-hidden bg-gradient-to-b from-[#C75560] via-[#7A3656] to-[#2B2326] px-6 pb-8 pt-8 sm:px-10 sm:pt-10">
+        <section className="relative overflow-hidden bg-gradient-to-b from-[#C75560] via-[#7A3656] to-[#2B2326] px-4 pb-7 pt-6 sm:px-10 sm:pb-8 sm:pt-10">
             <DotGrid className="pointer-events-none absolute -right-10 top-10 h-72 w-72" />
             <div className="pointer-events-none absolute -left-24 top-1/2 h-80 w-80 -translate-y-1/2 rounded-full border-[28px] border-white/5" aria-hidden="true" />
 
             <motion.div key={persona} variants={heroVariants} initial="hidden" animate="show" className="relative mx-auto max-w-3xl text-center">
-                <motion.h1 variants={itemVariants} className="text-3xl font-bold leading-tight text-white sm:text-4xl" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                <motion.h1 variants={itemVariants} className="break-words text-2xl font-bold leading-tight text-white sm:text-4xl" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
                     Hi, how can we help you?
                 </motion.h1>
                 <motion.p variants={itemVariants} className="mx-auto mt-2 max-w-md text-xs leading-5 text-[#C9D8EA] sm:text-sm">
@@ -538,7 +538,7 @@ function HelpHero({ persona, query, onQueryChange, onSelectTopic, showTopicSearc
 
 function TopicTiles({ categories, activeCategoryId, onSelect }) {
     return (
-        <section className="bg-[#F7F3EF] px-6 py-4 sm:px-10">
+        <section className="bg-[#F7F3EF] px-4 py-3 sm:px-10 sm:py-4">
             <div className="mx-auto flex max-w-5xl snap-x gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:justify-center sm:overflow-visible">
                 {categories.map((category) => {
                     const Icon = category.icon;
@@ -593,9 +593,9 @@ function TopicDetailPanel({ persona, category, activeTopicIndex, onSelectTopicIn
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, ease: 'easeOut' }}
-            className="mx-auto max-w-5xl px-6 py-6 sm:px-10 sm:py-8"
+            className="mx-auto max-w-5xl px-4 py-5 sm:px-10 sm:py-8"
         >
-            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                 <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs font-medium text-[#91A0B2]">
                     <Link to="/" className="hover:text-[#277451]">Home</Link>
                     <ChevronRight size={12} />
@@ -610,7 +610,7 @@ function TopicDetailPanel({ persona, category, activeTopicIndex, onSelectTopicIn
 
             <h2 className="mb-4 text-xl font-bold text-[#1D181A]">{category.title}</h2>
 
-            <div className="grid gap-6 md:grid-cols-[280px_1fr]">
+            <div className="grid min-w-0 gap-4 md:grid-cols-[280px_minmax(0,1fr)] lg:gap-6">
                 <div className="overflow-hidden rounded-2xl border border-[#EADBD4] bg-white">
                     <ul>
                         {category.topics.map((topic, index) => {
@@ -640,13 +640,13 @@ function TopicDetailPanel({ persona, category, activeTopicIndex, onSelectTopicIn
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -8 }}
                         transition={{ duration: 0.2, ease: 'easeOut' }}
-                        className="rounded-2xl border border-[#EADBD4] bg-white p-6 sm:p-7"
+                        className="min-w-0 rounded-xl border border-[#EADBD4] bg-white p-4 sm:rounded-2xl sm:p-7"
                     >
                         <p className={`text-[11px] font-bold uppercase tracking-[0.14em] ${accent.text}`}>{category.title}</p>
-                        <h3 className="mt-1.5 text-lg font-bold leading-6 text-[#1D181A]">{activeTopic.q}</h3>
-                        <p className="mt-4 text-[13.5px] leading-6 text-[#3F3438]">{activeTopic.a}</p>
+                        <h3 className="mt-1.5 break-words text-base font-bold leading-6 text-[#1D181A] sm:text-lg">{activeTopic.q}</h3>
+                        <p className="mt-3 break-words text-[13px] leading-6 text-[#3F3438] sm:mt-4 sm:text-[13.5px]">{activeTopic.a}</p>
 
-                        <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-[#F0E1D6] pt-5">
+                        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-[#F0E1D6] pt-4 sm:mt-8 sm:pt-5">
                             {feedback ? (
                                 <p className="text-xs font-semibold text-[#277451]">Thanks for your feedback!</p>
                             ) : (
@@ -884,7 +884,7 @@ export default function HelpCenter() {
     }
 
     return (
-        <div className="min-h-screen bg-[#FFF9F5] text-[#1D181A]">
+        <div className="min-h-screen overflow-x-hidden bg-[#FFF9F5] text-[#1D181A]">
             {user?.role === 'recruiter' ? <RecruiterNavbar /> : <CandidateNavbar />}
             <PersonaToggle persona={persona} onChange={handlePersonaChange} />
             <main>

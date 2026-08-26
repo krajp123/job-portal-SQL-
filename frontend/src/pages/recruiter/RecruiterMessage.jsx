@@ -461,7 +461,7 @@ export default function RecruiterMessagesPreview() {
                                                 <div key={message._id} className={`group flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
                                                     <div className={`flex items-end gap-1.5 ${mine ? 'flex-row' : 'flex-row-reverse'}`}>
                                                         <div
-                                                            className={`max-w-[340px] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed sm:max-w-[420px] ${
+                                                            className={`max-w-[340px] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed sm:max-w-[420px] ${
                                                                 mine
                                                                     ? 'rounded-br-sm bg-[#C75560] text-white'
                                                                     : 'rounded-bl-sm border border-[#F0D1BF] bg-white text-[#1D181A]'
@@ -491,13 +491,20 @@ export default function RecruiterMessagesPreview() {
                     </div>
 
                     <div className="flex items-center gap-2 border-t border-[#F0D1BF] bg-white p-3">
-                        <input
+                        <textarea
                             ref={inputRef}
                             value={draft}
                             onChange={(event) => setDraft(event.target.value)}
-                            onKeyDown={(event) => event.key === 'Enter' && sendMessage()}
+                            onKeyDown={(event) => {
+                                const isTouchDevice = window.matchMedia('(pointer: coarse)').matches;
+                                if (event.key === 'Enter' && !event.shiftKey && !isTouchDevice) {
+                                    event.preventDefault();
+                                    sendMessage();
+                                }
+                            }}
                             placeholder={`Write a message to ${activeName}`}
-                            className="min-w-0 flex-1 rounded-full border border-[#EBC2AE] bg-[#FFFDFC] px-4 py-2.5 text-sm outline-none transition-colors focus:border-[#C75560]"
+                            rows={1}
+                            className="max-h-24 min-h-10 min-w-0 flex-1 resize-none rounded-2xl border border-[#EBC2AE] bg-[#FFFDFC] px-4 py-2.5 text-sm leading-5 outline-none transition-colors focus:border-[#C75560]"
                         />
                         <button
                             type="button"

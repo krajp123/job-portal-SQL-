@@ -129,7 +129,7 @@ export default function Candidates() {
       </div>
 
       <div className="w-full max-w-full overflow-x-auto border border-[#1D181A] bg-[#FFFDFB]">
-        <table className="min-w-[760px] w-full table-fixed border-collapse text-xs sm:text-[11px]">
+        <table className="min-w-full w-full table-fixed border-collapse text-xs sm:text-[11px] md:min-w-[760px]">
           <thead>
             <tr>
               {COLUMNS.map((col) => (

@@ -954,18 +954,57 @@ export default function RecruiterProfile() {
     if (!amt || amt <= 0) return;
     const mode = walletModal.mode;
     openModal({
-      title: `${mode === 'credit' ? 'Credit' : 'Debit'} ₹${amt} ${mode === 'credit' ? 'to' : 'from'} wallet?`,
-      description: 'This adjustment is recorded in the transaction ledger and activity log.',
+      title: `${mode === 'credit' ? 'Pay ₹' : 'Deduct ₹'}${amt} ${mode === 'credit' ? 'to fund recruiter wallet?' : 'from wallet?'}`,
+      description: mode === 'credit' ? 'You will be redirected to secure Razorpay checkout. Wallet funds are added only after payment verification.' : 'This deduction is recorded in the transaction ledger and activity log.',
       confirmLabel: mode === 'credit' ? 'Add funds' : 'Deduct funds',
       danger: mode === 'debit',
       requireReason: true,
-      // NOTE: manual wallet adjustment endpoint doesn't exist yet — confirm route + schema before wiring this up for real.
-      run: () =>
-        runPatch(
-          'wallet/adjust',
-          { amount: mode === 'credit' ? amt : -amt, reason },
-          { walletBalance: (recruiter.walletBalance || 0) + (mode === 'credit' ? amt : -amt) }
-        ),
+      run: mode === 'credit' ? async () => {
+        setModalLoading(true);
+        try {
+          const { data: order } = await adminAxiosInstance.post(`/users/recruiters/${recruiterId}/wallet/payment-order`, { amount: amt });
+          if (typeof window.Razorpay !== 'function') {
+            await new Promise((resolve, reject) => {
+              const script = document.createElement('script');
+              script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+              script.onload = resolve;
+              script.onerror = () => reject(new Error('Unable to load Razorpay checkout.'));
+              document.body.appendChild(script);
+            });
+          }
+          closeModal();
+          const razorpay = new window.Razorpay({
+            key: order.key,
+            amount: order.amount * 100,
+            currency: order.currency,
+            name: 'JobPortal',
+            description: `Wallet funding for ${recruiter.companyName || 'recruiter'}`,
+            order_id: order.orderId,
+            handler: async (response) => {
+              try {
+                const { data } = await adminAxiosInstance.post(`/users/recruiters/${recruiterId}/wallet/payment-verify`, {
+                  ...response,
+                  paymentRecordId: order.paymentRecordId,
+                  reason,
+                });
+                setRecruiter((prev) => ({ ...prev, walletBalance: data.walletBalance }));
+                setNotification({ type: 'success', message: '✓ Wallet funded after successful payment' });
+                setTimeout(() => setNotification(null), 3000);
+              } catch (paymentError) {
+                setNotification({ type: 'error', message: paymentError.response?.data?.error || 'Payment verification failed.' });
+              }
+            },
+            modal: { ondismiss: () => setNotification({ type: 'error', message: 'Payment cancelled. Wallet was not credited.' }) },
+            theme: { color: '#C75560' },
+          });
+          razorpay.on('payment.failed', () => setNotification({ type: 'error', message: 'Payment failed. Wallet was not credited.' }));
+          razorpay.open();
+        } catch (paymentError) {
+          setNotification({ type: 'error', message: paymentError.response?.data?.error || paymentError.message || 'Could not start payment.' });
+        } finally {
+          setModalLoading(false);
+        }
+      } : () => runPatch('wallet/adjust', { amount: -amt, reason }, { walletBalance: Math.max(0, (recruiter.walletBalance || 0) - amt) }),
     });
     setWalletModal(null);
     setWalletAmount('');
@@ -1258,7 +1297,7 @@ export default function RecruiterProfile() {
               {recruiter.jobs?.length ? (
                 <>
                   <div className="overflow-x-auto rc-scrollbar -mx-1">
-                    <table className="w-full text-xs min-w-[520px]">
+                    <table className="w-full min-w-full text-xs md:min-w-[520px]">
                       <thead>
                         <tr className="text-left text-[9px] text-[#A08A93] uppercase tracking-wide border-b border-[#F3E9E3]">
                           <th className="py-2 px-3 font-bold">Title</th>
@@ -1383,10 +1422,10 @@ export default function RecruiterProfile() {
                         <div key={t.id} className="flex items-center justify-between text-xs py-3 first:pt-0 last:pb-0">
                           <div>
                             <p className="text-[#1D181A] font-semibold">{displayLabel}</p>
-                            <p className="rc-mono text-[11px] text-[#A08A93]">{t.timestamp}</p>
+                            <p className="rc-mono text-[11px] text-[#A08A93]">{t.timestamp}{t.status === 'pending' ? ' · Pending payment' : ''}</p>
                           </div>
-                          <p className={`rc-mono font-bold ${t.amount < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                            {t.amount < 0 ? '-' : '+'}₹{Math.abs(t.amount)}
+                          <p className={`rc-mono font-bold ${t.status === 'pending' ? 'text-amber-700' : t.amount < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                            {t.status === 'pending' ? `Pending ₹${Math.abs(t.amount)}` : `${t.amount < 0 ? '-' : '+'}₹${Math.abs(t.amount)}`}
                           </p>
                         </div>
                       );

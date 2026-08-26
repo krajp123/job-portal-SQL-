@@ -598,7 +598,7 @@ function RecruitersTab({ recruiters }) {
   return (
     <Card compact title="Top Recruiters" subtitle="Ranked by hiring success and responsiveness, last 30 days">
       <div className="mt-2 overflow-x-auto">
-        <table className="w-full min-w-[520px] text-left text-xs">
+        <table className="w-full min-w-full text-left text-xs md:min-w-[520px]">
           <thead>
             <tr style={{ color: COLORS.dustyRose }} className="text-[10px] uppercase tracking-wide">
               <th className="pb-2 font-medium">Company</th>

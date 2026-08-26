@@ -408,6 +408,7 @@ export default function Dashboard() {
     const navigate = useNavigate();
 
     const [profile, setProfile] = useState(null);
+    const [performance, setPerformance] = useState(null);
     const [applications, setApplications] = useState([]);
     const [savedJobs, setSavedJobs] = useState([]);
     const [recommendedJobs, setRecommendedJobs] = useState([]);
@@ -424,8 +425,9 @@ export default function Dashboard() {
         setLoading(true);
         setError('');
         try {
-            const [profileRes, applicationsRes, savedJobsRes, recommendedRes, companiesRes] = await Promise.all([
+            const [profileRes, performanceRes, applicationsRes, savedJobsRes, recommendedRes, companiesRes] = await Promise.all([
                 axiosInstance.get('/candidate/me/profile'),
+                axiosInstance.get('/candidate/me/performance'),
                 axiosInstance.get('/applications/mine'),
                 axiosInstance.get('/candidate/me/saved-jobs'),
                 // These two are optional/best-effort widgets — if the routes
@@ -435,6 +437,7 @@ export default function Dashboard() {
                 axiosInstance.get('/companies/top').catch(() => ({ data: [] })),
             ]);
             setProfile(profileRes.data);
+            setPerformance(performanceRes.data);
             setApplications(applicationsRes.data || []);
             setSavedJobs(savedJobsRes.data || []);
             setRecommendedJobs(recommendedRes.data || []);
@@ -578,7 +581,7 @@ export default function Dashboard() {
                                     <div className="grid grid-cols-2 gap-3">
                                         <div className="rounded-[12px] p-3.5" style={{ background: '#F5F3F0' }}>
                                             <p className="text-[20px] font-bold text-stone-900" style={{ fontFamily: FONT_DISPLAY }}>
-                                                {profile?.searchAppearances ?? 0}
+                                                {performance?.searchAppearances ?? profile?.searchAppearances ?? 0}
                                             </p>
                                             <p className="text-[11.5px] text-[#6B6259]">Search Appearances</p>
                                             <Link
@@ -592,7 +595,7 @@ export default function Dashboard() {
                                         </div>
                                         <div className="rounded-[12px] p-3.5" style={{ background: '#F5F3F0' }}>
                                             <p className="text-[20px] font-bold text-stone-900" style={{ fontFamily: FONT_DISPLAY }}>
-                                                {profile?.recruiterActions ?? 0}
+                                                {performance?.recruiterActions ?? profile?.recruiterActions ?? 0}
                                             </p>
                                             <p className="text-[11.5px] text-[#6B6259]">Recruiter Actions</p>
                                             <Link

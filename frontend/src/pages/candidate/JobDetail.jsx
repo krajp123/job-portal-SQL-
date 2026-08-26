@@ -25,6 +25,7 @@ import {
 import axiosInstance from '../../api/axiosInstance';
 import { FONT_DISPLAY, FONT_BODY, MAROON, MAROON_DARK, ACCENT, BG } from '../../theme';
 import CandidateNavbar from '../../components/CandidateNavbar';
+import { DynamicApplicationForm } from '../../components/ApplicationForm';
 
 /* ------------------------------------------------------------------ */
 /* Description parsing                                                 */
@@ -85,6 +86,10 @@ const SECTION_ICONS = {
 // title in the header card (mirrors the "Join Spotify's design team..."
 // line in the reference design).
 const TAGLINE_HEADERS = ['job description', 'job summary', 'about the role', 'role overview', 'overview'];
+
+function displayExperienceLevel(value) {
+    return /^0(?:\s*[-+]\s*0?)?\s*years?/i.test(String(value || '').trim()) ? 'Freshers' : value;
+}
 
 const BULLET_PATTERN = /^[-•*]\s+/;
 
@@ -421,6 +426,8 @@ export default function JobDetail() {
     const [applied, setApplied] = useState(false);
     const [applicationStatus, setApplicationStatus] = useState('');
     const [applyError, setApplyError] = useState('');
+    const [applicationFormOpen, setApplicationFormOpen] = useState(false);
+    const [candidateProfile, setCandidateProfile] = useState(null);
     const [reporting, setReporting] = useState(false);
     const [reportOpen, setReportOpen] = useState(false);
     const [reportReason, setReportReason] = useState('');
@@ -440,10 +447,11 @@ export default function JobDetail() {
             setLoading(true);
             setError('');
             try {
-                const [{ data: jobData }, { data: savedData }, { data: appliedData }] = await Promise.all([
+                const [{ data: jobData }, { data: savedData }, { data: appliedData }, { data: profileData }] = await Promise.all([
                     axiosInstance.get(`/jobs/${id}`),
                     axiosInstance.get('/candidate/me/saved-jobs').catch(() => ({ data: [] })),
                     axiosInstance.get('/applications/mine').catch(() => ({ data: [] })),
+                    axiosInstance.get('/candidate/me/profile').catch(() => ({ data: null })),
                 ]);
 
                 setJob(jobData);
@@ -453,6 +461,7 @@ export default function JobDetail() {
                 );
                 setApplied(!!jobApplication);
                 setApplicationStatus(jobApplication?.status || '');
+                setCandidateProfile(profileData);
             } catch (err) {
                 setError(err.response?.data?.error || 'Could not load this job.');
             } finally {
@@ -489,11 +498,24 @@ export default function JobDetail() {
 
     async function apply() {
         if (!job?._id) return;
+        if (job.status !== 'open') {
+            setApplyError('This job is no longer accepting applications.');
+            return;
+        }
+        if (job.applicationForm?.enabled && job.applicationForm.fields?.length) {
+            setApplicationFormOpen(true);
+            return;
+        }
+        await submitApplication([]);
+    }
+
+    async function submitApplication(answers) {
         setApplying(true);
         setApplyError('');
         try {
-            await axiosInstance.post('/applications', { jobId: job._id });
+            await axiosInstance.post('/applications', { jobId: job._id, answers });
             setApplied(true);
+            setApplicationFormOpen(false);
         } catch (err) {
             console.error('Apply failed:', err.response?.data || err.message);
             setApplyError(err.response?.data?.error || 'Could not apply. Please try again.');
@@ -536,6 +558,14 @@ export default function JobDetail() {
     }
 
     const isSaved = job ? savedIds.has(job._id) : false;
+    const applicationFields = job?.applicationForm?.enabled ? job.applicationForm.fields || [] : [];
+    const profile = candidateProfile?.profile || {};
+    const initialApplicationValues = {
+        current_location: profile.location,
+        linkedin_url: candidateProfile?.socialLinks?.linkedin,
+        github_url: candidateProfile?.socialLinks?.github,
+        personal_website: candidateProfile?.socialLinks?.website,
+    };
     const descriptionSections = buildDescriptionSections(job);
     const tagline = job ? extractTagline(descriptionSections) : null;
     const highlightRegex = job ? buildHighlightRegex(job.skillsRequired) : null;
@@ -549,7 +579,7 @@ export default function JobDetail() {
     // strip is skipped if nothing at all is available.
     const statCells = job
         ? [
-              { label: 'Experience Level', value: job.experienceLevel },
+                { label: 'Experience Level', value: displayExperienceLevel(job.experienceLevel) },
               {
                   label: 'Applicants',
                   value: typeof job.applicantsCount === 'number' ? `${job.applicantsCount}+ applicants` : null,
@@ -630,7 +660,7 @@ export default function JobDetail() {
                                             {job.experienceLevel && (
                                                 <span className="flex items-center gap-1.5">
                                                     <Briefcase size={13} className="text-stone-400" />
-                                                    {job.experienceLevel}
+                                                    {displayExperienceLevel(job.experienceLevel)}
                                                 </span>
                                             )}
                                             <span className="flex items-center gap-1">
@@ -743,12 +773,12 @@ export default function JobDetail() {
                                             <button
                                                 type="button"
                                                 onClick={apply}
-                                                disabled={applying}
+                                                disabled={applying || job.status !== 'open'}
                                                 className="flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-[13px] font-semibold text-white disabled:opacity-70"
                                                 style={{ background: `linear-gradient(135deg, ${ACCENT}, ${MAROON})` }}
                                             >
                                                 {applying && <Loader2 size={14} className="animate-spin" />}
-                                                {applying ? 'Applying…' : 'Apply'}
+                                                {job.status !== 'open' ? 'Applications Closed' : applying ? 'Applying…' : applicationFields.length ? ' Apply' : 'Apply'}
                                             </button>
                                         )}
                                     </div>
@@ -930,6 +960,36 @@ export default function JobDetail() {
                                 {reporting ? 'Submitting…' : 'Submit report'}
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+            {applicationFormOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true" aria-labelledby="application-form-title">
+                    <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[16px] border border-stone-200 bg-white p-5 shadow-2xl sm:p-6">
+                        <div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#A51D35]">Job application</p><h2 id="application-form-title" className="mt-1 text-[19px] font-bold text-stone-900" style={{ fontFamily: FONT_DISPLAY }}>Apply for {job.title}</h2></div><button type="button" onClick={() => setApplicationFormOpen(false)} disabled={applying} aria-label="Close application form" className="text-xl leading-none text-stone-400 hover:text-stone-700">×</button></div>
+                        <div className="mt-4 rounded-[10px] border border-[#EBC2AE] bg-[#FFF9F5] p-3.5">
+                            <div className="flex items-center gap-2.5">
+                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[7px] bg-[#8B1E2F] text-white"><CheckCircle2 size={16} /></span>
+                                <div><p className="text-[12.5px] font-bold text-[#54263F]">Candidate information</p><p className="mt-0.5 text-[10.5px] text-[#80576A]">Pulled from your profile</p></div>
+                            </div>
+                            <div className="mt-3 grid gap-2 border-t border-[#F0DAD0] pt-3 text-[12px] sm:grid-cols-3">
+                                <div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#A77D8D]">Name</p><p className="mt-0.5 truncate font-semibold text-[#1D181A]">{candidateProfile?.name || 'Your profile name'}</p></div>
+                                <div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#A77D8D]">Email</p><p className="mt-0.5 truncate font-semibold text-[#1D181A]">{candidateProfile?.email || 'Your profile email'}</p></div>
+                                <div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#A77D8D]">Phone</p><p className="mt-0.5 truncate font-semibold text-[#1D181A]">{candidateProfile?.phone || profile.phone || 'Phone from profile'}</p></div>
+                            </div>
+                            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#F0DAD0] pt-2.5 text-[11px]">
+                                <span className="font-semibold uppercase tracking-[0.08em] text-[#A77D8D]">Resume</span>
+                                {profile.resumeUrl ? (
+                                    <a href={profile.resumeUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-bold text-[#8B1E2F] hover:underline">
+                                        {profile.resumeFilename || 'View resume'} <ExternalLink size={12} />
+                                    </a>
+                                ) : (
+                                    <span className="font-medium text-[#B3261E]">No resume uploaded</span>
+                                )}
+                            </div>
+                        </div>
+                        <div className="mt-5"><DynamicApplicationForm fields={applicationFields} initialValues={initialApplicationValues} onSubmit={submitApplication} submitting={applying} /></div>
+                        <div className="mt-3 flex justify-end"><button type="button" onClick={() => setApplicationFormOpen(false)} disabled={applying} className="rounded-[8px] border border-stone-200 px-4 py-2 text-[12.5px] font-semibold text-stone-600 hover:bg-stone-50">Cancel</button></div>
                     </div>
                 </div>
             )}

@@ -1,5 +1,6 @@
 const Candidate = require('../models/Candidate');
 const Application = require('../models/Application');
+const CandidatePerformanceEvent = require('../models/CandidatePerformanceEvent');
 const Notification = require('../models/Notification');
 const { hashPassword, comparePassword } = require('../utils/hashPassword');
 const { isValidEmail, isValidPhone } = require('../utils/validators');
@@ -9,10 +10,30 @@ const { twilioClient, TWILIO_PHONE_NUMBER } = require('../config/twilio');
 const { PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const fs = require('fs');
 const path = require('path');
+const mongoose = require('mongoose');
 const http = require('http');
 const https = require('https');
 const { r2Client, BUCKET_NAME, PUBLIC_URL } = require('../config/cloudflareR2');
 const { cloudinary, isCloudinaryConfigured } = require('../config/cloudinary');
+
+function recordCandidatePerformanceEvents(events) {
+  if (!events.length) return;
+  CandidatePerformanceEvent.insertMany(events, { ordered: false }).catch((err) => {
+    console.error('Candidate performance event recording failed:', err.message);
+  });
+}
+
+async function getValidatedHiredBadge(candidate) {
+  if (!candidate?.hiredBadge?.isHired || !candidate.hiredBadge.applicationId) return { isHired: false };
+
+  const hiredApplication = await Application.exists({
+    _id: candidate.hiredBadge.applicationId,
+    candidate: candidate._id,
+    status: 'hired',
+  });
+
+  return hiredApplication ? candidate.hiredBadge : { isHired: false };
+}
 
 function isValidUrl(value) {
   if (!value) return true; // empty/optional is fine
@@ -50,6 +71,7 @@ exports.getMyProfile = async (req, res) => {
   try {
     const candidate = await Candidate.findById(req.user.id).select('-passwordHash');
     if (!candidate) return res.status(401).json({ error: 'Candidate account not found' });
+    candidate.hiredBadge = await getValidatedHiredBadge(candidate);
     const confirmedAt = candidate.hiredBadge?.confirmedAt?.getTime?.();
     const badgeExpired = confirmedAt && Date.now() - confirmedAt >= 30 * 24 * 60 * 60 * 1000;
     if (badgeExpired && candidate.hiredBadge?.isHired) {
@@ -57,6 +79,36 @@ exports.getMyProfile = async (req, res) => {
       await candidate.save();
     }
     res.json(candidate);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// GET /api/candidate/me/performance
+exports.getMyPerformance = async (req, res) => {
+  try {
+    const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    const counts = await CandidatePerformanceEvent.aggregate([
+      { $match: { candidate: new mongoose.Types.ObjectId(req.user.id), createdAt: { $gte: since } } },
+      { $group: { _id: '$type', count: { $sum: 1 } } },
+    ]);
+    const countMap = Object.fromEntries(counts.map(({ _id, count }) => [_id, count]));
+
+    res.json({
+      rangeDays: 90,
+      searchAppearances: countMap.search_appearance || 0,
+      recruiterActions:
+        (countMap.profile_view || 0) +
+        (countMap.resume_download || 0) +
+        (countMap.message_started || 0) +
+        (countMap.application_shortlisted || 0),
+      breakdown: {
+        profileViews: countMap.profile_view || 0,
+        resumeDownloads: countMap.resume_download || 0,
+        messagesStarted: countMap.message_started || 0,
+        applicationsShortlisted: countMap.application_shortlisted || 0,
+      },
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -912,6 +964,12 @@ exports.getByUniqueId = async (req, res) => {
       '-passwordHash -phone'
     );
     if (!candidate) return res.status(404).json({ error: 'Candidate not found' });
+    candidate.hiredBadge = await getValidatedHiredBadge(candidate);
+    if (req.user?.role === 'recruiter') {
+      recordCandidatePerformanceEvents([
+        { candidate: candidate._id, recruiter: req.user.id, type: 'profile_view' },
+      ]);
+    }
     res.json(candidate);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -921,13 +979,35 @@ exports.getByUniqueId = async (req, res) => {
 // GET /api/candidate/search - full search for recruiters
 exports.search = async (req, res) => {
   try {
-    const { skill, location } = req.query;
+    const { skill, location, q } = req.query;
     const query = { visibility: { $ne: 'private' } };
     if (skill) query['profile.skills'] = { $regex: skill, $options: 'i' };
+    if (q && q.trim()) {
+      const searchTerm = q.trim();
+      query.$or = [
+        { name: { $regex: searchTerm, $options: 'i' } },
+        { email: { $regex: searchTerm, $options: 'i' } },
+        { uniqueId: { $regex: searchTerm, $options: 'i' } },
+        { 'profile.headline': { $regex: searchTerm, $options: 'i' } },
+        { 'profile.location': { $regex: searchTerm, $options: 'i' } },
+        { 'profile.skills': { $regex: searchTerm, $options: 'i' } },
+      ];
+    }
 
     const results = await Candidate.find(query)
       .select('-passwordHash -phone')
       .limit(50);
+
+    if (req.user?.role === 'recruiter' && results.length) {
+      recordCandidatePerformanceEvents(
+        results.map((candidate) => ({
+          candidate: candidate._id,
+          recruiter: req.user.id,
+          type: 'search_appearance',
+          metadata: { skill: skill || null, location: location || null },
+        }))
+      );
+    }
 
     res.json(results);
   } catch (err) {

@@ -27,6 +27,10 @@ import CandidateNavbar from "../../components/CandidateNavbar";
 
 // ---------- small helpers (kept local, no new files) ----------
 
+function displayExperienceLevel(value) {
+  return /^0(?:\s*[-+]\s*0?)?\s*years?/i.test(String(value || '').trim()) ? 'Freshers' : value;
+}
+
 function timeAgo(dateString) {
   if (!dateString) return "";
   const diffMs = Date.now() - new Date(dateString).getTime();
@@ -374,7 +378,7 @@ export default function SavedJobs() {
                           {job.experienceLevel && (
                             <span className="flex items-center gap-1">
                               <Briefcase size={14} />
-                              {job.experienceLevel}
+                              {displayExperienceLevel(job.experienceLevel)}
                             </span>
                           )}
                           {(job.savedAt || job.createdAt) && (

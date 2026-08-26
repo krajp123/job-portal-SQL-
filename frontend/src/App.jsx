@@ -136,6 +136,7 @@ function AppRoutes() {
         <Route path="/about" element={<AboutUs />} />
         <Route path="/contact" element={<ContactSupport />} />
         <Route path="/help-center" element={<HelpCenter />} />
+        <Route path="/faqs" element={<HelpCenter />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsAndServices />} />
         <Route path="/id-recovery" element={<IdRecovery />} />

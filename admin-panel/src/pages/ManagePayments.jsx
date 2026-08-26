@@ -12,7 +12,7 @@ export default function ManagePayments() {
     <div className="w-full space-y-4">
       <h2>Payments</h2>
       <div className="overflow-x-auto border border-[#1D181A] bg-[#FFFDFB]">
-      <table className="w-full min-w-[640px] border-collapse text-xs text-left">
+      <table className="w-full min-w-full border-collapse text-xs text-left md:min-w-[640px]">
         <thead>
           <tr className="border border-[#1D181A] bg-[#FFF4EF]">
             <th>Purpose</th>

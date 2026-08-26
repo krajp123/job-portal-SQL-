@@ -10,6 +10,7 @@ const { initSocket } = require('./src/config/socket');
 const scheduleRenewalReminder = require('./src/jobs/renewalReminder.cron');
 const scheduleAccountSuspension = require('./src/jobs/accountSuspension.cron');
 const { scheduleWalletCleanup } = require('./src/jobs/walletCleanup.cron');
+const scheduleJobPreferenceAlerts = require('./src/jobs/jobPreferenceAlerts.cron');
 
 const PORT = process.env.PORT || 5000;
 
@@ -19,6 +20,7 @@ async function start() {
   scheduleRenewalReminder();
   scheduleAccountSuspension();
   scheduleWalletCleanup();
+  scheduleJobPreferenceAlerts();
 
   // Use a raw http server (instead of app.listen) so Socket.io can share the
   // same port as the REST API.

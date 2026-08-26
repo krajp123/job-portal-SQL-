@@ -630,7 +630,7 @@ export default function RecruiterCompanyProfile({ readOnly = false }) {
                       <Edit2 size={13} />
                     </button>
                   )}
-                  {!isSuspended && (
+                  {profile?.verificationStatus === 'verified' && (
                     <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600">
                       <ShieldCheck size={13} /> Verified employer
                     </span>

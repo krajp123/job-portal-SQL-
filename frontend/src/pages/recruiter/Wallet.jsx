@@ -243,34 +243,36 @@ function StatusBadge({ status }) {
 function SummaryCard({ label, value, accent, icon: Icon, primary, loading }) {
   return (
     <div
-      className="rounded-xl border bg-white p-4"
+      className="rounded-lg border bg-white p-3"
       style={{
         borderColor: '#EBC2AE',
         borderLeftWidth: primary ? '3px' : '1px',
         borderLeftColor: primary ? '#C75560' : '#EBC2AE',
       }}
     >
-      <div className="flex items-center justify-between gap-3">
-        <div
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-          style={{ background: `${accent}1A`, color: accent }}
-        >
-          <Icon size={15} />
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <div
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+            style={{ background: `${accent}1A`, color: accent }}
+          >
+            <Icon size={14} />
+          </div>
+          <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[#80576A]">{label}</p>
         </div>
+
         {primary && (
-          <span className="rounded-full bg-[#FFF0E8] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-[#C75560]">
+          <span className="rounded-full bg-[#FFF0E8] px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wider text-[#C75560]">
             Primary
           </span>
         )}
       </div>
 
-      <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#80576A]">{label}</p>
-
       {loading ? (
-        <div className="mt-2 h-6 w-20 animate-pulse rounded bg-[#F1E7E1]" />
+        <div className="mt-3 h-5 w-16 animate-pulse rounded bg-[#F1E7E1]" />
       ) : (
         <p
-          className="mt-1 truncate text-xl font-bold"
+          className="mt-3 truncate text-lg font-bold"
           style={{ fontFamily: FONT_DISPLAY, color: primary ? '#C75560' : '#1D181A' }}
         >
           {value}
@@ -285,19 +287,19 @@ function SummaryCard({ label, value, accent, icon: Icon, primary, loading }) {
 function LowBalanceBanner({ balance, onAddMoney }) {
   if (balance >= LOW_BALANCE_THRESHOLD) return null;
   return (
-    <div className="mb-4 flex flex-col gap-2.5 rounded-xl border border-[#F1C0C0] bg-[#FBEAEA] p-3.5 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-center gap-2.5">
-        <AlertTriangle size={16} className="shrink-0 text-[#B3261E]" />
-        <p className="text-sm text-[#7A1D18]">
+    <div className="mb-3 flex flex-col gap-2 rounded-lg border border-[#F1C0C0] bg-[#FBEAEA] p-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center gap-2">
+        <AlertTriangle size={14} className="shrink-0 text-[#B3261E]" />
+        <p className="text-xs text-[#7A1D18]">
           <span className="font-semibold">Balance running low.</span> Add money to keep downloading resumes.
         </p>
       </div>
       <button
         type="button"
         onClick={onAddMoney}
-        className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#B3261E] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#93201A]"
+        className="inline-flex shrink-0 items-center justify-center gap-1 rounded-md bg-[#B3261E] px-2.5 py-1.5 text-[11px] font-semibold text-white transition hover:bg-[#93201A]"
       >
-        <Plus size={13} /> Add Money
+        <Plus size={12} /> Add Money
       </button>
     </div>
   );
@@ -307,7 +309,7 @@ function LowBalanceBanner({ balance, onAddMoney }) {
 
 function PricingCard({ balance, open, onToggle }) {
   return (
-    <div className="rounded-xl border border-[#EBC2AE] bg-white p-4">
+    <div className="rounded-lg border border-[#EBC2AE] bg-white p-3">
       <button
         type="button"
         onClick={onToggle}
@@ -316,33 +318,33 @@ function PricingCard({ balance, open, onToggle }) {
       >
         <div>
           <p className="text-sm font-semibold text-[#1D181A]">Resume Download Charges</p>
-          <p className="mt-1 text-xs text-[#6B7280]">₹{RESUME_DOWNLOAD_FEE} deducted per resume download.</p>
+          <p className="mt-0.5 text-[11px] text-[#6B7280]">₹{RESUME_DOWNLOAD_FEE} deducted per resume download.</p>
         </div>
         <ChevronRight
-          size={18}
+          size={16}
           className={`transition-transform duration-200 ${open ? 'rotate-90' : ''}`}
         />
       </button>
 
       {open && (
         <>
-          <div className="mt-4 grid grid-cols-2 gap-2 text-center">
-            <div className="rounded-lg bg-[#FFF0E8] p-2.5">
-              <p className="text-[9px] font-semibold uppercase tracking-wider text-[#80576A]">Balance</p>
-              <p className="mt-1 text-sm font-bold text-[#1D181A]">{formatMoney(balance)}</p>
+          <div className="mt-3 grid grid-cols-2 gap-2 text-center">
+            <div className="rounded-md bg-[#FFF0E8] p-2">
+              <p className="text-[8px] font-semibold uppercase tracking-wider text-[#80576A]">Balance</p>
+              <p className="mt-1 text-xs font-bold text-[#1D181A]">{formatMoney(balance)}</p>
             </div>
-            <div className="rounded-lg bg-[#FFF0E8] p-2.5">
-              <p className="text-[9px] font-semibold uppercase tracking-wider text-[#80576A]">Per Download</p>
-              <p className="mt-1 text-sm font-bold text-[#1D181A]">{formatMoney(RESUME_DOWNLOAD_FEE)}</p>
+            <div className="rounded-md bg-[#FFF0E8] p-2">
+              <p className="text-[8px] font-semibold uppercase tracking-wider text-[#80576A]">Per Download</p>
+              <p className="mt-1 text-xs font-bold text-[#1D181A]">{formatMoney(RESUME_DOWNLOAD_FEE)}</p>
             </div>
           </div>
 
-          <div className="mt-5 rounded-xl border border-[#F1E7E1] bg-[#FEF6F0] p-4">
+          <div className="mt-3 rounded-md border border-[#F1E7E1] bg-[#FEF6F0] p-3">
             <div className="flex items-center gap-2">
-              <ShieldCheck size={15} className="shrink-0 text-[#2E7D32]" />
+              <ShieldCheck size={14} className="shrink-0 text-[#2E7D32]" />
               <p className="text-sm font-semibold text-[#1D181A]">Wallet overview</p>
             </div>
-            <ul className="mt-3 space-y-2 text-xs leading-5 text-[#6B7280]">
+            <ul className="mt-2 space-y-1.5 text-[11px] leading-4 text-[#6B7280]">
               <li>Only verified successful payments credit your wallet.</li>
               <li>Every resume download is recorded as an auditable transaction.</li>
               <li>Refunds are issued automatically for failed downloads.</li>
@@ -450,21 +452,46 @@ function AddMoneyModal({ open, onClose, onSuccess }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
-      <div className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-lg bg-white p-4 shadow-2xl sm:rounded-lg">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>
-           Add Money 
-          </h2>
-          <button type="button" onClick={onClose} className="rounded-full p-1.5 text-[#6B7280] hover:bg-[#FFF0E8]">
-            <X size={18} />
-          </button>
-        </div>
+    <>
+      <style>{`
+        @keyframes walletBackdropIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
 
-        <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-[#80576A]">Enter Amount</p>
-        <div className="mt-3 rounded-lg border border-[#EBC2AE] bg-[#FFFFFF] px-3 py-2 shadow-sm focus-within:border-[#C75560] focus-within:ring-2 focus-within:ring-[#C75560]/10">
+        @keyframes walletModalIn {
+          from {
+            opacity: 0;
+            transform: translateY(14px) scale(0.98);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+      `}</style>
+
+      <div
+        className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-3"
+        style={{ animation: 'walletBackdropIn 220ms ease-out' }}
+      >
+        <div
+          className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-3 shadow-2xl sm:rounded-md"
+          style={{ animation: 'walletModalIn 220ms ease-out' }}
+        >
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-bold text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>
+              Add Money
+            </h2>
+            <button type="button" onClick={onClose} className="rounded-full p-1.5 text-[#6B7280] hover:bg-[#FFF0E8]">
+              <X size={16} />
+            </button>
+          </div>
+
+        <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#80576A]">Enter Amount</p>
+        <div className="mt-2 rounded-md border border-[#EBC2AE] bg-[#FFFFFF] px-2.5 py-2 shadow-sm focus-within:border-[#C75560] focus-within:ring-2 focus-within:ring-[#C75560]/10">
           <div className="flex items-center gap-2">
-            <IndianRupee size={16} className="text-[#80576A]" />
+            <IndianRupee size={14} className="text-[#80576A]" />
             <input
               type="number"
               min="1"
@@ -477,14 +504,14 @@ function AddMoneyModal({ open, onClose, onSuccess }) {
           </div>
         </div>
 
-        <p className="mt-5 text-xs font-semibold uppercase tracking-[0.2em] text-[#80576A]">Select Amount</p>
-        <div className="mt-3 grid grid-cols-3 gap-2">
+        <p className="mt-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#80576A]">Select Amount</p>
+        <div className="mt-2 grid grid-cols-3 gap-2">
           {PREDEFINED_RECHARGE_AMOUNTS.map((amt) => (
             <button
               key={amt}
               type="button"
               onClick={() => setAmountInput(String(amt))}
-              className="rounded-md border px-3 py-1.5 text-xs font-semibold transition"
+              className="rounded-md border px-2 py-1.5 text-[11px] font-semibold transition"
               style={{
                 borderColor: Number(amountInput) === amt ? '#C75560' : '#EBC2AE',
                 background: Number(amountInput) === amt ? '#FFF0E8' : '#FFFFFF',
@@ -496,15 +523,15 @@ function AddMoneyModal({ open, onClose, onSuccess }) {
           ))}
         </div>
 
-        <p className="mt-5 text-xs font-semibold uppercase tracking-[0.2em] text-[#80576A]">Payment Method</p>
-        <div className="mt-3 grid grid-cols-3 gap-2">
+        <p className="mt-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#80576A]">Payment Method</p>
+        <div className="mt-2 grid grid-cols-3 gap-2">
           {PAYMENT_METHODS.map((m) => {
             const Icon = m.icon;
             const active = method === m.id;
             return (
               <label
                 key={m.id}
-                className="relative flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border px-2 py-2.5 text-center transition"
+                className="relative flex cursor-pointer flex-col items-center justify-center gap-1 rounded-md border px-2 py-2 text-center transition"
                 style={{ borderColor: active ? '#C75560' : '#EBC2AE', background: active ? '#FFF0E8' : '#FFFFFF' }}
               >
                 <input
@@ -514,41 +541,42 @@ function AddMoneyModal({ open, onClose, onSuccess }) {
                   onChange={() => setMethod(m.id)}
                   className="sr-only"
                 />
-                <Icon size={16} style={{ color: active ? '#C75560' : '#80576A' }} />
-                <span className="text-[11px] font-semibold leading-tight text-[#1D181A]">{m.label}</span>
+                <Icon size={14} style={{ color: active ? '#C75560' : '#80576A' }} />
+                <span className="text-[10px] font-semibold leading-tight text-[#1D181A]">{m.label}</span>
               </label>
             );
           })}
         </div>
 
-        <div className="mt-4 rounded-lg bg-[#FFF0E8] p-3">
-          <div className="flex items-center justify-between text-sm">
+        <div className="mt-3 rounded-md bg-[#FFF0E8] p-2.5">
+          <div className="flex items-center justify-between text-xs">
             <span className="text-[#6B7280]">Selected Amount</span>
             <span className="font-semibold text-[#1D181A]">{formatMoney(finalAmount)}</span>
           </div>
-          <div className="mt-1 flex items-center justify-between text-sm">
+          <div className="mt-1 flex items-center justify-between text-xs">
             <span className="text-[#6B7280]">Payment Method</span>
             <span className="font-semibold text-[#1D181A]">{PAYMENT_METHODS.find((m) => m.id === method)?.label}</span>
           </div>
-          <div className="mt-2 flex items-center justify-between border-t border-[#EBC2AE] pt-2 text-sm">
+          <div className="mt-2 flex items-center justify-between border-t border-[#EBC2AE] pt-2 text-xs">
             <span className="font-semibold text-[#1D181A]">Final Amount</span>
-            <span className="text-base font-bold text-[#C75560]">{formatMoney(finalAmount)}</span>
+            <span className="text-sm font-bold text-[#C75560]">{formatMoney(finalAmount)}</span>
           </div>
         </div>
 
-        {error && <p className="mt-3 text-sm font-medium text-[#B3261E]">{error}</p>}
+        {error && <p className="mt-2 text-xs font-medium text-[#B3261E]">{error}</p>}
 
-        <button
-          type="button"
-          disabled={submitting}
-          onClick={handleProceed}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-[#C75560] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#A94658] disabled:opacity-60"
-        >
-          {submitting ? <Loader2 size={16} className="animate-spin" /> : <ArrowUpRight size={16} />}
-          {submitting ? 'Processing...' : 'Proceed to Payment'}
-        </button>
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={handleProceed}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-md bg-[#C75560] px-3 py-2.5 text-[11px] font-semibold text-white transition hover:bg-[#A94658] disabled:opacity-60"
+          >
+            {submitting ? <Loader2 size={15} className="animate-spin" /> : <ArrowUpRight size={15} />}
+            {submitting ? 'Processing...' : 'Proceed to Payment'}
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -583,21 +611,21 @@ function TransactionDetailsModal({ txnId, onClose }) {
   const isRecharge = txn?.type === TRANSACTION_TYPES.RECHARGE;
 
   const Row = ({ label, value }) => (
-    <div className="flex items-center justify-between gap-4 border-b border-[#F1E7E1] py-2.5 last:border-0">
-      <span className="text-sm text-[#6B7280]">{label}</span>
-      <span className="text-right text-sm font-semibold text-[#1D181A]">{value}</span>
+    <div className="flex items-center justify-between gap-4 border-b border-[#F1E7E1] py-2 last:border-0">
+      <span className="text-xs text-[#6B7280]">{label}</span>
+      <span className="text-right text-xs font-semibold text-[#1D181A]">{value}</span>
     </div>
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
-      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-lg bg-white p-4 shadow-2xl sm:rounded-lg">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-3">
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-3 shadow-2xl sm:rounded-md">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>
+          <h2 className="text-base font-bold text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>
             Transaction Details
           </h2>
           <button type="button" onClick={onClose} className="rounded-full p-1.5 text-[#6B7280] hover:bg-[#FFF0E8]">
-            <X size={18} />
+            <X size={16} />
           </button>
         </div>
 
@@ -661,29 +689,29 @@ function TransactionDetailsModal({ txnId, onClose }) {
 export function InsufficientBalanceModal({ open, requiredAmount, currentBalance, onAddMoney, onCancel }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-sm rounded-lg bg-white p-4 text-center shadow-2xl">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#FBEAEA] text-[#B3261E]">
-          <AlertTriangle size={24} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3">
+      <div className="w-full max-w-sm rounded-md bg-white p-3 text-center shadow-2xl">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#FBEAEA] text-[#B3261E]">
+          <AlertTriangle size={20} />
         </div>
-        <h2 className="mt-4 text-lg font-bold text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>
+        <h2 className="mt-3 text-base font-bold text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>
           Insufficient Wallet Balance
         </h2>
-        <p className="mt-2 text-sm leading-6 text-[#6B7280]">
+        <p className="mt-2 text-xs leading-5 text-[#6B7280]">
           You need {formatMoney(requiredAmount)} to download this resume. Your current balance is {formatMoney(currentBalance)}.
         </p>
-        <div className="mt-6 flex gap-3">
+        <div className="mt-4 flex gap-2">
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 rounded-lg border border-[#EBC2AE] bg-white px-4 py-2.5 text-xs font-semibold text-[#1D181A] hover:bg-[#FFF0E8]"
+            className="flex-1 rounded-md border border-[#EBC2AE] bg-white px-3 py-2 text-[11px] font-semibold text-[#1D181A] hover:bg-[#FFF0E8]"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={onAddMoney}
-            className="flex-1 rounded-lg bg-[#C75560] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[#A94658]"
+            className="flex-1 rounded-md bg-[#C75560] px-3 py-2 text-[11px] font-semibold text-white hover:bg-[#A94658]"
           >
             Add Money
           </button>
@@ -697,25 +725,25 @@ export function InsufficientBalanceModal({ open, requiredAmount, currentBalance,
 
 function EmptyState({ icon: Icon, title, subtitle }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-[#EBC2AE] bg-[#FFFBF9] px-5 py-10 text-center">
-      <Icon size={28} className="text-[#C7A08F]" />
+    <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-[#EBC2AE] bg-[#FFFBF9] px-4 py-8 text-center">
+      <Icon size={24} className="text-[#C7A08F]" />
       <p className="text-sm font-semibold text-[#1D181A]">{title}</p>
-      {subtitle && <p className="max-w-sm text-sm text-[#6B7280]">{subtitle}</p>}
+      {subtitle && <p className="max-w-sm text-xs text-[#6B7280]">{subtitle}</p>}
     </div>
   );
 }
 
 function ErrorState({ message, onRetry }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-[#F1C0C0] bg-[#FBEAEA] px-5 py-10 text-center">
-      <XCircle size={26} className="text-[#B3261E]" />
+    <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-[#F1C0C0] bg-[#FBEAEA] px-4 py-8 text-center">
+      <XCircle size={22} className="text-[#B3261E]" />
       <p className="text-sm font-semibold text-[#7A1D18]">{message}</p>
       <button
         type="button"
         onClick={onRetry}
-        className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-xs font-semibold text-[#B3261E] shadow-sm hover:bg-[#FFF4F4]"
+        className="inline-flex items-center gap-2 rounded-md bg-white px-3 py-1.5 text-[11px] font-semibold text-[#B3261E] shadow-sm hover:bg-[#FFF4F4]"
       >
-        <RefreshCw size={14} /> Retry
+        <RefreshCw size={12} /> Retry
       </button>
     </div>
   );
@@ -727,8 +755,8 @@ function Pagination({ page, pageSize, total, onPageChange }) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   if (totalPages <= 1) return null;
   return (
-    <div className="mt-4 flex items-center justify-between">
-      <p className="text-xs text-[#6B7280]">
+    <div className="mt-3 flex items-center justify-between">
+      <p className="text-[10px] text-[#6B7280]">
         Page {page} of {totalPages} · {total} total
       </p>
       <div className="flex items-center gap-2">
@@ -736,17 +764,17 @@ function Pagination({ page, pageSize, total, onPageChange }) {
           type="button"
           disabled={page <= 1}
           onClick={() => onPageChange(page - 1)}
-          className="rounded-xl border border-[#EBC2AE] p-1.5 text-[#1D181A] disabled:opacity-40"
+          className="rounded-md border border-[#EBC2AE] p-1.5 text-[#1D181A] disabled:opacity-40"
         >
-          <ChevronLeft size={16} />
+          <ChevronLeft size={14} />
         </button>
         <button
           type="button"
           disabled={page >= totalPages}
           onClick={() => onPageChange(page + 1)}
-          className="rounded-xl border border-[#EBC2AE] p-1.5 text-[#1D181A] disabled:opacity-40"
+          className="rounded-md border border-[#EBC2AE] p-1.5 text-[#1D181A] disabled:opacity-40"
         >
-          <ChevronRight size={16} />
+          <ChevronRight size={14} />
         </button>
       </div>
     </div>
@@ -763,18 +791,18 @@ function TransactionRow({ txn, onClick }) {
       <button
         type="button"
         onClick={onClick}
-        className="hidden w-full grid-cols-[1.5fr_1fr_0.9fr_0.9fr_0.9fr] items-center gap-3 rounded-lg px-3 py-2.5 text-left text-xs transition hover:bg-[#FFF7F2] md:grid"
+        className="hidden w-full grid-cols-[1.5fr_1fr_0.9fr_0.9fr_0.9fr] items-center gap-2 rounded-md px-2.5 py-2 text-left text-[11px] transition hover:bg-[#FFF7F2] md:grid"
       >
         <div>
-          <p className="text-sm font-semibold text-[#1D181A]">{txn.description}</p>
-          <p className="mt-0.5 text-xs text-[#6B7280]">{formatDateTime(txn.createdAt)}</p>
+          <p className="text-xs font-semibold text-[#1D181A]">{txn.description}</p>
+          <p className="mt-0.5 text-[10px] text-[#6B7280]">{formatDateTime(txn.createdAt)}</p>
         </div>
-        <p className="text-sm text-[#6B7280]">{txn.reference}</p>
-        <p className={`text-sm font-semibold ${isCredit ? 'text-[#2E7D32]' : 'text-[#1D181A]'}`}>
+        <p className="text-xs text-[#6B7280]">{txn.reference}</p>
+        <p className={`text-xs font-semibold ${isCredit ? 'text-[#2E7D32]' : 'text-[#1D181A]'}`}>
           {isCredit ? '+' : '-'}
           {formatMoney(txn.amount)}
         </p>
-        <p className="text-sm text-[#6B7280]">{formatMoney(txn.balanceAfter)}</p>
+        <p className="text-xs text-[#6B7280]">{formatMoney(txn.balanceAfter)}</p>
         <StatusBadge status={txn.status} />
       </button>
 
@@ -782,18 +810,18 @@ function TransactionRow({ txn, onClick }) {
       <button
         type="button"
         onClick={onClick}
-        className="flex w-full flex-col gap-2 rounded-lg border border-[#EBC2AE] bg-white p-3 text-left md:hidden"
+        className="flex w-full flex-col gap-1.5 rounded-md border border-[#EBC2AE] bg-white p-2.5 text-left md:hidden"
       >
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-[#1D181A]">{txn.description}</p>
-          <p className={`text-sm font-bold ${isCredit ? 'text-[#2E7D32]' : 'text-[#1D181A]'}`}>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-semibold text-[#1D181A]">{txn.description}</p>
+          <p className={`text-xs font-bold ${isCredit ? 'text-[#2E7D32]' : 'text-[#1D181A]'}`}>
             {isCredit ? '+' : '-'}
             {formatMoney(txn.amount)}
           </p>
         </div>
-        <p className="text-xs text-[#6B7280]">{formatDateTime(txn.createdAt)} · {txn.reference}</p>
+        <p className="text-[10px] text-[#6B7280]">{formatDateTime(txn.createdAt)} · {txn.reference}</p>
         <div className="flex items-center justify-between">
-          <span className="text-xs text-[#6B7280]">Balance: {formatMoney(txn.balanceAfter)}</span>
+          <span className="text-[10px] text-[#6B7280]">Balance: {formatMoney(txn.balanceAfter)}</span>
           <StatusBadge status={txn.status} />
         </div>
       </button>
@@ -908,31 +936,31 @@ export default function RecruiterWallet() {
     <div className="portal-theme min-h-screen bg-[#FFF4EF] text-[#1D181A]" style={{ fontFamily: FONT_BODY }}>
       <RecruiterNavbar />
 
-      <main className="recruiter-page mx-auto max-w-6xl px-4 py-4 sm:px-6 sm:py-5">
+      <main className="recruiter-page mx-auto max-w-6xl px-3 py-3 sm:px-4 sm:py-4">
         {/* Header — slim, no card wrapper */}
-        <div className="mb-5 flex items-center justify-between gap-4 border-b border-[#EBC2AE] pb-4">
+        <div className="mb-3 flex items-center justify-between gap-3 border-b border-[#EBC2AE] pb-3">
           <div className="min-w-0">
-            <h1 className="text-xl font-bold text-[#1D181A] sm:text-2xl" style={{ fontFamily: FONT_DISPLAY }}>
+            <h1 className="text-lg font-bold text-[#1D181A] sm:text-xl" style={{ fontFamily: FONT_DISPLAY }}>
               Wallet
             </h1>
-            <p className="mt-0.5 text-sm text-[#6B7280]">Balance and resume download expenses.</p>
+            <p className="mt-0.5 text-xs text-[#6B7280]">Balance and resume download expenses.</p>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={refreshWallet}
-              className="inline-flex shrink-0 items-center justify-center rounded-lg border border-[#EBC2AE] bg-white p-2 text-[#1D181A] transition hover:bg-[#FFF0E8]"
+              className="inline-flex shrink-0 items-center justify-center rounded-md border border-[#EBC2AE] bg-white p-1.5 text-[#1D181A] transition hover:bg-[#FFF0E8]"
               aria-label="Refresh wallet data"
             >
-              <RefreshCw size={15} />
+              <RefreshCw size={14} />
             </button>
             <button
               type="button"
               onClick={() => setAddMoneyOpen(true)}
-              className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#C75560] px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-[#A94658]"
+              className="inline-flex shrink-0 items-center justify-center gap-1 rounded-md bg-[#C75560] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#A94658]"
             >
-              <Plus size={15} /> Add Money
+              <Plus size={13} /> Add Money
             </button>
           </div>
         </div>
@@ -949,7 +977,7 @@ export default function RecruiterWallet() {
           </section>
         )}
 
-        <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(280px,320px)_minmax(0,1fr)]">
+        <div className="mt-4 grid gap-3 xl:grid-cols-[minmax(240px,280px)_minmax(0,1fr)]">
           <div className="space-y-3">
             <PricingCard
               balance={balance}
@@ -958,9 +986,9 @@ export default function RecruiterWallet() {
             />
           </div>
 
-          <div className="rounded-xl border border-[#EBC2AE] bg-white p-4">
+          <div className="rounded-lg border border-[#EBC2AE] bg-white p-3">
             {/* Tabs */}
-            <div className="flex items-center gap-2 border-b border-[#F1E7E1] pb-3">
+            <div className="flex items-center gap-2 border-b border-[#F1E7E1] pb-2">
               {[
                 { id: 'transactions', label: 'Transaction History' },
                 { id: 'downloads', label: 'Resume Downloads' },
@@ -983,14 +1011,14 @@ export default function RecruiterWallet() {
             {activeTab === 'transactions' && (
               <div className="mt-4">
                 {/* Filters */}
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-wrap gap-1.5">
                     {FILTER_OPTIONS.map((opt) => (
                       <button
                         key={opt.value}
                         type="button"
                         onClick={() => setFilter(opt.value)}
-                        className="rounded-full border px-3 py-1.5 text-xs font-semibold transition"
+                        className="rounded-full border px-2.5 py-1 text-[10px] font-semibold transition"
                         style={{
                           borderColor: filter === opt.value ? '#C75560' : '#EBC2AE',
                           background: filter === opt.value ? '#FFF0E8' : '#FFFFFF',
@@ -1001,20 +1029,20 @@ export default function RecruiterWallet() {
                       </button>
                     ))}
                   </div>
-                  <div className="flex items-center gap-2 rounded-2xl border border-[#EBC2AE] px-3 py-2 sm:w-56">
-                    <Search size={14} className="text-[#80576A]" />
+                  <div className="flex items-center gap-2 rounded-md border border-[#EBC2AE] px-2.5 py-1.5 sm:w-52">
+                    <Search size={13} className="text-[#80576A]" />
                     <input
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       placeholder="Search TXN / reference"
-                      className="w-full bg-transparent text-xs text-[#1D181A] outline-none"
+                      className="w-full bg-transparent text-[11px] text-[#1D181A] outline-none"
                     />
                   </div>
                 </div>
 
                 {/* Table header (desktop) */}
                 {!txLoading && !txError && transactions.length > 0 && (
-                  <div className="mt-5 hidden grid-cols-[1.5fr_1fr_0.9fr_0.9fr_0.9fr] gap-3 px-4 text-[11px] font-semibold uppercase tracking-wider text-[#80576A] md:grid">
+                  <div className="mt-3 hidden grid-cols-[1.5fr_1fr_0.9fr_0.9fr_0.9fr] gap-2 px-2 text-[10px] font-semibold uppercase tracking-wider text-[#80576A] md:grid">
                     <span>Description</span>
                     <span>Reference</span>
                     <span>Amount</span>
@@ -1025,7 +1053,7 @@ export default function RecruiterWallet() {
 
                 <div className="mt-2 space-y-2">
                   {txLoading &&
-                    [...Array(4)].map((_, i) => <div key={i} className="h-16 w-full animate-pulse rounded-2xl bg-[#F1E7E1]" />)}
+                    [...Array(4)].map((_, i) => <div key={i} className="h-14 w-full animate-pulse rounded-md bg-[#F1E7E1]" />)}
 
                   {!txLoading && txError && <ErrorState message={txError} onRetry={loadTransactions} />}
 
@@ -1051,7 +1079,7 @@ export default function RecruiterWallet() {
                 {dlLoading && (
                   <div className="space-y-2">
                     {[...Array(4)].map((_, i) => (
-                      <div key={i} className="h-16 w-full animate-pulse rounded-2xl bg-[#F1E7E1]" />
+                      <div key={i} className="h-14 w-full animate-pulse rounded-md bg-[#F1E7E1]" />
                     ))}
                   </div>
                 )}
@@ -1064,7 +1092,7 @@ export default function RecruiterWallet() {
 
                 {!dlLoading && !dlError && downloads.length > 0 && (
                   <div className="space-y-2">
-                    <div className="hidden grid-cols-[1.3fr_1.3fr_1fr_0.8fr] gap-3 px-4 text-[11px] font-semibold uppercase tracking-wider text-[#80576A] md:grid">
+                    <div className="hidden grid-cols-[1.3fr_1.3fr_1fr_0.8fr] gap-2 px-2 text-[10px] font-semibold uppercase tracking-wider text-[#80576A] md:grid">
                       <span>Candidate</span>
                       <span>Job</span>
                       <span>Downloaded On</span>
@@ -1075,12 +1103,12 @@ export default function RecruiterWallet() {
                         key={d.id}
                         type="button"
                         onClick={() => navigate(`/recruiter/candidates/${encodeURIComponent(d.candidateName)}`)}
-                        className="grid w-full grid-cols-2 gap-2 rounded-2xl px-4 py-3 text-left transition hover:bg-[#FFF7F2] md:grid-cols-[1.3fr_1.3fr_1fr_0.8fr]"
+                        className="grid w-full grid-cols-2 gap-2 rounded-md px-3 py-2 text-left transition hover:bg-[#FFF7F2] md:grid-cols-[1.3fr_1.3fr_1fr_0.8fr]"
                       >
-                        <span className="text-sm font-semibold text-[#1D181A]">{d.candidateName}</span>
-                        <span className="text-sm text-[#6B7280]">{d.jobTitle}</span>
-                        <span className="text-sm text-[#6B7280]">{formatDateTime(d.createdAt)}</span>
-                        <span className="text-sm font-semibold text-[#1D181A]">{formatMoney(d.amount)}</span>
+                        <span className="text-xs font-semibold text-[#1D181A]">{d.candidateName}</span>
+                        <span className="text-xs text-[#6B7280]">{d.jobTitle}</span>
+                        <span className="text-xs text-[#6B7280]">{formatDateTime(d.createdAt)}</span>
+                        <span className="text-xs font-semibold text-[#1D181A]">{formatMoney(d.amount)}</span>
                       </button>
                     ))}
                   </div>
