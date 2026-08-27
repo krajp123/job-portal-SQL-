@@ -1,18 +1,12 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, CheckCircle2, Clock3, HelpCircle, Mail, MessageSquare, Phone, Send, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import CandidateNavbar from '../components/CandidateNavbar';
-import RecruiterNavbar from '../components/RecruiterNavbar';
+import PublicNavbar from '../components/PublicNavbar';
 import axiosInstance from '../api/axiosInstance';
 import { FONT_DISPLAY, BG, CORAL, DUSTY_ROSE, NEAR_BLACK, LIGHT_BORDER } from '../theme';
 
 const CANDIDATE_CONCERNS = ['Account', 'Job search', 'Application / profile', 'Resume & documents', 'Report abuse', 'Other'];
 const RECRUITER_CONCERNS = ['Account', 'Billing & payments', 'Job posting', 'Applicants & hiring', 'Team & access', 'Report abuse', 'Other'];
-
-function PublicNavbar() {
-  const { user } = useAuth();
-  return user?.role === 'recruiter' ? <RecruiterNavbar /> : <CandidateNavbar />;
-}
 
 const channels = [
   { icon: Mail, title: 'Email support', value: 'support@jobportal.com', detail: 'We reply within two business days.', href: 'mailto:support@jobportal.com' },

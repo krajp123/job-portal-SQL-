@@ -3,6 +3,8 @@ import adminAxiosInstance from '../api/adminAxiosInstance';
 
 export default function BadgeApprovals() {
   const [pending, setPending] = useState([]);
+  const [rejectTarget, setRejectTarget] = useState(null);
+  const [reason, setReason] = useState('');
 
   useEffect(() => {
     load();
@@ -18,10 +20,10 @@ export default function BadgeApprovals() {
     load();
   }
 
-  async function reject(offerLetterId) {
-    const reason = prompt('Reason for rejection:');
-    if (reason === null) return;
-    await adminAxiosInstance.patch(`/badges/${offerLetterId}/reject`, { reason });
+  async function reject() {
+    await adminAxiosInstance.patch(`/badges/${rejectTarget}/reject`, { reason: reason.trim() });
+    setRejectTarget(null);
+    setReason('');
     load();
   }
 
@@ -44,6 +46,19 @@ export default function BadgeApprovals() {
           </div>
         </div>
       ))}
+
+      {rejectTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="reject-badge-title">
+          <div className="w-full max-w-md bg-white p-5 shadow-xl">
+            <h3 id="reject-badge-title">Reason for rejection</h3>
+            <textarea autoFocus value={reason} onChange={(event) => setReason(event.target.value)} rows={4} className="mt-3 w-full border border-gray-300 p-2" />
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => { setRejectTarget(null); setReason(''); }}>Cancel</button>
+              <button type="button" onClick={reject} disabled={!reason.trim()}>Submit rejection</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

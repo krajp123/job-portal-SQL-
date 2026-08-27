@@ -25,6 +25,7 @@ export default function JobReports() {
   const [savingId, setSavingId] = useState('');
   const [drafts, setDrafts] = useState({});
   const [deletingId, setDeletingId] = useState('');
+  const [confirmingReport, setConfirmingReport] = useState(null);
 
   async function loadReports() {
     setLoading(true);
@@ -66,8 +67,11 @@ export default function JobReports() {
     }
   }
 
+  function requestDeleteReport(report) {
+    setConfirmingReport(report);
+  }
+
   async function deleteReport(report) {
-    if (!window.confirm('Delete this completed report?')) return;
     setDeletingId(report._id);
     setError('');
     try {
@@ -76,6 +80,7 @@ export default function JobReports() {
         : `/moderation/reports/${report._id}`;
       await adminAxiosInstance.delete(endpoint);
       setReports((current) => current.filter((item) => item._id !== report._id));
+      setConfirmingReport(null);
     } catch (requestError) {
       setError(requestError.response?.data?.error || 'Unable to delete this report.');
     } finally {
@@ -106,7 +111,7 @@ export default function JobReports() {
             const draft = drafts[report._id] || {};
             const job = report.job;
             return (
-              <article key={report._id} className="relative border border-[#EBC2AE] bg-white p-4 pr-12 shadow-sm sm:pr-14">
+              <article key={report._id} className="border border-[#EBC2AE] bg-white p-4 shadow-sm">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -127,22 +132,19 @@ export default function JobReports() {
                     {report.reportType === 'support' && <p className="mt-2 whitespace-pre-wrap text-xs leading-5 text-[#1D181A]"><span className="font-semibold">Message:</span> {report.message || report.reason}</p>}
                   </div>
                   {report.status === 'pending' && <AlertTriangle size={18} className="shrink-0 text-[#C75560]" />}
-                  {report.status === 'valid' && <CheckCircle2 size={18} className="shrink-0 text-green-600" />}
-                  {report.status === 'rejected' && <XCircle size={18} className="shrink-0 text-slate-400" />}
-                  {report.status === 'resolved' && <CheckCircle2 size={18} className="shrink-0 text-green-600" />}
+                  {['valid', 'rejected', 'resolved'].includes(report.status) && (
+                    <button
+                      type="button"
+                      onClick={() => requestDeleteReport(report)}
+                      disabled={deletingId === report._id}
+                      aria-label="Delete completed report"
+                      title="Delete completed report"
+                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[#7F96B2] transition-colors hover:bg-[#FCECF0] hover:text-[#C75560] disabled:cursor-wait disabled:opacity-50"
+                    >
+                      {report.status === 'rejected' ? <XCircle size={18} /> : <CheckCircle2 size={18} />}
+                    </button>
+                  )}
                 </div>
-                {['valid', 'rejected', 'resolved'].includes(report.status) && (
-                  <button
-                    type="button"
-                    onClick={() => deleteReport(report)}
-                    disabled={deletingId === report._id}
-                    aria-label="Delete completed report"
-                    title="Delete completed report"
-                    className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border border-[#B7C5D8] text-[#7F96B2] transition-colors hover:border-[#C75560] hover:bg-[#FCECF0] hover:text-[#C75560] disabled:cursor-wait disabled:opacity-50 sm:right-4 sm:top-4"
-                  >
-                    <XCircle size={18} />
-                  </button>
-                )}
                 {report.status === 'pending' || report.status === 'under_review' ? (
                   <div className="mt-4 grid gap-2 border-t border-[#EBC2AE]/60 pt-3 md:grid-cols-[150px_180px_1fr_auto]">
                     <select value={draft.status || ''} onChange={(event) => updateDraft(report._id, 'status', event.target.value)} className="border border-[#EBC2AE] bg-[#FFFDFB] px-2 py-2 text-xs outline-none">
@@ -168,6 +170,24 @@ export default function JobReports() {
               </article>
             );
           })}
+        </div>
+      )}
+
+      {confirmingReport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1D181A]/35 px-4" role="presentation">
+          <div role="dialog" aria-modal="true" aria-labelledby="delete-report-title" className="w-full max-w-sm border border-[#EBC2AE] bg-white p-5 shadow-xl">
+            <div className="flex items-start gap-3">
+              <ShieldAlert size={22} className="shrink-0 text-[#C75560]" />
+              <div>
+                <h2 id="delete-report-title" className="text-sm font-semibold text-[#1D181A]">Delete completed report?</h2>
+                <p className="mt-1 text-xs leading-5 text-[#80576A]">This report will be permanently removed.</p>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setConfirmingReport(null)} className="border border-[#EBC2AE] px-3 py-2 text-xs font-semibold text-[#80576A] hover:bg-[#FFF4EF]">Cancel</button>
+              <button type="button" onClick={() => deleteReport(confirmingReport)} disabled={deletingId === confirmingReport._id} className="bg-[#C75560] px-3 py-2 text-xs font-semibold text-white hover:bg-[#D9654A] disabled:cursor-wait disabled:opacity-50">{deletingId === confirmingReport._id ? 'Deleting...' : 'Delete report'}</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

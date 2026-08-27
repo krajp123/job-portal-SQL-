@@ -2058,6 +2058,7 @@ export default function Profile() {
     const [selectedPhotoFile, setSelectedPhotoFile] = useState(null);
     const [selectedPhotoPreview, setSelectedPhotoPreview] = useState('');
     const [photoDeleteConfirm, setPhotoDeleteConfirm] = useState(false);
+    const [deleteConfirm, setDeleteConfirm] = useState(null);
     const [crop, setCrop] = useState({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1);
     const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
@@ -2810,7 +2811,6 @@ export default function Profile() {
 
     // Delete methods
     async function deleteExperience(index) {
-        if (!confirm('Are you sure you want to delete this experience?')) return;
         try {
             const updated = experienceList.filter((_, i) => i !== index);
             await axiosInstance.put('/profile/experience', { experience: updated });
@@ -2826,7 +2826,6 @@ export default function Profile() {
     }
 
     async function deleteEducation(index) {
-        if (!confirm('Are you sure you want to delete this education?')) return;
         try {
             const updated = educationList.filter((_, i) => i !== index);
             await axiosInstance.put('/profile/education', { education: updated });
@@ -2842,7 +2841,6 @@ export default function Profile() {
     }
 
     async function deleteCertification(index) {
-        if (!confirm('Are you sure you want to delete this certification?')) return;
         try {
             const updated = certifications.filter((_, i) => i !== index);
             await axiosInstance.put('/profile/certifications', { certifications: updated });
@@ -2858,7 +2856,6 @@ export default function Profile() {
     }
 
     async function deleteProject(index) {
-        if (!confirm('Are you sure you want to delete this project?')) return;
         try {
             const updated = projects.filter((_, i) => i !== index);
             await axiosInstance.put('/profile/projects', { projects: updated });
@@ -2874,7 +2871,6 @@ export default function Profile() {
     }
 
     async function deletePortfolio(index) {
-        if (!confirm('Are you sure you want to delete this portfolio item?')) return;
         try {
             const updated = portfolio.filter((_, i) => i !== index);
             await axiosInstance.put('/profile/portfolio', { portfolio: updated });
@@ -2887,6 +2883,18 @@ export default function Profile() {
             console.error('Failed to delete portfolio item:', err);
             setToast('Failed to delete portfolio item');
         }
+    }
+
+    function requestDelete(type, index, label) {
+        setDeleteConfirm({ type, index, label });
+    }
+
+    async function confirmDelete() {
+        if (!deleteConfirm) return;
+        const { type, index } = deleteConfirm;
+        setDeleteConfirm(null);
+        const handlers = { experience: deleteExperience, education: deleteEducation, certification: deleteCertification, project: deleteProject, portfolio: deletePortfolio };
+        await handlers[type](index);
     }
 
     async function handlePhotoSelect(e) {
@@ -3316,7 +3324,7 @@ export default function Profile() {
                                                 </div>
                                                 <div className="flex shrink-0 items-center gap-1">
                                                     <button
-                                                        onClick={() => deleteExperience(i)}
+                                                        onClick={() => requestDelete('experience', i, 'experience')}
                                                         className="rounded-full p-1.5 text-stone-300 hover:bg-stone-50 hover:text-[#B23B3B]"
                                                         aria-label="Delete Experience entry"
                                                     >
@@ -3375,7 +3383,7 @@ export default function Profile() {
                                                 </div>
                                                 <div className="flex shrink-0 items-center gap-1">
                                                     <button
-                                                        onClick={() => deleteEducation(i)}
+                                                        onClick={() => requestDelete('education', i, 'education')}
                                                         className="rounded-full p-1.5 text-stone-300 hover:bg-stone-50 hover:text-[#B23B3B]"
                                                         aria-label="Delete education entry"
                                                     >
@@ -3440,7 +3448,7 @@ export default function Profile() {
                                                     <Pencil size={13} />
                                                 </button>
                                                 <button
-                                                    onClick={() => deleteCertification(i)}
+                                                    onClick={() => requestDelete('certification', i, 'certification')}
                                                     className="rounded-full p-1.5 text-stone-300 hover:bg-stone-50 hover:text-[#B23B3B]"
                                                     aria-label="Delete certification"
                                                 >
@@ -3507,7 +3515,7 @@ export default function Profile() {
                                                         <Pencil size={12} />
                                                     </button>
                                                     <button
-                                                        onClick={() => deleteProject(i)}
+                                                        onClick={() => requestDelete('project', i, 'project')}
                                                         className="rounded-full p-1 text-stone-300 hover:bg-stone-50 hover:text-[#B23B3B]"
                                                         aria-label="Delete project"
                                                     >
@@ -3574,7 +3582,7 @@ export default function Profile() {
                                                         <Pencil size={12} />
                                                     </button>
                                                     <button
-                                                        onClick={() => deletePortfolio(i)}
+                                                        onClick={() => requestDelete('portfolio', i, 'portfolio item')}
                                                         className="rounded-full p-1 text-stone-300 hover:bg-stone-50 hover:text-[#B23B3B]"
                                                         aria-label="Delete portfolio"
                                                     >
@@ -4510,6 +4518,18 @@ export default function Profile() {
                         bodyClassName="mt-2"
                     >
 
+                    </Modal>
+                )}
+
+                {deleteConfirm && (
+                    <Modal
+                        title={`Delete this ${deleteConfirm.label}?`}
+                        onClose={() => setDeleteConfirm(null)}
+                        onSave={confirmDelete}
+                        saveLabel="Delete"
+                        bodyClassName="mt-2"
+                    >
+                        <p className="text-sm text-[#80576A]">This action cannot be undone.</p>
                     </Modal>
                 )}
 

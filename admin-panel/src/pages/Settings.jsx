@@ -190,6 +190,7 @@ export default function Settings() {
   const [keyDraft, setKeyDraft] = useState("");
   const [planModal, setPlanModal] = useState(null);
   const [planDraft, setPlanDraft] = useState({ name: "", price: "", credits: "", sortOrder: 0, active: true });
+  const [deletePlanTarget, setDeletePlanTarget] = useState(null);
   const [newKeyword, setNewKeyword] = useState("");
 
   useEffect(() => {
@@ -602,11 +603,16 @@ export default function Settings() {
   };
 
   const deletePlan = async (plan) => {
-    if (!window.confirm(`Delete the ${plan.name} wallet plan?`)) return;
+    setDeletePlanTarget(plan);
+  };
+
+  const confirmDeletePlan = async () => {
+    if (!deletePlanTarget) return;
     try {
       setSaving(true);
-      await adminAxiosInstance.delete(`/admin/payment-plans/${plan._id}`);
-      setSettings((current) => ({ ...current, payments: { ...current.payments, plans: current.payments.plans.filter((item) => item._id !== plan._id) } }));
+      await adminAxiosInstance.delete(`/admin/payment-plans/${deletePlanTarget._id}`);
+      setSettings((current) => ({ ...current, payments: { ...current.payments, plans: current.payments.plans.filter((item) => item._id !== deletePlanTarget._id) } }));
+      setDeletePlanTarget(null);
       setSettingsMessage("Wallet plan deleted.");
     } catch (error) {
       setSettingsMessage(error.response?.data?.error || "Unable to delete wallet plan.");
@@ -1256,6 +1262,19 @@ export default function Settings() {
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" onClick={closeChargeModal} className="border border-[#EBC2AE] px-3 py-1.5 text-xs font-semibold text-[#80576A] hover:bg-[#FFF4EF]">Cancel</button>
               <button type="button" onClick={updateCharge} disabled={!canManageSettings || chargeAmount === "" || Number(chargeAmount) < 0} className="bg-[#C75560] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#D9654A] disabled:cursor-not-allowed disabled:opacity-50">Increase charges</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deletePlanTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1D181A]/45 px-4" role="dialog" aria-modal="true" aria-labelledby="delete-plan-title">
+          <div className="w-full max-w-sm border border-[#EBC2AE] bg-white p-4 shadow-xl">
+            <h2 id="delete-plan-title" className="text-sm font-semibold text-[#1D181A]">Delete {deletePlanTarget.name} wallet plan?</h2>
+            <p className="mt-2 text-xs text-[#80576A]">This action cannot be undone.</p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => setDeletePlanTarget(null)} className="border border-[#EBC2AE] px-3 py-1.5 text-xs font-semibold text-[#80576A]">Cancel</button>
+              <button type="button" onClick={confirmDeletePlan} disabled={saving} className="bg-red-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">Delete plan</button>
             </div>
           </div>
         </div>

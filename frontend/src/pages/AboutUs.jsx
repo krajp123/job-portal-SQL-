@@ -1,8 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight, Check, HeartHandshake, Search, ShieldCheck, Sparkles, UsersRound } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
-import CandidateNavbar from '../components/CandidateNavbar';
-import RecruiterNavbar from '../components/RecruiterNavbar';
+import PublicNavbar from '../components/PublicNavbar';
 import { FONT_DISPLAY, BG, CORAL, CORAL_HOVER, DUSTY_ROSE, NEAR_BLACK, LIGHT_BORDER, AMBER } from '../theme';
 
 const PRINCIPLES = [
@@ -16,11 +14,6 @@ const JOURNEY = [
   { number: '02', title: 'Make the right connection', text: 'Search, recommendations, and direct communication bring the most relevant people into the same conversation.' },
   { number: '03', title: 'Move with confidence', text: 'Structured applications and hiring milestones keep both sides informed from shortlist to signed offer.' },
 ];
-
-function PublicNavbar() {
-  const { user } = useAuth();
-  return user?.role === 'recruiter' ? <RecruiterNavbar /> : <CandidateNavbar />;
-}
 
 export default function AboutUs() {
   return (

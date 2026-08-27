@@ -37,7 +37,7 @@ adminAxiosInstance.interceptors.response.use(
         localStorage.removeItem('admin_token');
         localStorage.removeItem('admin_user');
         const message = err.response?.data?.error || 'Your account has been restricted.';
-        alert(message);
+        localStorage.setItem('admin_restriction_message', message);
         window.location.href = '/login';
       }
     }

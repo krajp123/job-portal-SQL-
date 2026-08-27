@@ -3219,7 +3219,7 @@ export default function RecruiterDashboard() {
     } catch (err) {
       const message = await getAxiosErrorMessage(err, 'Could not download saved resume.');
       if (message === 'No resume available.') {
-        window.alert(message);
+        setResumeError(message);
         return;
       }
       setResumeError(message);

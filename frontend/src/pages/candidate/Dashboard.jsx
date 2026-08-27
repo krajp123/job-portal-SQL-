@@ -777,7 +777,7 @@ export default function Dashboard() {
                             <div className="mb-6">
                                 <CarouselSection
                                     title="Recommended Jobs"
-                                    viewAllLink="/candidate/jobs"
+                                    viewAllLink="/candidate/jobs/recommended"
                                     items={recommendedJobs}
                                     emptyMessage="We'll show personalized job matches here once you complete your profile."
                                     emptyCta={

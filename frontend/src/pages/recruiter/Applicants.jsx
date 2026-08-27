@@ -698,6 +698,7 @@ export default function Applicants() {
     }
 
     try {
+      await axiosInstance.get(`/recruiter/candidate/${candidateId}/resume/availability`);
       const [{ data: recruiterProfile }, { data: walletSummary }] = await Promise.all([
         axiosInstance.get('/recruiter/me/profile'),
         axiosInstance.get('/recruiter/wallet/summary'),
@@ -716,6 +717,10 @@ export default function Applicants() {
       setResumePaymentCandidate(candidateApplication);
       setResumePaymentModalOpen(true);
     } catch (error) {
+      if (error.response?.data?.error === 'No resume available.') {
+        showToast('No resume available.');
+        return;
+      }
       console.error('Failed to load wallet details for resume paywall:', error);
       showToast(error.response?.data?.error || 'Could not load wallet details.');
     }

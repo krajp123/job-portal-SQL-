@@ -183,6 +183,7 @@ export default function AppliedJobs() {
   const [selectedApp, setSelectedApp] = useState(null);
   const [filterTab, setFilterTab] = useState("all");
   const [withdrawing, setWithdrawing] = useState(false);
+  const [withdrawConfirm, setWithdrawConfirm] = useState(false);
 
   useEffect(() => {
     async function loadAppliedJobs() {
@@ -227,15 +228,13 @@ export default function AppliedJobs() {
       getStatusConfig(selectedApp.status).step >= 2
     )
       return;
-    if (!window.confirm("Are you sure you want to withdraw this application?"))
-      return;
-
     const jobId = selectedApp.job?._id || selectedApp.job;
     if (!jobId) {
       setError("Unable to determine the job associated with this application.");
       return;
     }
 
+    setWithdrawConfirm(false);
     setWithdrawing(true);
     setError("");
     try {
@@ -619,7 +618,7 @@ export default function AppliedJobs() {
                         </span>
                         <button
                           type="button"
-                          onClick={withdrawApplication}
+                          onClick={() => setWithdrawConfirm(true)}
                           disabled={withdrawing || withdrawDisabled}
                           title={
                             withdrawDisabled
@@ -734,6 +733,18 @@ export default function AppliedJobs() {
                   </div>
                 )}
               </AnimatePresence>
+            </div>
+          </div>
+        )}
+        {withdrawConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="withdraw-title">
+            <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+              <h2 id="withdraw-title" className="text-base font-bold" style={{ color: MAROON_DARK }}>Withdraw this application?</h2>
+              <p className="mt-2 text-sm" style={{ color: DUSTY_ROSE }}>This action cannot be undone.</p>
+              <div className="mt-5 flex justify-end gap-2">
+                <button type="button" onClick={() => setWithdrawConfirm(false)} className="rounded-lg border px-3 py-2 text-xs font-semibold">Cancel</button>
+                <button type="button" onClick={withdrawApplication} className="rounded-lg bg-[#8B1E2F] px-3 py-2 text-xs font-semibold text-white">Withdraw</button>
+              </div>
             </div>
           </div>
         )}

@@ -78,7 +78,7 @@ export default function ReopenRequests() {
       setRequests((current) => current.map((req) => (req._id === requestId ? data.request : req)));
       window.dispatchEvent(new CustomEvent('reopenRequestsUpdated'));
     } catch (err) {
-      window.alert(err.response?.data?.error || `Failed to ${action} request. Please try again.`);
+      setError(err.response?.data?.error || `Failed to ${action} request. Please try again.`);
     }
   }
 

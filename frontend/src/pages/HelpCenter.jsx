@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import RecruiterNavbar from '../components/RecruiterNavbar';
-import CandidateNavbar from '../components/CandidateNavbar';
+import PublicNavbar from '../components/PublicNavbar';
 import axiosInstance from '../api/axiosInstance';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -885,7 +884,7 @@ export default function HelpCenter() {
 
     return (
         <div className="min-h-screen overflow-x-hidden bg-[#FFF9F5] text-[#1D181A]">
-            {user?.role === 'recruiter' ? <RecruiterNavbar /> : <CandidateNavbar />}
+            <PublicNavbar />
             <PersonaToggle persona={persona} onChange={handlePersonaChange} />
             <main>
                 <HelpHero

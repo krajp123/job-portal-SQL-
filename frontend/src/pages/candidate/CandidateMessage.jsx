@@ -75,6 +75,7 @@ export default function Messages() {
     const [searchChat, setSearchChat] = useState('');
     const [searchOpen, setSearchOpen] = useState(false);
     const [candidateRepliesEnabled, setCandidateRepliesEnabled] = useState(true);
+    const [clearChatConfirm, setClearChatConfirm] = useState(false);
 
     const scrollRef = useRef(null);
     const threadRequestRef = useRef(0);
@@ -227,7 +228,8 @@ export default function Messages() {
     }
 
     async function clearChat() {
-        if (!activeId || !window.confirm('Clear all messages in this chat?')) return;
+        if (!activeId) return;
+        setClearChatConfirm(false);
         await axiosInstance.delete(`/messages/${activeId}`);
         setThread([]);
         setConversations((previous) => previous.map((conversation) => (
@@ -304,7 +306,7 @@ export default function Messages() {
                                 <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-[#1D181A]">{activeName}</p><p className="mt-0.5 text-xs text-[#80576A]">{activeCompany}</p></div>
                                 <div className="relative ml-auto">
                                     <button type="button" onClick={() => setMenuOpen((open) => !open)} aria-label="Chat options" title="Chat options" className="flex h-8 w-8 items-center justify-center rounded-full text-[#80576A] hover:bg-[#FFF0E8] hover:text-[#C75560]"><MoreVertical size={18} /></button>
-                                    {menuOpen && <div className="absolute right-0 top-10 z-20 w-44 rounded-xl border border-[#EBC2AE] bg-white p-1.5 shadow-xl"><button type="button" onClick={() => { setSearchOpen(true); setMenuOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold text-[#1D181A] hover:bg-[#FFF0E8]"><Search size={14} /> Search chat</button><button type="button" onClick={clearChat} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold text-[#B3261E] hover:bg-[#FFF0EE]">Clear chat</button></div>}
+                                    {menuOpen && <div className="absolute right-0 top-10 z-20 w-44 rounded-xl border border-[#EBC2AE] bg-white p-1.5 shadow-xl"><button type="button" onClick={() => { setSearchOpen(true); setMenuOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold text-[#1D181A] hover:bg-[#FFF0E8]"><Search size={14} /> Search chat</button><button type="button" onClick={() => { setClearChatConfirm(true); setMenuOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold text-[#B3261E] hover:bg-[#FFF0EE]">Clear chat</button></div>}
                                 </div>
                             </div>
                             {searchOpen && <div data-chat-tools className="border-b border-[#F0D1BF] px-5 py-2"><input autoFocus value={searchChat} onChange={(event) => setSearchChat(event.target.value)} placeholder="Search in this chat" className="w-full rounded-lg border border-[#EBC2AE] px-3 py-2 text-xs outline-none focus:border-[#C75560]" /></div>}
@@ -321,6 +323,15 @@ export default function Messages() {
                     )}
                 </div>
                 </section>
+                {clearChatConfirm && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="clear-chat-title">
+                        <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+                            <h2 id="clear-chat-title" className="text-base font-bold text-[#1D181A]">Clear all messages?</h2>
+                            <p className="mt-2 text-sm text-[#80576A]">This will remove the messages in this chat.</p>
+                            <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setClearChatConfirm(false)} className="rounded-lg border border-[#EBC2AE] px-3 py-2 text-xs font-semibold">Cancel</button><button type="button" onClick={clearChat} className="rounded-lg bg-[#C75560] px-3 py-2 text-xs font-semibold text-white">Clear chat</button></div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

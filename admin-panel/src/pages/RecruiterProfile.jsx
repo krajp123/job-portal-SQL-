@@ -847,7 +847,6 @@ export default function RecruiterProfile() {
       const errorMsg = err.response?.data?.error || path.replace(/-/g, ' ');
       setNotification({ type: 'error', message: `✗ Action failed: ${errorMsg}` });
       setTimeout(() => setNotification(null), 4000);
-      alert(`Action failed: ${errorMsg}`);
     } finally {
       setModalLoading(false);
     }
@@ -912,7 +911,7 @@ export default function RecruiterProfile() {
           closeModal();
         } catch (err) {
           console.error('Failed to send reset link:', err);
-          alert('Failed to send password reset link');
+          setNotification({ type: 'error', message: 'Failed to send password reset link' });
         } finally {
           setModalLoading(false);
         }
@@ -931,7 +930,7 @@ export default function RecruiterProfile() {
       console.log(`✓ Document ${status} successfully`);
     } catch (err) {
       console.error('Failed to update document status:', err);
-      alert(`Failed to update document status: ${err.response?.data?.error || err.message}`);
+      setNotification({ type: 'error', message: `Failed to update document status: ${err.response?.data?.error || err.message}` });
     }
   };
 
@@ -943,7 +942,7 @@ export default function RecruiterProfile() {
       console.log('✓ Notes saved successfully');
     } catch (err) {
       console.error('Failed to save notes:', err);
-      alert(`Failed to save admin notes: ${err.response?.data?.error || err.message}`);
+      setNotification({ type: 'error', message: `Failed to save admin notes: ${err.response?.data?.error || err.message}` });
     } finally {
       setNotesSaving(false);
     }

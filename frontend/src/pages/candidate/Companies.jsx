@@ -438,4 +438,4 @@ export default function CandidateCompanies() {
       </div>
     </div>
   );
-}
+} 

@@ -394,6 +394,7 @@ export default function RecruiterSettings() {
   const [cropping, setCropping] = useState(false);
   const [uploadingProfilePicture, setUploadingProfilePicture] = useState(false);
   const [deletingProfilePicture, setDeletingProfilePicture] = useState(false);
+  const [profilePictureConfirm, setProfilePictureConfirm] = useState(false);
 
   /* ---- security ---- */
   const [passwordCurrent, setPasswordCurrent] = useState('');
@@ -641,8 +642,11 @@ export default function RecruiterSettings() {
   }
 
   async function handleDeleteProfilePicture() {
-    if (!window.confirm('Delete your profile picture?')) return;
+    setProfilePictureConfirm(true);
+  }
 
+  async function confirmDeleteProfilePicture() {
+    setProfilePictureConfirm(false);
     setDeletingProfilePicture(true);
     try {
       await axiosInstance.delete('/recruiter/me/profile-picture');
@@ -1708,6 +1712,18 @@ export default function RecruiterSettings() {
           </div>
         </div>
       </main>
+
+      {profilePictureConfirm && (
+        <ModalPortal onClose={() => setProfilePictureConfirm(false)}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
+            <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl">
+              <h3 className="text-base font-bold text-[#1D181A]">Delete your profile picture?</h3>
+              <p className="mt-1.5 text-sm text-slate-500">This action cannot be undone.</p>
+              <div className="mt-5 flex justify-end gap-2"><GhostButton onClick={() => setProfilePictureConfirm(false)}>Cancel</GhostButton><button type="button" onClick={confirmDeleteProfilePicture} className="rounded-full bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white">Delete</button></div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
 
       {/* --------------------------- CONFIRM MODAL --------------------------- */}
       {confirmAction && (

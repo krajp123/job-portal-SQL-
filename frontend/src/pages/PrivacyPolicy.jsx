@@ -18,8 +18,7 @@ import {
     ShieldCheck,
     Users,
 } from 'lucide-react';
-import CandidateNavbar from '../components/CandidateNavbar';
-import RecruiterNavbar from '../components/RecruiterNavbar';
+import PublicNavbar from '../components/PublicNavbar';
 import { useAuth } from '../context/AuthContext';
 
 const EFFECTIVE_DATE = 'August 24, 2026';
@@ -170,7 +169,6 @@ const SECTIONS = [
 ];
 
 export default function PrivacyPolicy() {
-    const { user } = useAuth();
     const [activeId, setActiveId] = useState(SECTIONS[0].id);
     const sectionRefs = useRef({});
 
@@ -200,7 +198,7 @@ export default function PrivacyPolicy() {
 
     return (
         <div className="min-h-screen overflow-x-hidden bg-[#FFF9F5] text-[#241A1E]">
-            {user?.role === 'recruiter' ? <RecruiterNavbar /> : <CandidateNavbar />}
+            <PublicNavbar />
 
             <main>
                 {/* Masthead */}
