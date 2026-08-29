@@ -274,6 +274,55 @@ exports.me = async (req, res) => {
   }
 };
 
+// POST /admin-api/auth/admin/unlock
+// Unlock an admin account that has been temporarily locked due to failed login attempts
+// Only superadmin or the admin themselves can unlock
+exports.unlockAdmin = async (req, res) => {
+  try {
+    const requesterRole = req.admin?.role;
+    const requesterAdminId = req.admin?.id;
+    const { adminId } = req.body;
+
+    if (!adminId) {
+      return res.status(400).json({ error: 'adminId is required' });
+    }
+
+    // Only superadmin or self can unlock
+    if (requesterRole !== 'superadmin' && requesterAdminId !== adminId) {
+      return res.status(403).json({ error: 'Only superadmin can unlock other admins' });
+    }
+
+    const admin = await Admin.findById(adminId);
+    if (!admin) {
+      return res.status(404).json({ error: 'Admin not found' });
+    }
+
+    // Check if account is actually locked
+    if (!admin.lockUntil || admin.lockUntil <= new Date()) {
+      return res.status(400).json({ message: 'Admin account is not locked' });
+    }
+
+    // Clear lockout
+    admin.failedLoginAttempts = 0;
+    admin.lockUntil = undefined;
+    await admin.save();
+
+    // Log the unlock action
+    await logAdminAction({
+      adminId: requesterAdminId,
+      action: 'ADMIN_UNLOCK',
+      targetType: 'Admin',
+      targetId: adminId,
+      details: `Admin ${admin.email} unlocked by ${req.admin?.email}`,
+      ip: req.ip,
+    });
+
+    res.json({ message: 'Admin account unlocked successfully', admin: { id: admin._id, email: admin.email } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // Utility for a one-off seed script (see backend/seedAdmin.js) - not exposed as a route.
 exports.createAdminAccount = async ({ name, email, password, role = 'admin' }) => {
   const passwordHash = await hashPassword(password);

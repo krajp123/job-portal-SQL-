@@ -42,7 +42,7 @@ exports.list = async (req, res) => {
       Admin.find(query).select('-passwordHash -failedLoginAttempts').sort({ createdAt: -1 }).skip((page - 1) * pageSize).limit(pageSize).lean(),
       Admin.countDocuments(query),
     ]);
-    res.json({ items: items.map((admin) => ({ ...admin, isLocked: Boolean(admin.lockUntil && admin.lockUntil > new Date()), lockUntil: undefined })), total, page, pageSize, totalPages: Math.max(1, Math.ceil(total / pageSize)) });
+    res.json({ items: items.map((admin) => ({ ...admin, isLocked: Boolean(admin.lockUntil && admin.lockUntil > new Date()) })), total, page, pageSize, totalPages: Math.max(1, Math.ceil(total / pageSize)) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

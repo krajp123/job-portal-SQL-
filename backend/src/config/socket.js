@@ -1,5 +1,7 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
+const Candidate = require('../models/Candidate');
+const Recruiter = require('../models/Recruiter');
 
 let io = null;
 
@@ -18,11 +20,30 @@ function initSocket(httpServer) {
   });
 
   // Auth handshake: client connects with `auth: { token }` (same JWT as the REST API).
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth?.token;
       if (!token) return next(new Error('No token provided'));
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      
+      // Verify user still exists and account is active
+      const userRole = decoded.role;
+      const userId = decoded.id;
+      
+      if (userRole === 'candidate') {
+        const user = await Candidate.findById(userId).select('accountStatus').lean();
+        if (!user) return next(new Error('User not found'));
+        if (user.accountStatus !== 'active') {
+          return next(new Error(`Account is ${user.accountStatus}`));
+        }
+      } else if (userRole === 'recruiter') {
+        const user = await Recruiter.findById(userId).select('accountStatus').lean();
+        if (!user) return next(new Error('User not found'));
+        if (user.accountStatus !== 'active') {
+          return next(new Error(`Account is ${user.accountStatus}`));
+        }
+      }
+      
       socket.user = decoded; // { id, role }
       next();
     } catch (err) {
@@ -35,8 +56,31 @@ function initSocket(httpServer) {
     // `user:<id>` without knowing which socket(s) belong to them.
     socket.join(`user:${socket.user.id}`);
 
+    // Periodically verify token and account status (every 5 minutes)
+    const tokenCheckInterval = setInterval(async () => {
+      try {
+        const userRole = socket.user.role;
+        const userId = socket.user.id;
+        let user;
+        
+        if (userRole === 'candidate') {
+          user = await Candidate.findById(userId).select('accountStatus').lean();
+        } else if (userRole === 'recruiter') {
+          user = await Recruiter.findById(userId).select('accountStatus').lean();
+        }
+        
+        // Disconnect if user no longer exists or account is suspended/banned
+        if (!user || user.accountStatus !== 'active') {
+          socket.disconnect(true);
+        }
+      } catch (err) {
+        // On error, disconnect to be safe
+        socket.disconnect(true);
+      }
+    }, 5 * 60 * 1000); // Check every 5 minutes
+
     socket.on('disconnect', () => {
-      // no-op for now — room membership is cleaned up automatically
+      clearInterval(tokenCheckInterval);
     });
   });
 

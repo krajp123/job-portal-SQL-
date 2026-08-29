@@ -69,13 +69,19 @@ exports.verifyPayment = async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, paymentRecordId } = req.body;
 
-    const devMode = !razorpayInstance && process.env.NODE_ENV !== 'production';
-
     if (!razorpay_order_id) {
       return res.status(400).json({ error: 'Missing payment details' });
     }
 
-    if (!devMode) {
+    // In production, ALWAYS require Razorpay to be configured
+    if (process.env.NODE_ENV === 'production' && !razorpayInstance) {
+      return res.status(500).json({ error: 'Payment processor not configured' });
+    }
+
+    // Allow dev mode only if not in production
+    const isDevMode = !razorpayInstance && process.env.NODE_ENV !== 'production';
+
+    if (!isDevMode) {
       if (!razorpay_payment_id || !razorpay_signature) {
         return res.status(400).json({ error: 'Missing payment details' });
       }

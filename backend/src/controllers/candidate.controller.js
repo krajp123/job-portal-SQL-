@@ -920,10 +920,23 @@ exports.downloadResume = async (req, res) => {
 
     if (resumeUrl.includes('/uploads/')) {
       const relativePath = resumeUrl.split('/uploads/')[1] || '';
-      const localPath = path.join(__dirname, '..', '..', 'uploads', relativePath);
-      return res.download(localPath, fileName, (err) => {
+      
+      // Security: Validate path to prevent traversal attacks
+      if (!relativePath || relativePath.includes('..') || relativePath.includes('\\')) {
+        return res.status(400).json({ error: 'Invalid file path' });
+      }
+      
+      const uploadsDir = path.join(__dirname, '..', '..', 'uploads');
+      const localPath = path.join(uploadsDir, relativePath);
+      const normalizedPath = path.normalize(localPath);
+      
+      // Ensure the resolved path is within the uploads directory
+      if (!normalizedPath.startsWith(uploadsDir)) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+      
+      return res.download(normalizedPath, fileName, (err) => {
         if (err) {
-          console.error('Failed to download local resume:', err);
           return res.status(404).json({ error: 'Resume not available' });
         }
       });

@@ -30,6 +30,7 @@ router.patch('/auth/password', requireAdmin, adminAuthController.changePassword)
 router.patch('/auth/two-factor', requireAdmin, adminAuthController.updateTwoFactor);
 router.post('/auth/profile-picture', requireAdmin, uploadProfilePicture.single('profilePicture'), adminAuthController.uploadProfilePicture);
 router.delete('/auth/profile-picture', requireAdmin, adminAuthController.removeProfilePicture);
+router.post('/auth/admin/unlock', requireAdmin, adminAuthController.unlockAdmin);
 
 // Everything below this line requires a valid admin token
 router.use(adminApiLimiter, requireAdmin);

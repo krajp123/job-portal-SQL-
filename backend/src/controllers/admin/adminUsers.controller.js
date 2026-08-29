@@ -1022,16 +1022,28 @@ exports.downloadCandidateResume = async (req, res) => {
     // Handle local uploads
     if (resumeUrl.includes('/uploads/')) {
       const relativePath = resumeUrl.split('/uploads/')[1] || '';
-      const localPath = path.join(__dirname, '..', '..', 'uploads', relativePath);
+      
+      // Security: Validate path to prevent traversal attacks
+      if (!relativePath || relativePath.includes('..') || relativePath.includes('\\')) {
+        return res.status(400).json({ error: 'Invalid file path' });
+      }
+      
+      const uploadsDir = path.join(__dirname, '..', '..', 'uploads');
+      const localPath = path.join(uploadsDir, relativePath);
+      const normalizedPath = path.normalize(localPath);
+      
+      // Ensure the resolved path is within the uploads directory
+      if (!normalizedPath.startsWith(uploadsDir)) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
       
       // Set headers for PDF download
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       
-      return res.sendFile(localPath, (err) => {
+      return res.sendFile(normalizedPath, (err) => {
         if (err) {
-          console.error('Failed to download candidate resume:', err);
           if (!res.headersSent) {
             return res.status(404).json({ error: 'Resume not available' });
           }

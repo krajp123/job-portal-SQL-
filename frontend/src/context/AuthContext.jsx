@@ -24,6 +24,7 @@ function getStoredUser() {
     const decodedPayload = atob(paddedPayload);
     const { exp } = JSON.parse(decodedPayload);
 
+    // Check if token is expired
     if (typeof exp === 'number' && exp * 1000 <= Date.now()) {
       clearStoredSession();
       return null;
@@ -33,6 +34,24 @@ function getStoredUser() {
   } catch {
     clearStoredSession();
     return null;
+  }
+}
+
+// Helper to check if token is expired without throwing
+function isTokenExpired() {
+  const token = localStorage.getItem('token');
+  if (!token) return true;
+  
+  try {
+    const tokenPayload = token.split('.')[1];
+    const normalizedPayload = tokenPayload.replace(/-/g, '+').replace(/_/g, '/');
+    const paddedPayload = normalizedPayload.padEnd(Math.ceil(normalizedPayload.length / 4) * 4, '=');
+    const decodedPayload = atob(paddedPayload);
+    const { exp } = JSON.parse(decodedPayload);
+    
+    return typeof exp === 'number' && exp * 1000 <= Date.now();
+  } catch {
+    return true;
   }
 }
 
@@ -49,7 +68,18 @@ export function AuthProvider({ children }) {
     }
 
     window.addEventListener('auth:unauthorized', handleUnauthorized);
-    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
+
+    // Periodic token expiration check (every 1 minute) to catch expiration even if timer doesn't fire
+    const tokenCheckInterval = setInterval(() => {
+      if (isTokenExpired()) {
+        logout({ redirect: true });
+      }
+    }, 60000); // Check every minute
+
+    return () => {
+      window.removeEventListener('auth:unauthorized', handleUnauthorized);
+      clearInterval(tokenCheckInterval);
+    };
   }, []);
 
   useEffect(() => {

@@ -223,7 +223,28 @@ function useAdmins({ onError, onSuccess }) {
     [onError, onSuccess],
   );
 
-  return { admins, meta, loading, mutatingIds, fetchAdmins, createAdmin, updateAdmin, resetPassword };
+  const unlockAdmin = useCallback(
+    async (id) => {
+      setMutatingIds((current) => new Set(current).add(id));
+      try {
+        const { data } = await adminAxiosInstance.post(`/auth/admin/unlock`, { adminId: id });
+        // Fetch fresh data to update lockUntil status
+        await fetchAdmins({ page: 1 });
+        onSuccess('Admin account unlocked');
+      } catch (error) {
+        onError(error.response?.data?.error || 'Unable to unlock admin');
+      } finally {
+        setMutatingIds((current) => {
+          const next = new Set(current);
+          next.delete(id);
+          return next;
+        });
+      }
+    },
+    [onError, onSuccess, fetchAdmins],
+  );
+
+  return { admins, meta, loading, mutatingIds, fetchAdmins, createAdmin, updateAdmin, resetPassword, unlockAdmin };
 }
 
 /* ==========================================================================
@@ -586,7 +607,7 @@ function AdminFilterBar({ filters, onChange }) {
   );
 }
 
-function AdminTable({ admins, meta, loading, mutatingIds, onUpdateAdmin, onResetPassword, currentAdminId, filters, setFilters }) {
+function AdminTable({ admins, meta, loading, mutatingIds, onUpdateAdmin, onResetPassword, onUnlockAdmin, currentAdminId, filters, setFilters }) {
   const [pendingAction, setPendingAction] = useState(null);
   const [resetTarget, setResetTarget] = useState(null);
 
@@ -613,6 +634,16 @@ function AdminTable({ admins, meta, loading, mutatingIds, onUpdateAdmin, onReset
       admin.isActive ? `${admin.name} will immediately lose access to the admin panel.` : `${admin.name} will regain access to the admin panel.`,
       admin.isActive ? 'danger' : 'default',
     );
+  }
+
+  function requestUnlock(admin) {
+    setPendingAction({
+      admin,
+      action: 'unlock',
+      title: `Unlock ${admin.name}?`,
+      description: `${admin.name}'s account is temporarily locked due to failed login attempts. This will immediately unlock it.`,
+      tone: 'default',
+    });
   }
 
   return (
@@ -679,6 +710,17 @@ function AdminTable({ admins, meta, loading, mutatingIds, onUpdateAdmin, onReset
                         >
                           <KeyRound size={12} /> Reset
                         </button>
+                        {(admin.isLocked || (admin.lockUntil && new Date(admin.lockUntil) > new Date())) && (
+                          <button
+                            type="button"
+                            disabled={isMutating}
+                            onClick={() => requestUnlock(admin)}
+                            className="inline-flex items-center gap-1 border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                            title="Account is temporarily locked due to failed login attempts"
+                          >
+                            <AlertTriangle size={12} /> Unlock
+                          </button>
+                        )}
                         <button
                           type="button"
                           disabled={isSelf || isMutating}
@@ -728,6 +770,17 @@ function AdminTable({ admins, meta, loading, mutatingIds, onUpdateAdmin, onReset
                     <option value="superadmin">Superadmin</option>
                   </select>
                   <button type="button" disabled={isMutating} onClick={() => setResetTarget(admin)} className="inline-flex items-center gap-1 border border-[#EBC2AE] px-2 py-1 text-xs font-semibold text-[#80576A] hover:bg-[#FFF0E8] disabled:opacity-50"><KeyRound size={12} /> Reset</button>
+                  {(admin.isLocked || (admin.lockUntil && new Date(admin.lockUntil) > new Date())) && (
+                    <button
+                      type="button"
+                      disabled={isMutating}
+                      onClick={() => requestUnlock(admin)}
+                      className="inline-flex items-center gap-1 border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                      title="Account is temporarily locked due to failed login attempts"
+                    >
+                      <AlertTriangle size={12} /> Unlock
+                    </button>
+                  )}
                   <button type="button" disabled={isSelf || isMutating} onClick={() => requestStatusToggle(admin)} className="ml-auto inline-flex items-center gap-1 border border-[#EBC2AE] px-2 py-1 text-xs font-semibold text-[#80576A] hover:bg-[#FFF0E8] disabled:opacity-50"><Power size={12} /> {admin.isActive ? 'Deactivate' : 'Activate'}</button>
                 </div>
               </div>
@@ -746,7 +799,11 @@ function AdminTable({ admins, meta, loading, mutatingIds, onUpdateAdmin, onReset
         confirmLabel="Confirm"
         onCancel={() => setPendingAction(null)}
         onConfirm={() => {
-          onUpdateAdmin(pendingAction.admin._id, pendingAction.patch);
+          if (pendingAction.action === 'unlock') {
+            onUnlockAdmin(pendingAction.admin._id);
+          } else {
+            onUpdateAdmin(pendingAction.admin._id, pendingAction.patch);
+          }
           setPendingAction(null);
         }}
       />
@@ -936,7 +993,7 @@ function AdminManagementView() {
   const [tab, setTab] = useState('admins');
   const [adminSection, setAdminSection] = useState('control');
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
-  const { admins, meta, loading, mutatingIds, fetchAdmins, createAdmin, updateAdmin, resetPassword } = useAdmins({ onError: toast.error, onSuccess: toast.success });
+  const { admins, meta, loading, mutatingIds, fetchAdmins, createAdmin, updateAdmin, resetPassword, unlockAdmin } = useAdmins({ onError: toast.error, onSuccess: toast.success });
 
   const debouncedSearch = useDebouncedValue(filters.search);
 
@@ -1017,6 +1074,7 @@ function AdminManagementView() {
               mutatingIds={mutatingIds}
               onUpdateAdmin={updateAdmin}
               onResetPassword={resetPassword}
+              onUnlockAdmin={unlockAdmin}
               currentAdminId={admin?.id}
               filters={filters}
               setFilters={setFilters}

@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const { publicLimiter } = require('./middleware/rateLimiter');
 const maintenanceMode = require('./middleware/maintenanceMode');
@@ -34,6 +35,13 @@ app.use('/uploads', express.static(uploadsDir));
 app.use(helmet());
 app.use(morgan('dev'));
 app.use(express.json());
+
+// ---- Request ID Middleware: Add unique ID to each request for logging/tracing ----
+app.use((req, res, next) => {
+  req.id = crypto.randomUUID();
+  res.setHeader('X-Request-ID', req.id);
+  next();
+});
 
 // ---- CORS: public frontend and admin frontend are allowed separately ----
 // This means the admin panel's origin doesn't need to be exposed to the public
@@ -104,10 +112,27 @@ app.use('/admin-api', adminRoutes);
 // ---- 404 fallback ----
 app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
 
-// ---- Error handler ----
+// ---- Global error handling (must be last) ----
 app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
+  const isProduction = process.env.NODE_ENV === 'production';
+  const requestId = req.id || 'unknown';
+  
+  // Log error with request ID for tracing
+  if (isProduction) {
+    console.error(`[ERROR] [${requestId}] ${req.method} ${req.path}:`, err.message);
+  } else {
+    console.error(`[ERROR] [${requestId}] ${req.method} ${req.path}:`, err);
+  }
+  
+  // Don't expose internal error details in production
+  const errorResponse = {
+    error: isProduction ? 'Internal server error' : err.message,
+    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
+    requestId, // Include request ID for debugging
+  };
+
+  const statusCode = err.status || err.statusCode || 500;
+  res.status(statusCode).json(errorResponse);
 });
 
 module.exports = app;

@@ -444,7 +444,7 @@ function AccountTab({ user, profile, loadingProfile, onProfileUpdate }) {
       <div className="space-y-3">
         <FieldRow
           label="Email address"
-          value={profile?.email || user?.email || 'you@example.com'}
+          value={loadingProfile ? 'Loading…' : (profile?.email || user?.email || 'Not set yet')}
           verified={profile?.emailVerified ?? true}
           editing={editingEmail}
           onEdit={() => {
@@ -521,7 +521,7 @@ function AccountTab({ user, profile, loadingProfile, onProfileUpdate }) {
 
         <FieldRow
           label="Phone number"
-          value={profile?.phone || user?.phone || '+91 00000 00000'}
+          value={loadingProfile ? 'Loading…' : (profile?.phone || user?.phone || 'Not set yet')}
           verified={profile?.phoneVerified ?? true}
           editing={editingPhone}
           onEdit={() => {
@@ -1505,13 +1505,36 @@ function DangerTab({ onDelete, deleting, error, onClearError, accountEmail }) {
 
 export default function Settings() {
   const { user, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState('account');
+
+  const getInitialTab = () => {
+    if (typeof window === 'undefined') return 'account';
+
+    const hashTab = window.location.hash.replace('#', '');
+    if (TABS.some((tab) => tab.key === hashTab)) {
+      return hashTab;
+    }
+
+    const storedTab = localStorage.getItem('candidate-settings-tab');
+    if (storedTab && TABS.some((tab) => tab.key === storedTab)) {
+      return storedTab;
+    }
+
+    return 'account';
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [message, setMessage] = useState('');
   const [profile, setProfile] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [profileError, setProfileError] = useState('');
   const [profileImageError, setProfileImageError] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('candidate-settings-tab', activeTab);
+    window.history.replaceState(null, '', `${window.location.pathname}#${activeTab}`);
+  }, [activeTab]);
 
   useEffect(() => {
     let mounted = true;
