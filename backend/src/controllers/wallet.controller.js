@@ -303,13 +303,13 @@ exports.verifyWalletRecharge = async (req, res) => {
     const devMode = !razorpayInstance && process.env.NODE_ENV !== 'production';
 
     if (!razorpay_order_id) {
-      return res.status(400).json({ error: 'Missing payment details' });
+      return res.status(400).json({ error: '' });
     }
 
     // Verify signature (skip in dev mode)
     if (!devMode) {
       if (!razorpay_payment_id || !razorpay_signature) {
-        return res.status(400).json({ error: 'Missing payment details' });
+        return res.status(400).json({ error: '' });
       }
 
       const expectedSignature = crypto

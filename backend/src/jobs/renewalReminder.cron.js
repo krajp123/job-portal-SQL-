@@ -6,7 +6,7 @@ const { sendEmail } = require('../services/email.service');
 // Sends a reminder a few days before renewalDueDate, per Section 8 of the docs.
 function scheduleRenewalReminder() {
   cron.schedule('0 8 * * *', async () => {
-    console.log('[cron] Running renewal reminder job...');
+    // Renewal reminder job started
 
     const { candidates, recruiters } = await findAccountsExpiringSoon(5);
 
@@ -28,7 +28,7 @@ function scheduleRenewalReminder() {
       });
     }
 
-    console.log(`[cron] Reminders sent: ${candidates.length} candidates, ${recruiters.length} recruiters`);
+    // Reminders sent
   });
 }
 

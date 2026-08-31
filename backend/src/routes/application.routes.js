@@ -1,12 +1,10 @@
 const express = require('express');
 const router = express.Router();
 
-// Debug: ensure this routes file is loaded
-console.log('Loaded application.routes.js');
+// Application routes loaded
 
 // Log every request that reaches this router for debugging
 router.use((req, res, next) => {
-  console.log(`[applications router] ${req.method} ${req.path}`);
   next();
 });
 

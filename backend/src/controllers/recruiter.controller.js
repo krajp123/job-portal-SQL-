@@ -127,11 +127,7 @@ exports.getMyProfile = async (req, res) => {
   try {
     const recruiter = await Recruiter.findById(req.user.id).select('-passwordHash');
     
-    console.log('🔍 getMyProfile - languages from DB:', {
-      languages: recruiter?.languages,
-      isArray: Array.isArray(recruiter?.languages),
-      length: recruiter?.languages?.length,
-    });
+    // Debug: getMyProfile languages from DB
     
     res.json(recruiter);
   } catch (err) {
@@ -469,13 +465,7 @@ exports.updateMyProfile = async (req, res) => {
       experienceTimeline,
     } = req.body;
 
-    console.log('🔍 Backend received in updateMyProfile:', {
-      languages,
-      isArray: Array.isArray(languages),
-      length: languages?.length,
-    });
-
-
+    // Debug: Backend received in updateMyProfile
 
     const currentRecruiter = await Recruiter.findById(req.user.id).select('email phone');
     if (!currentRecruiter) {
@@ -608,11 +598,7 @@ exports.updateMyProfile = async (req, res) => {
         .map((lang) => String(lang).trim())
         .filter(Boolean);
       update.languages = processedLanguages;
-      console.log('💾 Backend update object has languages:', {
-        input: languages,
-        processed: processedLanguages,
-        count: processedLanguages.length,
-      });
+      // Debug: Backend update object has languages
     }
     if (experienceTimeline !== undefined) {
       update.experienceTimeline = experienceTimeline.map((exp) => ({
@@ -634,7 +620,7 @@ exports.updateMyProfile = async (req, res) => {
       return res.status(404).json({ error: 'Recruiter not found' });
     }
 
-    console.log('✅ After update, languages:', recruiter.languages);
+    // Debug: After update, languages processed
     res.json(recruiter);
   } catch (err) {
     console.error('❌ Error in updateMyProfile:', err);
@@ -720,7 +706,7 @@ exports.updateMySettings = async (req, res) => {
       ]);
 
       await Recruiter.deleteOne({ _id: req.user.id });
-  console.log(`[Account deletion] Recruiter ${req.user.id} deleted their account. Reason: ${reason.trim()}`);
+  // Account deletion logged
       return res.json({ message: 'Account deleted' });
     }
 
@@ -1199,7 +1185,7 @@ exports.uploadProfilePicture = async (req, res) => {
     recruiter.profilePictureUrl = uploadResult.secure_url;
     await recruiter.save();
 
-    console.log('✅ Recruiter profile picture uploaded:', recruiter.profilePictureUrl);
+    // Profile picture uploaded
     res.json({
       message: 'Profile picture uploaded successfully',
       profilePictureUrl: recruiter.profilePictureUrl,
@@ -1235,7 +1221,7 @@ exports.deleteProfilePicture = async (req, res) => {
     recruiter.profilePictureUrl = null;
     await recruiter.save();
 
-    console.log('✅ Recruiter profile picture deleted');
+    // Profile picture deleted
     res.json({ message: 'Profile picture deleted successfully' });
   } catch (err) {
     console.error('❌ Profile picture deletion failed:', err);

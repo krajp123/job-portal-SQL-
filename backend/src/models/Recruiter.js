@@ -7,6 +7,8 @@ const recruiterSchema = new mongoose.Schema(
 
     fullName: { type: String, trim: true },
     designation: { type: String, trim: true },
+    jobTitle: { type: String, trim: true }, // Job title during registration
+    recruiterRole: { type: String, trim: true }, // Role: HR, Talent Acquisition, etc.
     phone: { type: String, trim: true },
     teamMembers: [
       {
@@ -26,6 +28,9 @@ const recruiterSchema = new mongoose.Schema(
     companyLogoUrl: { type: String },
     coverImageUrl: { type: String },
     companyDetails: { type: String },
+    hiringVolume: { type: String, trim: true }, // 1-5, 5-20, 20-100, 100+
+    hiringFor: [{ type: String, trim: true }], // Full-time, Part-time, Internship, Contract, Remote
+    departments: [{ type: String, trim: true }], // List of departments they hire for
     tags: [{ type: String, trim: true }],
     whyJoinUs: [
       {
@@ -62,6 +67,11 @@ const recruiterSchema = new mongoose.Schema(
       type: String,
       enum: ['active', 'suspended', 'banned'],
       default: 'active',
+    },
+    registrationStatus: {
+      type: String,
+      enum: ['incomplete', 'complete'],
+      default: 'complete',
     },
     verificationStatus: {
       type: String,

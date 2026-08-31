@@ -14,6 +14,7 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsAndServices from './pages/TermsAndServices';
 import IdRecovery from './pages/IdRecovery';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import ResumeRegistration from './pages/ResumeRegistration';
 import RecruiterProfile from './pages/RecruiterProfile';
 import Recruiters from './pages/recruiter/Recruiters';
 import CandidateProfile from './pages/candidate/Profile';
@@ -161,6 +162,7 @@ function AppRoutes() {
         </Route>
 
         {/* <Route path="/recruiter/register" element={<RecruiterRegister />} /> */}
+        <Route path="/resume-registration" element={<ResumeRegistration />} />
         <Route
           path="/recruiter/dashboard"
           element={<ProtectedRoute role="recruiter"><RecruiterDashboard /></ProtectedRoute>}

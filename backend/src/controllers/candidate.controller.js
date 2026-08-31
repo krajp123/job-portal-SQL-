@@ -160,7 +160,7 @@ exports.deleteMyAccount = async (req, res) => {
       }
     }
 
-    console.log(`[Account deletion] Candidate ${req.user.id} deleted their account. Reason: ${reason.trim()}`);
+    // Account deletion logged
 
     await Promise.all([
       Application.deleteMany({ candidate: req.user.id }),

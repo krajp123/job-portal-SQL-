@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const paymentSchema = new mongoose.Schema(
   {
     userType: { type: String, enum: ['candidate', 'recruiter'], required: true },
-    userId: { type: mongoose.Schema.Types.ObjectId, required: true, refPath: 'userTypeRef' },
+    userId: { type: mongoose.Schema.Types.ObjectId, refPath: 'userTypeRef' }, // Optional during payment creation
     userTypeRef: { type: String, enum: ['Candidate', 'Recruiter'], required: true },
 
     purpose: {
@@ -31,6 +31,7 @@ const paymentSchema = new mongoose.Schema(
     },
 
     renewalDueDateAfterPayment: { type: Date },
+    paidAt: { type: Date },
   },
   { timestamps: true }
 );

@@ -841,7 +841,7 @@ export default function RecruiterProfile() {
       const actionName = path.replace(/-/g, ' ').toUpperCase();
       setNotification({ type: 'success', message: `✓ ${actionName} completed successfully` });
       setTimeout(() => setNotification(null), 3000);
-      console.log(`✓ ${actionName} completed successfully`);
+      // Action completed
     } catch (err) {
       console.error(`Failed: ${path}`, err);
       const errorMsg = err.response?.data?.error || path.replace(/-/g, ' ');
@@ -927,7 +927,7 @@ export default function RecruiterProfile() {
         ...prev,
         kycDocuments: prev.kycDocuments.map((d) => (d.id === docId ? { ...d, status } : d)),
       }));
-      console.log(`✓ Document ${status} successfully`);
+      // Document status updated
     } catch (err) {
       console.error('Failed to update document status:', err);
       setNotification({ type: 'error', message: `Failed to update document status: ${err.response?.data?.error || err.message}` });
@@ -939,7 +939,7 @@ export default function RecruiterProfile() {
     try {
       await adminAxiosInstance.patch(`/users/recruiters/${recruiterId}/notes`, { adminNotes: notesDraft });
       setRecruiter((prev) => ({ ...prev, adminNotes: notesDraft }));
-      console.log('✓ Notes saved successfully');
+      // Notes saved
     } catch (err) {
       console.error('Failed to save notes:', err);
       setNotification({ type: 'error', message: `Failed to save admin notes: ${err.response?.data?.error || err.message}` });

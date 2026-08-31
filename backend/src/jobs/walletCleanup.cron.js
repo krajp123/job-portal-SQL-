@@ -55,7 +55,7 @@ async function cleanupExpiredWalletData() {
       await wallet.save();
     }
 
-    console.log(`[cron] Wallet cleanup finished. Removed entries older than ${WALLET_DATA_RETENTION_DAYS} days. Wallets updated: ${wallets.length}.`);
+    // Wallet cleanup finished
     return {
       updatedWallets: wallets.length,
       removedOlderThanDays: WALLET_DATA_RETENTION_DAYS,
@@ -70,7 +70,7 @@ async function cleanupExpiredWalletData() {
 
 function scheduleWalletCleanup() {
   cron.schedule('0 3 * * *', async () => {
-    console.log('[cron] Running wallet cleanup job...');
+    // Wallet cleanup job started
     await cleanupExpiredWalletData();
   });
 }

@@ -71,7 +71,7 @@ function formatCurrency(amount) {
   if (amount >= 1000) {
     return `₹${(amount / 1000).toFixed(1)}K`;
   }
-  return `₹${amount}`;
+  return `₹${Number(amount.toFixed(2))}`;
 }
 
 function formatCount(count) {

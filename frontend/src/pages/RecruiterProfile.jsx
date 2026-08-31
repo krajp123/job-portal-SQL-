@@ -305,10 +305,7 @@ export default function RecruiterProfile() {
       try {
         const response = await axiosInstance.get(`/recruiter/${recruiterId}/public-profile`);
         const data = response.data || {};
-        console.log('📥 RecruiterProfile loaded from API:', {
-          languages: data.languages,
-          isArray: Array.isArray(data.languages),
-        });
+        // RecruiterProfile data loaded
         setRecruiter(data || null);
         if (data.companyName) {
           try {

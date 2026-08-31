@@ -728,7 +728,7 @@ exports.resetRecruiterPassword = async (req, res) => {
       { passwordResetToken: resetToken, passwordResetExpiry: resetTokenExpiry }
     );
 
-    console.log(`Reset link for ${recruiter.email}: http://yourapp.com/reset-password/${resetToken}`);
+    // Reset token generated
 
     await logAdminAction({
       adminId: req.admin.id,

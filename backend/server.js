@@ -28,10 +28,7 @@ async function start() {
   initSocket(server);
 
   server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Public API:  http://localhost:${PORT}/api`);
-    console.log(`Admin API:   http://localhost:${PORT}/admin-api`);
-    console.log(`Socket.io:   ws://localhost:${PORT}`);
+    // Server started successfully
   });
 }
 

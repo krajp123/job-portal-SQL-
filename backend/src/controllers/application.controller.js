@@ -378,7 +378,7 @@ exports.updateStatus = async (req, res) => {
             recruiter?.companyName || 'Our Company'
           );
           emailStatus.shortlisted = result?.sent ?? false;
-          console.log(`Shortlist email status: ${emailStatus.shortlisted} for ${candidateEmail}`);
+          // Email status logged
         }
       } catch (emailErr) {
         console.error('Shortlist email failed:', emailErr.message);
@@ -406,7 +406,7 @@ exports.updateStatus = async (req, res) => {
             interviewTime
           );
           emailStatus.interviewScheduled = result?.sent ?? false;
-          console.log(`Interview schedule email status: ${emailStatus.interviewScheduled} for ${candidateEmail}`);
+          // Email status logged
         }
       } catch (emailErr) {
         console.error('Interview schedule email failed:', emailErr.message);
@@ -432,7 +432,7 @@ exports.updateStatus = async (req, res) => {
             recruiter?.companyName || 'Our Company'
           );
           emailStatus.rejected = result?.sent ?? false;
-          console.log(`Rejection email status: ${emailStatus.rejected} for ${candidateEmail}`);
+          // Email status logged
         }
       } catch (emailErr) {
         console.error('Rejection email failed:', emailErr.message);

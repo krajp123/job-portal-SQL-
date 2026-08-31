@@ -600,10 +600,26 @@ const MOCK_OTP = '123456';
 /* ---------------------------------------------------------------------- */
 
 export default function RecruiterRegisterForm({ onSwitchToLogin }) {
+    // Payment flow state
+    const [paymentStep, setPaymentStep] = useState('idle'); // 'idle' | 'loading' | 'awaiting' | 'verifying' | 'completed'
+    const [paymentError, setPaymentError] = useState('');
+    const [paymentData, setPaymentData] = useState({
+        orderId: '',
+        amount: 0,
+        baseAmount: 0,
+        gst: 0,
+        currency: 'INR',
+        key: '',
+        paymentRecordId: '',
+        devMode: false,
+    });
+
+    // Form flow state
     const [step, setStep] = useState(1);
     const [submitted, setSubmitted] = useState(false);
     const [loading, setLoading] = useState(false);
     const [submitError, setSubmitError] = useState('');
+    const [verifiedPaymentId, setVerifiedPaymentId] = useState('');
 
     const [form, setForm] = useState({
         // Step 1
@@ -737,6 +753,141 @@ export default function RecruiterRegisterForm({ onSwitchToLogin }) {
         }
     }
 
+    /* ---------------- Payment Flow (NEW) ---------------- */
+
+    async function createPaymentOrder() {
+        setPaymentError('');
+        setPaymentStep('loading');
+        try {
+            const { data } = await axiosInstance.post('/recruiter/register/create-payment-order');
+            setPaymentData({
+                orderId: data.orderId,
+                amount: data.amount,
+                baseAmount: data.baseAmount,
+                gst: data.gst,
+                currency: data.currency,
+                key: data.key,
+                paymentRecordId: data.paymentRecordId,
+                devMode: data.devMode,
+            });
+
+            // If dev mode, auto-verify payment
+            if (data.devMode) {
+                setPaymentStep('verifying');
+                try {
+                    const { data: verifyData } = await axiosInstance.post('/recruiter/register/verify-payment', {
+                        razorpay_order_id: data.orderId,
+                        razorpay_payment_id: 'dev_payment',
+                        razorpay_signature: 'dev_signature',
+                        paymentRecordId: data.paymentRecordId,
+                        email: form.workEmail,
+                    });
+                    setVerifiedPaymentId(verifyData.paymentId);
+                    setPaymentStep('completed');
+                    // Store recruiterId for recovery if needed
+                    localStorage.setItem('recruiterId', verifyData.recruiterId);
+                    localStorage.setItem('recruiterEmail', form.workEmail);
+                } catch (err) {
+                    setPaymentError(err.response?.data?.error || 'Payment verification failed');
+                    setPaymentStep('idle');
+                }
+                return;
+            }
+
+            // Load Razorpay script
+            if (typeof window.Razorpay !== 'function') {
+                setPaymentError('Payment gateway failed to load. Please refresh and try again.');
+                setPaymentStep('idle');
+                return;
+            }
+
+            setPaymentStep('awaiting');
+            openRazorpayCheckout(data);
+        } catch (err) {
+            setPaymentError(err.response?.data?.error || 'Failed to create payment order');
+            setPaymentStep('idle');
+        }
+    }
+
+    function openRazorpayCheckout(orderData) {
+        const razorpay = new window.Razorpay({
+            key: orderData.key,
+            amount: orderData.amount * 100,
+            currency: orderData.currency,
+            order_id: orderData.orderId,
+            name: 'Job Portal',
+            description: 'Recruiter registration fee (base amount plus applicable GST)',
+            theme: { color: '#C75560' },
+            config: {
+                display: {
+                    blocks: {
+                        cardsBlock: {
+                            name: 'Cards',
+                            instruments: [{ method: 'card' }],
+                        },
+                        upiBlock: {
+                            name: 'Pay using UPI',
+                            instruments: [
+                                { method: 'upi', flows: ['intent', 'qr'] },
+                            ],
+                        },
+                        walletBlock: {
+                            name: 'Wallets',
+                            instruments: [
+                                { method: 'wallet', wallets: ['freecharge', 'mobikwik', 'payzapp', 'phonepe'] },
+                            ],
+                        },
+                    },
+                    sequence: ['block.cardsBlock', 'block.upiBlock', 'block.walletBlock'],
+                    preferences: { show_default_blocks: false },
+                },
+            },
+            handler: async (response) => {
+                setPaymentStep('verifying');
+                try {
+                    const { data: verifyData } = await axiosInstance.post('/recruiter/register/verify-payment', {
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_signature: response.razorpay_signature,
+                        paymentRecordId: orderData.paymentRecordId,
+                        email: form.workEmail,
+                    });
+                    setVerifiedPaymentId(verifyData.paymentId);
+                    setPaymentStep('completed');
+                    // Store recruiterId for recovery if needed
+                    localStorage.setItem('recruiterId', verifyData.recruiterId);
+                    localStorage.setItem('recruiterEmail', form.workEmail);
+                } catch (err) {
+                    setPaymentError(err.response?.data?.error || 'Payment verification failed');
+                    setPaymentStep('idle');
+                }
+            },
+            modal: {
+                ondismiss: () => {
+                    setPaymentError('Payment cancelled. Please try again.');
+                    setPaymentStep('idle');
+                },
+            },
+        });
+        razorpay.open();
+    }
+
+    function resetPayment() {
+        setPaymentStep('idle');
+        setPaymentError('');
+        setVerifiedPaymentId('');
+        setPaymentData({
+            orderId: '',
+            amount: 0,
+            baseAmount: 0,
+            gst: 0,
+            currency: 'INR',
+            key: '',
+            paymentRecordId: '',
+            devMode: false,
+        });
+    }
+
     /* ---------------- Final submit ---------------- */
 
     async function handleSubmit(e) {
@@ -780,7 +931,7 @@ export default function RecruiterRegisterForm({ onSwitchToLogin }) {
                 hiringFor: form.hiringFor,
                 departments: form.departments,
                 password: form.password,
-                // TODO: redirect to payment flow (Rs. 110/year) once wired up
+                paymentId: verifiedPaymentId,
             });
             setSubmitted(true);
         } catch (err) {
@@ -818,15 +969,114 @@ export default function RecruiterRegisterForm({ onSwitchToLogin }) {
         );
     }
 
-    /* ---------------- Render ---------------- */
+    /* ---- Payment Step Screen (NEW) ---- */
+
+    if (paymentStep !== 'completed') {
+        return (
+            <div className="recruiter-register flex flex-col items-center py-6">
+                <NoScrollbar />
+                <div className="w-full max-w-sm">
+                    <h2 className="mb-6 text-[22px] font-bold text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>
+                        Complete Registration Payment
+                    </h2>
+
+                    {paymentStep === 'idle' ? (
+                        <div>
+                            <div className="mb-6 rounded-[12px] border border-[#EBC2AE] bg-[#FFF9F5] p-5">
+                                <p className="mb-4 text-[13px] text-[#54263F] font-medium">Registration Fee Breakdown</p>
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between text-[13px]">
+                                        <span className="text-[#80576A]">Base Amount</span>
+                                        <span className="font-medium text-[#1D181A]">₹110.00</span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-[13px]">
+                                        <span className="text-[#80576A]">GST (18%)</span>
+                                        <span className="font-medium text-[#1D181A]">₹19.80</span>
+                                    </div>
+                                    <div className="border-t border-[#EBC2AE] pt-3 flex items-center justify-between">
+                                        <span className="text-[13px] font-semibold text-[#54263F]">Total Amount</span>
+                                        <span className="text-[18px] font-bold text-[#C75560]">₹129.80</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <p className="mb-4 text-[12.5px] text-[#80576A]">
+                                After successful payment, you'll be able to complete your recruiter registration form.
+                            </p>
+
+                            {paymentError && (
+                                <p className="mb-4 rounded-[8px] bg-[#FFEBEE] px-3.5 py-2.5 text-[12.5px] font-medium text-[#B3261E]">
+                                    {paymentError}
+                                </p>
+                            )}
+
+                            <div className="flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={onSwitchToLogin}
+                                    className="flex-1 rounded-[12px] border border-[#1D181A] bg-[#FFFDFC] px-4 py-2.5 text-[13.5px] font-semibold text-[#1D181A] transition hover:bg-[#FFF0E8]"
+                                >
+                                    Back to Login
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={createPaymentOrder}
+                                    className="flex-1 rounded-[12px] bg-[#C75560] px-4 py-2.5 text-[13.5px] font-semibold text-white shadow-[0_10px_24px_-10px_rgba(199,85,96,0.65)] transition-transform duration-150 hover:-translate-y-0.5 hover:bg-[#AB4054]"
+                                >
+                                    Pay Now
+                                </button>
+                            </div>
+                        </div>
+                    ) : paymentStep === 'loading' ? (
+                        <div className="flex flex-col items-center justify-center py-12">
+                            <div className="mb-4 inline-flex h-12 w-12 animate-spin rounded-full border-4 border-[#EBC2AE] border-t-[#C75560]" />
+                            <p className="text-[13.5px] text-[#80576A]">Preparing payment...</p>
+                        </div>
+                    ) : paymentStep === 'awaiting' ? (
+                        <div className="flex flex-col items-center justify-center py-12">
+                            <div className="mb-4 inline-flex h-12 w-12 animate-spin rounded-full border-4 border-[#EBC2AE] border-t-[#C75560]" />
+                            <p className="text-[13.5px] text-[#80576A]">Waiting for payment...</p>
+                        </div>
+                    ) : paymentStep === 'verifying' ? (
+                        <div className="flex flex-col items-center justify-center py-12">
+                            <div className="mb-4 inline-flex h-12 w-12 animate-spin rounded-full border-4 border-[#EBC2AE] border-t-[#C75560]" />
+                            <p className="text-[13.5px] text-[#80576A]">Verifying payment...</p>
+                        </div>
+                    ) : null}
+                </div>
+            </div>
+        );
+    }
+
+    /* ---- Registration Form (shown after payment) ---- */
 
     return (
         <form onSubmit={handleSubmit} className="recruiter-register">
             <NoScrollbar />
+            <div className="mb-6 rounded-[12px] border border-[#10B981]/30 bg-[#ECFDF5] p-4">
+                <p className="text-[12.5px] text-[#065F46]">
+                    <strong>✓ Payment Successful!</strong> Your payment has been verified. Please complete the registration form below.
+                </p>
+                <p className="mt-2 text-[11.5px] text-[#047857]">
+                    💡 <strong>Recovery Tip:</strong> If you need to come back later, you can resume registration using the recovery link. Check your email for the link or use your recruiter ID to complete registration anytime.
+                </p>
+            </div>
+            <div className="mb-4 flex items-center gap-2">
+                <button
+                    type="button"
+                    onClick={() => {
+                        if (window.confirm('Changing payment will require re-verification. Continue?')) {
+                            resetPayment();
+                        }
+                    }}
+                    className="text-[12.5px] text-[#C75560] hover:underline font-medium"
+                >
+                    ← Back to Payment
+                </button>
+            </div>
             <h2 className="mb-5 text-[22px] font-bold text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>
                 Recruiter Sign Up
             </h2>
-            {/* <p className="mb-5 text-[13px] text-white/55">Registration fee: Rs. 110/year</p> */}
 
             <StepDots step={step} total={5} labels={STEP_LABELS} onJump={setStep} />
 

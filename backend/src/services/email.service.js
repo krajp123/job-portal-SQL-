@@ -11,7 +11,7 @@ if (EMAIL_USER && EMAIL_APP_PASSWORD) {
       pass: EMAIL_APP_PASSWORD, // Gmail App Password, NOT your normal Gmail password
     },
   });
-  console.log('✅ Email service initialized successfully with:', EMAIL_USER);
+  // Email service initialized
 } else {
   console.warn('⚠️ Email is not configured (EMAIL_USER / EMAIL_APP_PASSWORD missing). Emails are logged, not sent.');
   console.warn('   EMAIL_USER:', EMAIL_USER);
@@ -126,7 +126,7 @@ function baseStyles() {
 
 async function sendEmail({ to, subject, body, html }) {
   if (!transporter) {
-    console.log(`[email.service] Would send email to ${to} | Subject: ${subject}`);
+    // Email transporter not configured
     return { sent: false, to, subject };
   }
 
@@ -213,7 +213,7 @@ async function sendOtpEmail(candidateEmail, otp, type = 'email') {
       text: `Career Route Portal - ${type} Verification Code\n\nHello,\n\nThank you for registering with Career Route Portal. Your verification code is: ${otp}\n\nThis code is valid for 5 minutes. Do not share this code with anyone. If you did not request this verification, please ignore this email.\n\nYours sincerely,\nCareer Route Portal Registration Team`,
     });
 
-    console.log(`✅ OTP email sent to ${candidateEmail}`);
+    // OTP email sent
     return { sent: true };
   } catch (error) {
     console.error(`❌ Failed to send OTP email to ${candidateEmail}:`, error.message);
@@ -296,7 +296,7 @@ async function sendPasswordResetLinkEmail(candidateEmail, resetToken, candidateN
       text: `Career Route Portal - Password Reset Request\n\nDear ${candidateName},\n\nWe have received a request to reset the password for your Career Route Portal account. Please use this link to reset your password: ${resetUrl}\n\nThis link is valid for 15 minutes. If you did not request this reset, please ignore this email.\n\nYours sincerely,\nCareer Route Portal Recruitment Team`,
     });
 
-    console.log(`✅ Password reset email sent to ${candidateEmail}`);
+    // Password reset email sent
     return { sent: true };
   } catch (error) {
     console.error(`❌ Failed to send password reset email to ${candidateEmail}:`, error.message);
@@ -416,7 +416,7 @@ async function sendCandidateAccountStatusEmail(candidateEmail, candidateName, st
       text: textContent,
     });
 
-    console.log(`✅ Account status email sent to ${candidateEmail} (${status})`);
+    // Account status email sent
     return { sent: true };
   } catch (error) {
     console.error(`❌ Failed to send account status email to ${candidateEmail}:`, error.message);
@@ -496,7 +496,7 @@ async function sendShortlistEmail(candidateEmail, candidateName, jobTitle, recru
       text: `Dear ${candidateName},\n\nGreetings from ${companyName}.\n\nThank you for applying for the position of ${jobTitle} with us. We are pleased to inform you that your profile has been selected for the next stage of our recruitment process.\n\nPosition: ${jobTitle}\nCompany: ${companyName}\nRecruiter: ${recruiterName}\n\nOur recruitment team will contact you shortly with further details regarding the next steps.\n\nYours sincerely,\n${recruiterName}\nHuman Resources\n${companyName}`,
     });
 
-    console.log(`✅ Shortlist email sent to ${candidateEmail}`);
+    // Shortlist email sent
     return { sent: true };
   } catch (error) {
     console.error(`❌ Failed to send shortlist email to ${candidateEmail}:`, error.message);
@@ -583,7 +583,7 @@ async function sendInterviewScheduleEmail(candidateEmail, candidateName, jobTitl
       text: `Dear ${candidateName},\n\nGreetings from ${companyName}.\n\nThis is to inform you that your interview for the position of ${jobTitle} has been scheduled.\n\nPosition: ${jobTitle}\nCompany: ${companyName}\nInterviewer: ${recruiterName}\nDate: ${formatDate(interviewDate)}\nTime: ${interviewTime}\n\nKindly join a few minutes in advance. If you wish to reschedule, please inform us at least 24 hours prior.\n\nRegards,\n${recruiterName}\nHuman Resources\n${companyName}`,
     });
 
-    console.log(`✅ Interview schedule email sent to ${candidateEmail}`);
+    // Interview schedule email sent
     return { sent: true };
   } catch (error) {
     console.error(`❌ Failed to send interview schedule email to ${candidateEmail}:`, error.message);
@@ -663,7 +663,7 @@ async function sendOfferEmail(candidateEmail, candidateName, jobTitle, recruiter
       ],
     });
 
-    console.log(`✅ Offer email sent to ${candidateEmail}`);
+    // Offer email sent
     return { sent: true };
   } catch (error) {
     console.error(`❌ Failed to send offer email to ${candidateEmail}:`, error.message);
@@ -742,7 +742,7 @@ async function sendRejectionEmail(candidateEmail, candidateName, jobTitle, recru
       text: `Dear ${candidateName},\n\nGreetings from ${companyName}.\n\nThank you for applying for the position of ${jobTitle} at ${companyName}. After careful consideration, we regret to inform you that we will not be moving forward with your application for this role. We will retain your profile and encourage you to apply for future openings.\n\nRegards,\n${recruiterName}\nHuman Resources\n${companyName}`,
     });
 
-    console.log(`✅ Rejection email sent to ${candidateEmail}`);
+    // Rejection email sent
     return { sent: true };
   } catch (error) {
     console.error(`❌ Failed to send rejection email to ${candidateEmail}:`, error.message);

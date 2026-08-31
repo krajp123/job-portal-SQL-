@@ -70,7 +70,7 @@ exports.verifyPayment = async (req, res) => {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, paymentRecordId } = req.body;
 
     if (!razorpay_order_id) {
-      return res.status(400).json({ error: 'Missing payment details' });
+      return res.status(400).json({ error: '' });
     }
 
     // In production, ALWAYS require Razorpay to be configured
@@ -83,7 +83,7 @@ exports.verifyPayment = async (req, res) => {
 
     if (!isDevMode) {
       if (!razorpay_payment_id || !razorpay_signature) {
-        return res.status(400).json({ error: 'Missing payment details' });
+        return res.status(400).json({ error: '' });
       }
 
       const expectedSignature = crypto

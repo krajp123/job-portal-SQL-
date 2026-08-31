@@ -11,6 +11,11 @@ const { uploadProfilePicture } = require('../middleware/uploadHandler');
 
 router.use('/wallet', walletRoutes);
 
+// Public - Registration Payment Flow
+router.post('/register/create-payment-order', recruiterAuth.createPaymentOrder);
+router.post('/register/verify-payment', recruiterAuth.verifyPayment);
+router.post('/resume-registration/:recruiterId', recruiterAuth.resumeRegistration);
+
 // Public
 router.post('/register', recruiterAuth.register);
 router.post('/login', recruiterAuth.login);

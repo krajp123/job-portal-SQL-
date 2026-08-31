@@ -422,11 +422,7 @@ export default function RecruiterSettings() {
     async function fetchSettings() {
       try {
         const { data } = await axiosInstance.get('/recruiter/me/profile');
-        console.log('📥 API Response from /recruiter/me/profile:', {
-          languages: data?.languages,
-          isArray: Array.isArray(data?.languages),
-          length: data?.languages?.length,
-        });
+        // API response loaded
         const loadedAccount = {
           fullName: data?.fullName || '',
           designation: data?.designation || '',
@@ -442,7 +438,7 @@ export default function RecruiterSettings() {
           profilePictureUrl: data?.profilePictureUrl || undefined,
           experienceTimeline: normalizeExperienceTimeline(data?.experienceTimeline),
         };
-        console.log('✅ Loaded account state with languages:', loadedAccount.languages);
+        // Account state loaded
         setAccount(loadedAccount);
         setAccountDraft(loadedAccount);
         setTeamMembers(data?.teamMembers || []);
@@ -519,11 +515,7 @@ export default function RecruiterSettings() {
         experienceTimeline: serializeExperienceTimeline(accountDraft.experienceTimeline),
       };
 
-      console.log('📤 Payload to send to backend:', {
-        languages: payload.languages,
-        isArray: Array.isArray(payload.languages),
-        accountDraftLanguages: accountDraft.languages,
-      });
+      // Payload prepared
 
       // Upload profile picture if selected
       if (selectedProfilePicture) {
@@ -549,12 +541,7 @@ export default function RecruiterSettings() {
 
       const { data } = await axiosInstance.put('/recruiter/me/profile', payload);
 
-      console.log('📥 Response from backend after save:', {
-        languages: data?.languages,
-        isArray: Array.isArray(data?.languages),
-        dataKeys: Object.keys(data || {}),
-        fullData: data,
-      });
+      // Response received
 
       // ---- merge server response with what we just submitted ----
       // If the API doesn't echo a field back (e.g. it only supports the old

@@ -5,9 +5,9 @@ const { suspendExpiredAccounts } = require('../services/renewal.service');
 // Suspends any account whose renewalDueDate has passed (Section 8: no data deleted).
 function scheduleAccountSuspension() {
   cron.schedule('0 2 * * *', async () => {
-    console.log('[cron] Running account suspension job...');
+    // Account suspension job started
     const result = await suspendExpiredAccounts();
-    console.log('[cron] Suspension result:', result);
+    // Suspension result logged
   });
 }
 

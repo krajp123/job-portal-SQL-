@@ -12,7 +12,7 @@ async function startMemoryServer() {
       serverSelectionTimeoutMS: 10000,
       connectTimeoutMS: 10000,
     });
-    console.log(`MongoDB in-memory server started: ${conn.connection.host}`);
+    // MongoDB in-memory server started
   } catch (err) {
     console.error('In-memory MongoDB startup failed:', err.message);
     process.exit(1);
@@ -37,12 +37,12 @@ async function connectDB() {
       retryWrites: true,
       w: 'majority',
     });
-    console.log(`MongoDB connected: ${conn.connection.host}`);
+    // MongoDB connected
   } catch (err) {
     console.error('MongoDB connection failed:', err.message);
 
     if (process.env.NODE_ENV !== 'production') {
-      console.log('Falling back to in-memory MongoDB for local development.');
+      // Falling back to in-memory MongoDB
       await startMemoryServer();
       return;
     }
