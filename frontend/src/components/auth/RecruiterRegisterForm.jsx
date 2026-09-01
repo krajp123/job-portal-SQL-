@@ -699,7 +699,7 @@ export default function RecruiterRegisterForm({ onSwitchToLogin }) {
         if (n === 2) {
             if (!form.companyName.trim()) e.companyName = 'Company name is required.';
             if (!/^https?:\/\/.+\..+/.test(form.companyWebsite)) e.companyWebsite = 'Enter a valid URL (https://…).';
-            if (!/^[^\s@]+\.[^\s@]+$/.test(form.companyEmailDomain)) e.companyEmailDomain = 'Enter a valid domain, e.g. company.com.';
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.companyEmailDomain)) e.companyEmailDomain = 'Enter a valid company email, e.g. hr@company.com.';
             if (!form.companySize) e.companySize = 'Select a company size.';
             if (form.companySize === 'Custom' && !form.companySizeCustom.trim()) e.companySizeCustom = 'Enter the company size.';
             if (!form.industry.trim()) e.industry = 'Industry is required.';
@@ -757,9 +757,23 @@ export default function RecruiterRegisterForm({ onSwitchToLogin }) {
 
     async function createPaymentOrder() {
         setPaymentError('');
+
+        // Work email is collected right here on the payment screen (the full
+        // registration form only renders AFTER payment), so it must be
+        // validated before we ever call create-payment-order / verify-payment.
+        // Without this, form.workEmail is still '' and the backend rejects
+        // verify-payment with "Missing payment details".
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.workEmail)) {
+            setPaymentError('Enter a valid work email to continue.');
+            return;
+        }
+
         setPaymentStep('loading');
         try {
-            const { data } = await axiosInstance.post('/recruiter/register/create-payment-order');
+            const { data } = await axiosInstance.post('/recruiter/register/create-payment-order', {
+                email: form.workEmail,
+                companyName: form.companyName || '',
+            });
             setPaymentData({
                 orderId: data.orderId,
                 amount: data.amount,
@@ -982,6 +996,22 @@ export default function RecruiterRegisterForm({ onSwitchToLogin }) {
 
                     {paymentStep === 'idle' ? (
                         <div>
+                            <div className="mb-5">
+                                <label className="mb-1.5 block text-[12.5px] font-medium text-[#54263F]">
+                                    Personal Email <span className="text-[#C75560]">*</span>
+                                </label>
+                                <input
+                                    type="email"
+                                    name="workEmail"
+                                    placeholder="you@example.com"
+                                    value={form.workEmail}
+                                    onChange={setField('workEmail')}
+                                    className="w-full rounded-[10px] border border-[#EBC2AE] bg-[#FFF9F5] px-3.5 py-2.5 text-[13.5px] text-[#1D181A] placeholder:text-[#A77D8D] outline-none transition focus:border-[#C75560] focus:bg-white focus:ring-2 focus:ring-[#C75560]/15"
+                                />
+                                <p className="mt-1.5 text-[11.5px] text-[#80576A]">
+                                    Just for receiving payment receipts and your registration link — pay and use this as many times as you like. Your company email (next step) is what secures your account.
+                                </p>
+                            </div>
                             <div className="mb-6 rounded-[12px] border border-[#EBC2AE] bg-[#FFF9F5] p-5">
                                 <p className="mb-4 text-[13px] text-[#54263F] font-medium">Registration Fee Breakdown</p>
                                 <div className="space-y-3">
@@ -1103,14 +1133,16 @@ export default function RecruiterRegisterForm({ onSwitchToLogin }) {
                             />
                         </Field>
                     </div>
-                    <Field label="Work Email" error={errors.workEmail} required>
+                    <Field label="Personal Email" error={errors.workEmail} required>
                         <TextInput
                             type="email"
                             name="workEmail"
-                            placeholder="you@company.com"
+                            placeholder="you@example.com"
                             value={form.workEmail}
                             onChange={setField('workEmail')}
                             error={errors.workEmail}
+                            readOnly
+                            className="cursor-not-allowed opacity-70"
                         />
                     </Field>
                     <PhoneInput
@@ -1154,14 +1186,18 @@ export default function RecruiterRegisterForm({ onSwitchToLogin }) {
                             error={errors.companyWebsite}
                         />
                     </Field>
-                    <Field label="Company Email Domain" error={errors.companyEmailDomain} required>
+                    <Field label="Company Email" error={errors.companyEmailDomain} required>
                         <TextInput
+                            type="email"
                             name="companyEmailDomain"
-                            placeholder="company.com"
+                            placeholder="hr@company.com"
                             value={form.companyEmailDomain}
                             onChange={setField('companyEmailDomain')}
                             error={errors.companyEmailDomain}
                         />
+                        <p className="mt-1.5 text-[11.5px] text-[#80576A]">
+                            This is your account's security key — one company email can only be used to register one account.
+                        </p>
                     </Field>
 
                     <Field label="Company Size" error={errors.companySize || errors.companySizeCustom} required>

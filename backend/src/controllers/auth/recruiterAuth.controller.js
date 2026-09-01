@@ -7,12 +7,22 @@ const { razorpayInstance, PRICING } = require('../../config/razorpay');
 const { calculateCharge } = require('../../services/tax.service');
 const Payment = require('../../models/Payment');
 const crypto = require('crypto');
+const { sendEmail } = require('../../services/email.service');
 
 // POST /api/recruiter/register/create-payment-order
 // Creates a Razorpay order for recruiter registration payment
 // Public endpoint (no auth required)
 exports.createPaymentOrder = async (req, res) => {
   try {
+    const { getPlatformSettings } = require('../../services/platformSettings.service');
+    const settings = await getPlatformSettings();
+    
+    if (!settings.recruiterRegistrationEnabled) {
+      return res.status(403).json({ error: 'Recruiter registration is currently disabled. Please contact support.' });
+    }
+
+    const { email, companyName } = req.body;
+    
     const baseAmount = PRICING.RECRUITER_REGISTRATION;
     const charge = calculateCharge(baseAmount, { gstEnabled: true, gstRate: 18 });
     const amount = Math.round(charge.totalAmount * 100); // Convert to paise and ensure integer
@@ -33,7 +43,9 @@ exports.createPaymentOrder = async (req, res) => {
       userType: 'recruiter',
       userId: null, // Not yet registered
       userTypeRef: 'Recruiter',
-      purpose: 'registration', // Use 'registration' enum value, not custom 'recruiter_registration'
+      userEmail: email || null,
+      userCompany: companyName || null,
+      purpose: 'recruiter_registration',
       amount: charge.totalAmount,
       baseAmount: charge.baseAmount,
       gstAmount: charge.gstAmount,
@@ -108,24 +120,114 @@ exports.verifyPayment = async (req, res) => {
     payment.paidAt = new Date();
     await payment.save();
 
-    // Create temporary recruiter record with 'incomplete' status
-    // This allows recruiter to resume registration later if they close browser/lose connection
+    // Create a fresh 'incomplete' recruiter placeholder for THIS payment.
+    // Personal email is deliberately not deduped here — the same personal
+    // email can pay and receive a link any number of times. Account-level
+    // uniqueness is enforced later, on companyEmail, when registration is
+    // actually completed (see register() / resumeRegistration()).
     const normalizedEmail = email.toLowerCase().trim();
-    
-    let recruiter = await Recruiter.findOne({ email: normalizedEmail });
-    if (!recruiter) {
-      recruiter = await Recruiter.create({
-        email: normalizedEmail,
-        passwordHash: 'temp_hash', // Will be replaced when completing registration
-        companyName: 'Pending',
-        registrationStatus: 'incomplete',
-        renewalDueDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
-      });
-    }
+    const recruiter = await Recruiter.create({
+      email: normalizedEmail,
+      passwordHash: 'temp_hash', // Will be replaced when completing registration
+      companyName: 'Pending',
+      registrationStatus: 'incomplete',
+      renewalDueDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
+    });
 
     // Link payment to recruiter
     payment.userId = recruiter._id;
     await payment.save();
+
+    // Send the resume-registration link so the recruiter can complete their
+    // profile now or later, even if they close the tab right after paying.
+    if (recruiter.registrationStatus === 'incomplete') {
+      const resumeLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/resume-registration?id=${recruiter._id}`;
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <style>
+            body {
+              font-family: Arial, Helvetica, sans-serif;
+              font-size: 14px;
+              line-height: 1.7;
+              color: #1f1f1f;
+              background: #f8f5f3;
+              margin: 0;
+              padding: 0;
+            }
+            .wrapper {
+              max-width: 620px;
+              margin: 0 auto;
+              background: #ffffff;
+              padding: 32px 28px;
+              border: 1px solid #efd9d1;
+              border-radius: 12px;
+            }
+            .label {
+              display: inline-block;
+              font-size: 12px;
+              font-weight: 700;
+              letter-spacing: 0.08em;
+              text-transform: uppercase;
+              color: #8d5b52;
+              margin-bottom: 14px;
+            }
+            p {
+              margin: 0 0 18px;
+            }
+            .btn-wrap {
+              margin: 18px 0 8px;
+            }
+            .btn {
+              display: inline-block;
+              background: linear-gradient(135deg, #c75560 0%, #b54653 100%);
+              color: #ffffff !important;
+              text-decoration: none;
+              padding: 14px 28px;
+              border-radius: 10px;
+              font-weight: 700;
+              font-size: 15px;
+              box-shadow: 0 10px 18px rgba(199, 85, 96, 0.18);
+            }
+            .muted {
+              color: #6b5d5d;
+            }
+            .footer {
+              margin-top: 18px;
+              color: #524847;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="wrapper">
+            <div class="label">Payment Received</div>
+            <p>Hi,</p>
+            <p class="muted">Your recruiter registration payment has been received successfully. To complete your registration and activate your account, please continue below.</p>
+            <div class="btn-wrap">
+              <a class="btn" href="${resumeLink}">Complete Registration</a>
+            </div>
+            <p class="footer">Best regards,<br>Job Portal Team</p>
+          </div>
+        </body>
+        </html>
+      `;
+
+      try {
+        await sendEmail({
+          to: recruiter.email,
+          subject: 'Payment Received — Complete Your Recruiter Registration',
+          body: `Your payment was received. Complete your recruiter registration here: ${resumeLink}`,
+          html: htmlContent,
+        });
+      } catch (emailErr) {
+        // Don't fail the payment-verification response just because the email
+        // couldn't be sent — the recruiter can still finish the form in this
+        // same session, or use the resume link support gives them manually.
+        console.error('Error sending recruiter registration-link email:', emailErr);
+      }
+    }
 
     res.json({
       success: true,
@@ -160,7 +262,8 @@ exports.register = async (req, res) => {
       return res.status(400).json({ error: 'Invalid or incomplete payment. Please try again.' });
     }
 
-    const normalizedEmail = email || workEmail;
+    const normalizedEmail = (email || workEmail || '').toLowerCase().trim();
+    const normalizedCompanyEmail = (companyEmail || companyEmailDomain || '').toLowerCase().trim();
     const normalizedName = fullName || [firstName, lastName].filter(Boolean).join(' ');
     const normalizedPhone = phone || mobile;
     const normalizedDetails = companyDetails || companyDescription;
@@ -171,12 +274,36 @@ exports.register = async (req, res) => {
     if (!isValidEmail(normalizedEmail)) {
       return res.status(400).json({ error: 'Invalid email address' });
     }
+    if (!isValidEmail(normalizedCompanyEmail)) {
+      return res.status(400).json({ error: 'Invalid company email address' });
+    }
     if (!isStrongEnoughPassword(password)) {
       return res.status(400).json({ error: 'Password must be at least 8 characters' });
     }
 
-    const existing = await Recruiter.findOne({ email: normalizedEmail });
-    if (existing) {
+    // Account security key: one company email can only ever back ONE
+    // completed registration. This is checked here (not on the personal
+    // payment email), so the same person can pay multiple times but can't
+    // spin up a second account for a company that's already registered.
+    const companyEmailTaken = await Recruiter.findOne({
+      companyEmail: normalizedCompanyEmail,
+      registrationStatus: 'complete',
+    });
+    if (companyEmailTaken) {
+      return res.status(409).json({ error: 'An account already exists with this company email.' });
+    }
+
+    // verify-payment already created an 'incomplete' Recruiter placeholder for
+    // this email (so the resume-registration email link has something to find).
+    // Reuse that same document here instead of creating a second one, or every
+    // immediate (non-resume-link) submission would 409 against its own
+    // placeholder record.
+    let recruiter = payment.userId ? await Recruiter.findById(payment.userId) : null;
+    if (!recruiter) {
+      recruiter = await Recruiter.findOne({ email: normalizedEmail, registrationStatus: 'incomplete' });
+    }
+
+    if (recruiter && recruiter.registrationStatus === 'complete') {
       return res.status(409).json({ error: 'An account with this email already exists' });
     }
 
@@ -185,30 +312,58 @@ exports.register = async (req, res) => {
     const renewalDueDate = new Date();
     renewalDueDate.setFullYear(renewalDueDate.getFullYear() + 1);
 
-    const recruiter = await Recruiter.create({
-      email: normalizedEmail,
-      passwordHash,
-      fullName: normalizedName,
-      phone: normalizedPhone,
-      companyName,
-      companyWebsite,
-      companyEmail: companyEmail || companyEmailDomain,
-      companyGst: normalizedGst,
-      companyCin: normalizedCin,
-      companyDetails: normalizedDetails,
-      industry,
-      companySize,
-      companyType,
-      location: normalizedLocation,
-      jobTitle,
-      recruiterRole,
-      hiringVolume,
-      hiringFor,
-      departments,
-      languages: [],
-      expertiseTags: [],
-      renewalDueDate,
-    });
+    if (recruiter) {
+      recruiter.email = normalizedEmail;
+      recruiter.passwordHash = passwordHash;
+      recruiter.fullName = normalizedName;
+      recruiter.phone = normalizedPhone;
+      recruiter.companyName = companyName;
+      recruiter.companyWebsite = companyWebsite;
+      recruiter.companyEmail = normalizedCompanyEmail;
+      recruiter.companyGst = normalizedGst;
+      recruiter.companyCin = normalizedCin;
+      recruiter.companyDetails = normalizedDetails;
+      recruiter.industry = industry;
+      recruiter.companySize = companySize;
+      recruiter.companyType = companyType;
+      recruiter.location = normalizedLocation;
+      recruiter.jobTitle = jobTitle;
+      recruiter.recruiterRole = recruiterRole;
+      recruiter.hiringVolume = hiringVolume;
+      recruiter.hiringFor = hiringFor;
+      recruiter.departments = departments;
+      recruiter.languages = recruiter.languages || [];
+      recruiter.expertiseTags = recruiter.expertiseTags || [];
+      recruiter.renewalDueDate = renewalDueDate;
+      recruiter.registrationStatus = 'complete';
+      await recruiter.save();
+    } else {
+      recruiter = await Recruiter.create({
+        email: normalizedEmail,
+        passwordHash,
+        fullName: normalizedName,
+        phone: normalizedPhone,
+        companyName,
+        companyWebsite,
+        companyEmail: normalizedCompanyEmail,
+        companyGst: normalizedGst,
+        companyCin: normalizedCin,
+        companyDetails: normalizedDetails,
+        industry,
+        companySize,
+        companyType,
+        location: normalizedLocation,
+        jobTitle,
+        recruiterRole,
+        hiringVolume,
+        hiringFor,
+        departments,
+        languages: [],
+        expertiseTags: [],
+        renewalDueDate,
+        registrationStatus: 'complete',
+      });
+    }
 
     // Link payment record to recruiter
     payment.userId = recruiter._id;
@@ -253,7 +408,7 @@ exports.resumeRegistration = async (req, res) => {
     // Check if payment was completed for this recruiter
     const payment = await Payment.findOne({
       userId: recruiterId,
-      purpose: 'registration',
+      purpose: 'recruiter_registration',
       status: 'success',
     });
 
@@ -267,6 +422,22 @@ exports.resumeRegistration = async (req, res) => {
     }
     if (!isStrongEnoughPassword(password)) {
       return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
+    const normalizedCompanyEmail = (companyEmail || companyEmailDomain || '').toLowerCase().trim();
+    if (!isValidEmail(normalizedCompanyEmail)) {
+      return res.status(400).json({ error: 'Invalid company email address' });
+    }
+
+    // Account security key: block a second completed account from reusing a
+    // company email that already backs another completed registration.
+    const companyEmailTaken = await Recruiter.findOne({
+      companyEmail: normalizedCompanyEmail,
+      registrationStatus: 'complete',
+      _id: { $ne: recruiter._id },
+    });
+    if (companyEmailTaken) {
+      return res.status(409).json({ error: 'An account already exists with this company email.' });
     }
 
     const normalizedName = fullName || [firstName, lastName].filter(Boolean).join(' ');
@@ -283,7 +454,7 @@ exports.resumeRegistration = async (req, res) => {
     recruiter.phone = normalizedPhone;
     recruiter.companyName = companyName;
     recruiter.companyWebsite = companyWebsite;
-    recruiter.companyEmail = companyEmail || companyEmailDomain;
+    recruiter.companyEmail = normalizedCompanyEmail;
     recruiter.companyGst = normalizedGst;
     recruiter.companyCin = normalizedCin;
     recruiter.companyDetails = normalizedDetails;

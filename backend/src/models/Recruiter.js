@@ -2,7 +2,10 @@ const mongoose = require('mongoose');
 
 const recruiterSchema = new mongoose.Schema(
   {
-    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    // Personal email — collected at payment time. NOT unique: same person can
+    // pay and receive the registration link any number of times with this
+    // email. Account identity/uniqueness is enforced on companyEmail instead.
+    email: { type: String, required: true, lowercase: true, trim: true },
     passwordHash: { type: String, required: true },
 
     fullName: { type: String, trim: true },
@@ -19,7 +22,13 @@ const recruiterSchema = new mongoose.Schema(
     ],
     companyName: { type: String, required: true },
     companyWebsite: { type: String, trim: true },
-    companyEmail: { type: String, trim: true, lowercase: true },
+    // Company email — the account-security key. One company email can back
+    // only ONE completed registration; `unique + sparse` lets many
+    // 'incomplete' placeholder docs exist with no companyEmail yet (null),
+    // while still blocking a second COMPLETE account from reusing the same
+    // company email (enforced in the controller, since sparse-unique alone
+    // does not distinguish 'incomplete' vs 'complete').
+    companyEmail: { type: String, trim: true, lowercase: true, unique: true, sparse: true },
     companyGst: { type: String, trim: true },
     companyCin: { type: String, trim: true },
     industry: { type: String, trim: true },

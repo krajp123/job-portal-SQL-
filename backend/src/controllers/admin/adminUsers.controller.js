@@ -392,7 +392,10 @@ exports.listRecruiters = async (req, res) => {
     const skip = (page - 1) * limit;
     const { status, search } = req.query;
 
-    const query = {};
+    // Only show fully completed recruiter registrations in the admin list.
+    // Payment-only or profile-incomplete entries are kept temporarily for recovery,
+    // but they are not actual registered recruiters and should not appear here.
+    const query = { registrationStatus: 'complete' };
     if (status && status !== 'all') {
       query.accountStatus = status;
     }

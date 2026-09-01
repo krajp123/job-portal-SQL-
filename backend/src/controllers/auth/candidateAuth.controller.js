@@ -38,6 +38,13 @@ async function uploadCertificateToR2(file) {
 // Email and phone must already be OTP-verified (see candidateVerification.controller.js).
 exports.createRegistrationOrder = async (req, res) => {
   try {
+    const { getPlatformSettings } = require('../../services/platformSettings.service');
+    const settings = await getPlatformSettings();
+    
+    if (!settings.candidateRegistrationEnabled) {
+      return res.status(403).json({ error: 'Candidate registration is currently disabled. Please contact support.' });
+    }
+
     const { name, phone, password, email, workStatus } = req.body;
 
     if (!isValidPhone(phone)) {
@@ -199,7 +206,9 @@ exports.verifyRegistrationPayment = async (req, res) => {
       userType: 'candidate',
       userId: candidate._id,
       userTypeRef: 'Candidate',
-      purpose: 'registration',
+      userEmail: candidate.email,
+      userName: candidate.name,
+      purpose: 'candidate_registration',
       amount: pending.amount,
       baseAmount: pending.baseAmount || pending.amount,
       gstAmount: pending.gstAmount || 0,

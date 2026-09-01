@@ -8,6 +8,8 @@ const PURPOSE_META = {
   wallet_recharge: { type: 'Wallet Recharge', description: 'Wallet recharge' },
   resume_download: { type: 'Resume Download', description: 'Resume unlock' },
   registration: { type: 'Candidate Registration', description: 'Candidate registration fee' },
+  candidate_registration: { type: 'Candidate Registration', description: 'Candidate registration fee' },
+  recruiter_registration: { type: 'Recruiter Registration', description: 'Recruiter registration fee' },
   renewal: { type: 'Subscription', description: 'Recruiter subscription renewal' },
 };
 
@@ -33,8 +35,32 @@ function formatUser(user, fallbackType) {
 }
 
 function mapPayment(payment, walletTransaction) {
-  const meta = PURPOSE_META[payment.purpose] || { type: 'Other', description: payment.purpose };
-  const user = formatUser(payment.userId, payment.userType);
+  let meta = PURPOSE_META[payment.purpose] || { type: 'Other', description: payment.purpose };
+  
+  // Handle legacy 'registration' purpose - differentiate by userType
+  if (payment.purpose === 'registration') {
+    if (payment.userType === 'recruiter') {
+      meta = { type: 'Recruiter Registration', description: 'Recruiter registration fee' };
+    } else {
+      meta = { type: 'Candidate Registration', description: 'Candidate registration fee' };
+    }
+  }
+  
+  // Get user info - prefer actual user record, fallback to stored payment info
+  let user;
+  if (payment.userId) {
+    user = formatUser(payment.userId, payment.userType);
+  } else {
+    // Use stored user info from payment record (for pre-registration payments)
+    user = {
+      id: 'unknown',
+      name: payment.userName || 'Unknown user',
+      company: payment.userCompany || (payment.userType === 'candidate' ? 'Candidate' : 'Recruiter'),
+      email: payment.userEmail || '',
+      phone: '',
+    };
+  }
+  
   const candidate = payment.relatedResumeDownload?.candidate
     ? { id: payment.relatedResumeDownload.candidate._id, name: payment.relatedResumeDownload.candidate.name, resumeId: payment.relatedResumeDownload.candidate.uniqueId }
     : null;

@@ -40,6 +40,8 @@ const DUMMY_SETTINGS = {
     autoApproveJobs: false,
     maintenanceMode: false,
     emailVerificationRequired: true,
+    recruiterRegistrationEnabled: true,
+    candidateRegistrationEnabled: true,
   },
   notifications: {
     newRecruiterSignup: true,
@@ -226,6 +228,8 @@ export default function Settings() {
               autoApproveJobs: saved.autoApproveJobs,
               maintenanceMode: saved.maintenanceMode,
               emailVerificationRequired: saved.emailVerificationRequired,
+              recruiterRegistrationEnabled: saved.recruiterRegistrationEnabled !== false,
+              candidateRegistrationEnabled: saved.candidateRegistrationEnabled !== false,
             },
             payments: {
               ...current.payments,
@@ -889,6 +893,22 @@ export default function Settings() {
                         checked={settings.platform.emailVerificationRequired}
                         disabled={!canManageSettings}
                         onChange={(v) => updatePlatformSetting("emailVerificationRequired", v)}
+                      />
+                    </SettingRow>
+                  </Card>
+                  <Card title="Registrations" description="Control access to registration features">
+                    <SettingRow title="Recruiter Registration" description="Allow new recruiters to register on the platform.">
+                      <Toggle
+                        checked={settings.platform.recruiterRegistrationEnabled}
+                        disabled={!canManageSettings}
+                        onChange={(v) => updatePlatformSetting("recruiterRegistrationEnabled", v)}
+                      />
+                    </SettingRow>
+                    <SettingRow title="Candidate Registration" description="Allow new candidates to register on the platform.">
+                      <Toggle
+                        checked={settings.platform.candidateRegistrationEnabled}
+                        disabled={!canManageSettings}
+                        onChange={(v) => updatePlatformSetting("candidateRegistrationEnabled", v)}
                       />
                     </SettingRow>
                   </Card>

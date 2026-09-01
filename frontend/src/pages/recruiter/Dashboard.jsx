@@ -953,16 +953,6 @@ function TopNav({ recruiterProfile, onMenuClick, notifications = [] }) {
             <span className="hidden sm:inline">Wallet</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => navigate('/recruiter/post-job')}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[#C75560] px-3 py-2 text-[12px] font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-[#A94658]"
-            title="Post a job"
-          >
-            <Plus size={15} />
-            <span className="hidden sm:inline">Post Job</span>
-          </button>
-
           <RecruiterProfileMenu recruiterProfile={recruiterProfile} />
         </div>
       </div>
@@ -977,55 +967,6 @@ function TopSectionNav({ active, setActive, recruiterProfile }) {
   const { user } = useAuth();
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-
-  useEffect(() => {
-    const term = searchValue.trim();
-    if (term.length < 2) {
-      setSearchResults([]);
-      return undefined;
-    }
-
-    let active = true;
-    const timer = setTimeout(async () => {
-      setSearchLoading(true);
-      try {
-        const [{ data: candidates }, { data: jobs }] = await Promise.all([
-          axiosInstance.get('/candidate/search', { params: { q: term } }),
-          axiosInstance.get('/jobs/mine/list'),
-        ]);
-        if (!active) return;
-        const candidateResults = (candidates || [])
-          .slice(0, 6)
-          .map((candidate) => ({
-            type: 'Candidate',
-            label: candidate.name || 'Unnamed candidate',
-            meta: candidate.email || candidate.uniqueId || 'Candidate profile',
-            action: () => navigate('/recruiter/applicants'),
-          }));
-        const jobResults = (jobs || [])
-          .filter((job) => `${job.title || ''} ${job.location || ''}`.toLowerCase().includes(term.toLowerCase()))
-          .slice(0, 6)
-          .map((job) => ({
-            type: 'Job',
-            label: job.title || 'Untitled job',
-            meta: job.location || 'Job post',
-            action: () => navigate('/recruiter/jobs'),
-          }));
-        setSearchResults([...candidateResults, ...jobResults].slice(0, 8));
-      } catch {
-        if (active) setSearchResults([]);
-      } finally {
-        if (active) setSearchLoading(false);
-      }
-    }, 300);
-
-    return () => {
-      active = false;
-      clearTimeout(timer);
-    };
-  }, [searchValue, navigate]);
 
   const handleNavClick = (key) => {
     setActive(key);
@@ -1046,9 +987,9 @@ function TopSectionNav({ active, setActive, recruiterProfile }) {
   return (
     <div className="sticky top-[76px] z-20 bg-transparent">
       <GlassCard className="p-2 bg-white">
-        <div className="flex items-start gap-1">
+        <div className="flex items-center gap-1">
           <div
-            className="grid min-w-0 flex-1 grid-cols-2 gap-1 sm:flex sm:items-center sm:gap-1 sm:overflow-x-auto"
+            className="flex items-center gap-1 overflow-x-auto hide-scrollbar min-w-0 flex-1"
             style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
           >
             <style>{`.hide-scrollbar::-webkit-scrollbar { display: none; }`}</style>
@@ -1059,7 +1000,7 @@ function TopSectionNav({ active, setActive, recruiterProfile }) {
                 <button
                   key={item.key}
                   onClick={() => handleNavClick(item.key)}
-                  className={`relative flex w-full items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] font-medium transition-all sm:w-auto sm:shrink-0 sm:justify-start sm:gap-2 sm:rounded-xl sm:px-3.5 sm:py-2 sm:text-sm
+                  className={`relative flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs sm:text-sm font-medium transition-all whitespace-nowrap shrink-0
                     ${isActive ? "text-[#C75560]" : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"}`}
                 >
                   {isActive && (
@@ -1084,7 +1025,7 @@ function TopSectionNav({ active, setActive, recruiterProfile }) {
             })}
           </div>
 
-          <div className="relative h-9 w-9 shrink-0">
+          <div className="shrink-0 relative h-9 w-9">
             {/* Always occupies a fixed 36px slot in the flex row — fades out
                 instead of resizing, so it never pushes the nav buttons. */}
             <button
@@ -1105,7 +1046,7 @@ function TopSectionNav({ active, setActive, recruiterProfile }) {
                   animate={{ width: 240, opacity: 1 }}
                   exit={{ width: 36, opacity: 0 }}
                   transition={{ type: "spring", stiffness: 320, damping: 30 }}
-                  className="absolute right-0 top-0 overflow-visible z-30 max-w-[calc(100vw-2rem)]"
+                  className="absolute right-0 top-0 overflow-hidden z-30 max-w-[calc(100vw-2rem)]"
                 >
                   <div className="relative w-[240px] max-w-[calc(100vw-2rem)]">
                     <Search
@@ -1122,33 +1063,6 @@ function TopSectionNav({ active, setActive, recruiterProfile }) {
                       placeholder="Search jobs, candidates…"
                       className="w-full rounded-xl bg-white ring-1 ring-slate-200 shadow-sm pl-8 pr-2.5 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#C75560]/30 transition-all"
                     />
-                    {(searchLoading || searchResults.length > 0 || searchValue.trim().length >= 2) && (
-                      <div className="absolute left-0 top-full z-50 mt-1 w-full overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-slate-200">
-                        {searchLoading ? (
-                          <p className="px-3 py-2 text-xs text-slate-500">Searching...</p>
-                        ) : searchResults.length > 0 ? (
-                          searchResults.map((result) => (
-                            <button
-                              key={`${result.type}-${result.label}`}
-                              type="button"
-                              onMouseDown={(event) => event.preventDefault()}
-                              onClick={() => {
-                                result.action();
-                                setSearchOpen(false);
-                                setSearchValue('');
-                              }}
-                              className="block w-full border-b border-slate-100 px-3 py-2 text-left last:border-0 hover:bg-[#FFF0E8]"
-                            >
-                              <span className="block text-[10px] font-bold uppercase text-[#C75560]">{result.type}</span>
-                              <span className="block truncate text-xs font-semibold text-slate-800">{result.label}</span>
-                              <span className="block truncate text-[10px] text-slate-500">{result.meta}</span>
-                            </button>
-                          ))
-                        ) : (
-                          <p className="px-3 py-2 text-xs text-slate-500">No matching jobs or candidates.</p>
-                        )}
-                      </div>
-                    )}
                   </div>
                 </motion.div>
               )}
@@ -3219,7 +3133,7 @@ export default function RecruiterDashboard() {
     } catch (err) {
       const message = await getAxiosErrorMessage(err, 'Could not download saved resume.');
       if (message === 'No resume available.') {
-        setResumeError(message);
+        window.alert(message);
         return;
       }
       setResumeError(message);

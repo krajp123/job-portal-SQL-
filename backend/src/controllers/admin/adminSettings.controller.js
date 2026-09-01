@@ -19,6 +19,8 @@ function normalizeSettings(body = {}) {
     autoApproveJobs: valuesSettings.autoApproveJobs === true,
     maintenanceMode: valuesSettings.maintenanceMode === true,
     emailVerificationRequired: valuesSettings.emailVerificationRequired !== false,
+    recruiterRegistrationEnabled: valuesSettings.recruiterRegistrationEnabled !== false,
+    candidateRegistrationEnabled: valuesSettings.candidateRegistrationEnabled !== false,
     notifications: {
       newRecruiterSignup: notificationSettings.newRecruiterSignup !== false,
       jobFlagged: notificationSettings.jobFlagged !== false,

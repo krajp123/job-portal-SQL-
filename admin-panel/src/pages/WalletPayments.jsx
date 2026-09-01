@@ -22,6 +22,7 @@ const TYPE_META = {
   'Resume Download': { color: '#0EA5E9', icon: FileText },
   'Job Posting': { color: '#80576A', icon: Building2 },
   Subscription: { color: '#C75560', icon: ShieldCheck },
+  'Recruiter Registration': { color: '#80576A', icon: Building2 },
   'Candidate Registration': { color: '#0369A1', icon: UserPlus },
   Refund: { color: '#9A671A', icon: RefreshCcw },
   Other: { color: '#6B7280', icon: Receipt },
@@ -259,11 +260,13 @@ function useOverviewStats(transactions) {
     const totalRevenue = success.reduce((s, t) => s + t.amount, 0);
     const walletRecharge = success.filter((t) => t.type === 'Wallet Recharge').reduce((s, t) => s + t.amount, 0);
     const resumeRevenue = success.filter((t) => t.type === 'Resume Download').reduce((s, t) => s + t.amount, 0);
+    const recruiterRegistrationRevenue = success.filter((t) => t.type === 'Recruiter Registration').reduce((s, t) => s + t.amount, 0);
+    const candidateRegistrationRevenue = success.filter((t) => t.type === 'Candidate Registration').reduce((s, t) => s + t.amount, 0);
     const pendingAmount = pending.reduce((s, t) => s + t.amount, 0);
     const refundAmount = refunded.reduce((s, t) => s + t.amount, 0);
     const failedAmount = failed.reduce((s, t) => s + t.amount, 0);
     const successRate = transactions.length ? Math.round((success.length / transactions.length) * 1000) / 10 : 0;
-    return { totalRevenue, walletRecharge, resumeRevenue, pendingAmount, refundAmount, failedAmount, successRate };
+    return { totalRevenue, walletRecharge, resumeRevenue, recruiterRegistrationRevenue, candidateRegistrationRevenue, pendingAmount, refundAmount, failedAmount, successRate };
   }, [transactions]);
 }
 
@@ -272,6 +275,8 @@ function OverviewCards({ transactions, onCardClick }) {
 
   const cards = [
     { key: 'revenue', title: 'Total Revenue', amount: stats.totalRevenue, sub: `${transactions.filter((t) => t.status === 'Success').length} successful payments`, icon: IndianRupee, tint: 'coral', filter: { status: 'Success' } },
+    { key: 'recruiterReg', title: 'Recruiter Registrations', amount: stats.recruiterRegistrationRevenue, sub: 'from new recruiter signups', icon: Building2, tint: 'purple', filter: { type: 'Recruiter Registration' } },
+    { key: 'candidateReg', title: 'Candidate Registrations', amount: stats.candidateRegistrationRevenue, sub: 'from new candidate signups', icon: UserPlus, tint: 'blue', filter: { type: 'Candidate Registration' } },
     { key: 'recharge', title: 'Wallet Recharge', amount: stats.walletRecharge, sub: 'added by recruiters', icon: Wallet, tint: 'rust', filter: { type: 'Wallet Recharge' } },
     { key: 'resume', title: 'Resume Download Revenue', amount: stats.resumeRevenue, sub: 'from resume unlocks', icon: FileText, tint: 'sky', filter: { type: 'Resume Download' } },
     { key: 'pending', title: 'Pending Payments', amount: stats.pendingAmount, sub: 'awaiting confirmation', icon: Clock, tint: 'amber', filter: { status: 'Pending' } },
@@ -285,6 +290,8 @@ function OverviewCards({ transactions, onCardClick }) {
     sky: 'bg-[#E6F6FD] text-[#0EA5E9]',
     amber: 'bg-[#FDF1DD] text-[#9A671A]',
     rose: 'bg-[#F3E7EA] text-[#80576A]',
+    purple: 'bg-[#F3E7EA] text-[#80576A]',
+    blue: 'bg-[#E6F6FD] text-[#0369A1]',
     red: 'bg-red-50 text-red-600',
   };
 
@@ -847,6 +854,8 @@ function PageHeader({ transactions, notify, dateRange, setDateRange }) {
 
 const TABS = [
   { key: 'all', label: 'All Transactions' },
+  { key: 'recruiterReg', label: 'Recruiter Registration' },
+  { key: 'candidateReg', label: 'Candidate Registration' },
   { key: 'wallet', label: 'Wallet Transactions' },
   { key: 'resume', label: 'Resume Downloads' },
   { key: 'refunds', label: 'Refunds' },
@@ -1243,50 +1252,44 @@ function AllTransactionsTab({ transactions, loading, onView, onViewRecruiter, on
       </div>
 
       {/* Desktop table — sticky first + action columns */}
-      <div className="hidden overflow-x-auto sm:block">
-        <table className="w-full min-w-full table-fixed text-left text-xs leading-tight md:min-w-[1230px]">
+      <div className="hidden sm:block">
+        <table className="w-full table-fixed text-left text-xs leading-tight">
           <colgroup>
             <col className="w-[180px]" />
-            <col className="w-[125px]" />
-            <col className="w-[145px]" />
-            <col className="w-[135px]" />
-            <col className="w-[170px]" />
-            <col className="w-[78px]" />
-            <col className="w-[95px]" />
+            <col className="w-[130px]" />
+            <col className="w-[150px]" />
+            <col className="w-[120px]" />
+            <col className="w-[80px]" />
             <col className="w-[95px]" />
             <col className="w-[150px]" />
             <col className="w-[58px]" />
           </colgroup>
           <thead>
             <tr className="border-b border-[#F3DED2] bg-[#FFF0E8] text-[10px] font-bold uppercase tracking-wide text-[#80576A]">
-              <th className="sticky left-0 z-10 bg-[#FFF0E8] px-2 py-2">Transaction ID</th>
-              <th className="px-2 py-2">Recruiter</th>
-              <th className="px-2 py-2">Company</th>
-              <th className="px-2 py-2">Type</th>
-              <th className="px-2 py-2">Description</th>
-              <th className="px-2 py-2">Amount</th>
-              <th className="px-2 py-2">Method</th>
-              <th className="px-2 py-2">Status</th>
-              <th className="px-2 py-2">Date &amp; Time</th>
+              <th className="sticky left-0 z-10 bg-[#FFF0E8] px-2 py-2 text-left">Transaction ID</th>
+              <th className="px-2 py-2 text-left">Recruiter</th>
+              <th className="px-2 py-2 text-left">Company</th>
+              <th className="px-2 py-2 text-left">Type</th>
+              <th className="px-2 py-2 text-left">Amount</th>
+              <th className="px-2 py-2 text-left">Method</th>
+              <th className="px-2 py-2 text-left">Date &amp; Time</th>
               <th className="sticky right-0 z-10 bg-[#FFF0E8] px-2 py-2 text-right">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#F3DED2] text-xs">
             {loading ? (
-              <TableSkeleton cols={10} />
+              <TableSkeleton cols={8} />
             ) : paged.length === 0 ? (
               <EmptyState label="No transactions match your filters" />
             ) : (
               paged.map((t) => (
-                <tr key={t.id} className="group hover:bg-[#FFF0E8]">
+                <tr key={t.id} className="group align-top hover:bg-[#FFF0E8]">
                   <td className="sticky left-0 z-10 break-all bg-[#FFFDFB] px-1.5 py-1.5 align-top text-[11px] font-medium leading-tight text-[#1D181A] group-hover:bg-[#FFF0E8]">{t.id}</td>
-                  <td className="break-words px-1.5 py-1.5 align-top leading-tight text-[#1D181A]">{t.recruiter.name}</td>
-                  <td className="break-words px-1.5 py-1.5 align-top leading-tight text-[#1D181A]">{t.recruiter.company}</td>
+                  <td className="break-words px-1.5 py-1.5 align-top leading-tight text-[#1D181A] [overflow-wrap:anywhere]">{t.recruiter.name}</td>
+                  <td className="break-words px-1.5 py-1.5 align-top leading-tight text-[#1D181A] [overflow-wrap:anywhere]">{t.recruiter.company}</td>
                   <td className="px-1.5 py-1.5 align-top"><TypeTag type={t.type} /></td>
-                  <td className="px-1.5 py-1.5 align-top leading-tight text-[#80576A] break-words">{t.description}</td>
                   <td className={`px-1.5 py-1.5 align-top font-semibold tabular-nums ${t.status === 'Pending' ? 'text-[#9A671A]' : 'text-[#1D181A]'}`}>{t.status === 'Pending' ? `Pending ${formatINR(t.amount)}` : formatINR(t.amount)}</td>
-                  <td className="px-1.5 py-1.5 align-top leading-tight text-[#1D181A] break-words">{t.paymentMethod}</td>
-                  <td className="px-1.5 py-1.5 align-top"><StatusBadge status={t.status} /></td>
+                  <td className="px-1.5 py-1.5 align-top leading-tight text-[#1D181A] [overflow-wrap:anywhere]">{t.paymentMethod}</td>
                   <td className="px-1.5 py-1.5 align-top whitespace-normal leading-tight text-[#80576A]">{formatDateTime(t.date)}</td>
                   <td className="sticky right-0 z-10 bg-[#FFFDFB] px-1.5 py-1.5 align-top text-right group-hover:bg-[#FFF0E8]">
                     <ActionMenu txn={t} onView={onView} onViewRecruiter={onViewRecruiter} onProcessRefund={onProcessRefund} notify={notify} />
@@ -1394,6 +1397,96 @@ function WalletTransactionsTab({ transactions, onViewWallet }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Generic Registration Tab (Recruiter & Candidate)                  */
+/* ------------------------------------------------------------------ */
+
+function RegistrationTab({ transactions, onView, registrationType }) {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  
+  const rows = transactions.filter((t) => t.type === registrationType);
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const paginatedRows = rows.slice((safePage - 1) * pageSize, safePage * pageSize);
+  
+  return (
+    <div className="overflow-hidden rounded-2xl border border-[#EBC2AE] bg-[#FFFDFB] shadow-sm">
+      <div className="hidden sm:block">
+        <table className="w-full table-fixed text-left text-xs">
+          <colgroup>
+            <col className="w-[190px]" />
+            <col className="w-[220px]" />
+            <col className="w-[220px]" />
+            <col className="w-[120px]" />
+            <col className="w-[80px]" />
+            <col className="w-[180px]" />
+            <col className="w-[150px]" />
+            <col className="w-[95px]" />
+            <col className="w-[58px]" />
+          </colgroup>
+          <thead>
+            <tr className="border-b border-[#F3DED2] bg-[#FFF0E8] text-[10px] font-bold uppercase tracking-wide text-[#80576A]">
+              <th className="sticky left-0 z-10 bg-[#FFF0E8] px-2 py-2 text-left">Transaction ID</th>
+              <th className="px-2 py-2 text-left">User/Company</th>
+              <th className="px-2 py-2 text-left">Email</th>
+              <th className="px-2 py-2 text-left">Amount</th>
+              <th className="px-2 py-2 text-left">Method</th>
+              <th className="px-2 py-2 text-left">Date &amp; Time</th>
+              <th className="px-2 py-2 text-left">Status</th>
+              <th className="px-2 py-2 text-left">Type</th>
+              <th className="sticky right-0 z-10 bg-[#FFF0E8] px-2 py-2 text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#F3DED2] text-xs">
+            {rows.length === 0 ? (
+              <EmptyState label={`No ${registrationType.toLowerCase()} transactions yet`} cols={9} />
+            ) : (
+              paginatedRows.map((t) => (
+                <tr key={t.id} className="group align-top hover:bg-[#FFF0E8]">
+                  <td className="sticky left-0 z-10 break-all bg-[#FFFDFB] px-2 py-2 align-top text-[11px] font-medium leading-tight text-[#1D181A] group-hover:bg-[#FFF0E8]">{t.id}</td>
+                  <td className="min-w-0 break-words px-2 py-2 align-top leading-snug text-[#1D181A] [overflow-wrap:anywhere]">{t.recruiter?.name || t.company || 'N/A'}</td>
+                  <td className="min-w-0 break-words px-2 py-2 align-top leading-snug text-[#80576A] [overflow-wrap:anywhere]">{t.recruiter?.email || t.email || 'N/A'}</td>
+                  <td className="px-2 py-2 align-top font-semibold text-emerald-600">+{formatINR(t.amount)}</td>
+                  <td className="px-2 py-2 align-top text-[#80576A]">{t.paymentMethod || 'N/A'}</td>
+                  <td className="px-2 py-2 align-top whitespace-normal leading-snug text-[#80576A]">{formatDateTime(t.date)}</td>
+                  <td className="px-2 py-2 align-top"><StatusBadge status={t.status} /></td>
+                  <td className="px-2 py-2 align-top"><TypeTag type={t.type} /></td>
+                  <td className="sticky right-0 z-10 bg-[#FFFDFB] px-2 py-2 align-top text-right group-hover:bg-[#FFF0E8]">
+                    <button onClick={() => onView(t)} className="rounded-lg p-2 text-[#80576A] hover:bg-[#FFF0E8] hover:text-[#1D181A]"><Eye size={15} /></button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="space-y-2.5 p-3 sm:hidden">
+        {rows.length === 0 ? (
+          <EmptyCardState label={`No ${registrationType.toLowerCase()} transactions yet`} />
+        ) : (
+          paginatedRows.map((t) => (
+            <div key={t.id} className="rounded-2xl border border-[#EBC2AE] bg-[#FFFDFB] p-3.5" onClick={() => onView(t)}>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-[#1D181A]">{t.recruiter?.name || t.company || 'N/A'}</p>
+                <p className="text-sm font-bold text-emerald-600">+{formatINR(t.amount)}</p>
+              </div>
+              <p className="text-xs text-[#80576A]">{t.recruiter?.email || t.email || 'N/A'}</p>
+              <div className="mt-2 flex items-center justify-between text-xs text-[#80576A]">
+                <span>{formatDateTime(t.date)}</span>
+                <StatusBadge status={t.status} />
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {rows.length > 0 && <Pagination page={safePage} setPage={setPage} pageSize={pageSize} setPageSize={setPageSize} total={rows.length} />}
     </div>
   );
 }
@@ -1761,6 +1854,8 @@ export default function Transactions() {
           setFilterDrawerOpen={setFilterDrawerOpen}
         />
       )}
+      {tab === 'recruiterReg' && <RegistrationTab transactions={rangedTransactions} registrationType="Recruiter Registration" onView={setActiveTxn} />}
+      {tab === 'candidateReg' && <RegistrationTab transactions={rangedTransactions} registrationType="Candidate Registration" onView={setActiveTxn} />}
       {tab === 'wallet' && <WalletTransactionsTab transactions={walletTransactions.filter((t) => isWithinResolvedRange(t.date, resolvedRange))} onViewWallet={setActiveWalletRecruiter} />}
       {tab === 'resume' && <ResumeDownloadsTab transactions={rangedTransactions} onView={setActiveTxn} />}
       {tab === 'refunds' && <RefundsTab refunds={refunds} setRefunds={setRefunds} notify={notify} onUpdateStatus={updateRefundStatus} resolvedRange={resolvedRange} />}

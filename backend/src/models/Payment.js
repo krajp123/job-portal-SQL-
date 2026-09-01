@@ -5,10 +5,13 @@ const paymentSchema = new mongoose.Schema(
     userType: { type: String, enum: ['candidate', 'recruiter'], required: true },
     userId: { type: mongoose.Schema.Types.ObjectId, refPath: 'userTypeRef' }, // Optional during payment creation
     userTypeRef: { type: String, enum: ['Candidate', 'Recruiter'], required: true },
+    userEmail: { type: String }, // Store email for pre-registration payments
+    userName: { type: String }, // Store name for pre-registration payments
+    userCompany: { type: String }, // Store company name for recruiter registrations
 
     purpose: {
       type: String,
-      enum: ['registration', 'renewal', 'resume_download', 'wallet_recharge'],
+      enum: ['registration', 'renewal', 'resume_download', 'wallet_recharge', 'candidate_registration', 'recruiter_registration'],
       required: true,
     },
     amount: { type: Number, required: true },

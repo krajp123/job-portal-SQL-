@@ -69,9 +69,14 @@ export function AuthProvider({ children }) {
 
     window.addEventListener('auth:unauthorized', handleUnauthorized);
 
-    // Periodic token expiration check (every 1 minute) to catch expiration even if timer doesn't fire
+    // Periodic token expiration check (every 1 minute) to catch expiration
+    // even if the setTimeout below doesn't fire. IMPORTANT: only run this
+    // when a token actually exists — isTokenExpired() returns `true` for
+    // "no token" too (not just "expired token"), so without this guard it
+    // force-redirects every anonymous visitor on every public page
+    // (resume-registration, job search, home, etc.) to '/' after 60s.
     const tokenCheckInterval = setInterval(() => {
-      if (isTokenExpired()) {
+      if (localStorage.getItem('token') && isTokenExpired()) {
         logout({ redirect: true });
       }
     }, 60000); // Check every minute

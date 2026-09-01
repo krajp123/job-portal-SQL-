@@ -26,6 +26,8 @@ const platformSettingsSchema = new mongoose.Schema(
     gstEnabled: { type: Boolean, default: true },
     gstRate: { type: Number, min: 0, default: 18 },
     razorpayKeyId: { type: String, default: process.env.RAZORPAY_KEY_ID || '' },
+    recruiterRegistrationEnabled: { type: Boolean, default: true },
+    candidateRegistrationEnabled: { type: Boolean, default: true },
   },
   { timestamps: true }
 );
