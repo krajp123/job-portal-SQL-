@@ -7,6 +7,7 @@ const recruiterController = require('../controllers/recruiter.controller');
 const walletRoutes = require('./wallet.routes');
 const { verifyTokenAndStatus } = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
+const upload = require('../middleware/uploadHandler');
 const { uploadProfilePicture } = require('../middleware/uploadHandler');
 
 router.use('/wallet', walletRoutes);
@@ -14,10 +15,26 @@ router.use('/wallet', walletRoutes);
 // Public - Registration Payment Flow
 router.post('/register/create-payment-order', recruiterAuth.createPaymentOrder);
 router.post('/register/verify-payment', recruiterAuth.verifyPayment);
-router.post('/resume-registration/:recruiterId', recruiterAuth.resumeRegistration);
+router.post(
+  '/resume-registration/:recruiterId',
+  upload.fields([
+    { name: 'gstCertificate', maxCount: 1 },
+    { name: 'cinCertificate', maxCount: 1 },
+    { name: 'businessRegistrationCertificate', maxCount: 1 },
+  ]),
+  recruiterAuth.resumeRegistration
+);
 
 // Public
-router.post('/register', recruiterAuth.register);
+router.post(
+  '/register',
+  upload.fields([
+    { name: 'gstFile', maxCount: 1 },
+    { name: 'cinFile', maxCount: 1 },
+    { name: 'bizRegFile', maxCount: 1 },
+  ]),
+  recruiterAuth.register
+);
 router.post('/login', recruiterAuth.login);
 router.post('/password/forgot/send', recruiterPasswordReset.sendResetOtp);
 router.post('/password/forgot/reset', recruiterPasswordReset.resetPassword);

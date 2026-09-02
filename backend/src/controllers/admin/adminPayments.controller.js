@@ -144,10 +144,14 @@ function buildSeries(payments, period) {
     const end = period === '7d' || period === '30d' || period === '3m' ? new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1) : new Date(date.getFullYear(), date.getMonth() + 1, 1);
     const inBucket = payments.filter((payment) => payment.createdAt >= start && payment.createdAt < end && payment.status === 'success');
     const sum = (purpose) => inBucket.filter((payment) => payment.purpose === purpose).reduce((total, payment) => total + payment.amount, 0);
+    const sumMulti = (purposes) => inBucket.filter((payment) => purposes.includes(payment.purpose)).reduce((total, payment) => total + payment.amount, 0);
+    const sumByUserType = (purposes, userType) => inBucket.filter((payment) => purposes.includes(payment.purpose) && payment.userType === userType).reduce((total, payment) => total + payment.amount, 0);
+    
     const recharge = sum('wallet_recharge');
     const resume = sum('resume_download');
-    const recruiterRegistration = sum('renewal');
-    const candidateRegistration = sum('registration');
+    // Handle both old 'registration' format (differentiate by userType) and new explicit formats
+    const recruiterRegistration = sum('renewal') + sum('recruiter_registration') + sumByUserType(['registration'], 'recruiter');
+    const candidateRegistration = sum('candidate_registration') + sumByUserType(['registration'], 'candidate');
     return {
       label: period === '7d' || period === '30d' ? date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : date.toLocaleDateString('en-IN', { month: 'short' }),
       revenue: recharge + resume + recruiterRegistration + candidateRegistration,

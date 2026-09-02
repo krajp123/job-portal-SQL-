@@ -8,6 +8,27 @@ const { calculateCharge } = require('../../services/tax.service');
 const Payment = require('../../models/Payment');
 const crypto = require('crypto');
 const { sendEmail } = require('../../services/email.service');
+const fs = require('fs');
+const path = require('path');
+const { cloudinary, isCloudinaryConfigured } = require('../../config/cloudinary');
+
+async function uploadRegistrationDocument(req, file, folder) {
+  if (isCloudinaryConfigured) {
+    return new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: `recruiter-registration-documents/${folder}`, resource_type: 'auto' },
+        (error, result) => (error ? reject(error) : resolve(result.secure_url))
+      );
+      stream.end(file.buffer);
+    });
+  }
+
+  const uploadsDir = path.join(__dirname, '..', '..', 'uploads', 'recruiter-registration-documents', folder);
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  const safeName = `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+  fs.writeFileSync(path.join(uploadsDir, safeName), file.buffer);
+  return `${req.protocol}://${req.get('host')}/uploads/recruiter-registration-documents/${folder}/${safeName}`;
+}
 
 // POST /api/recruiter/register/create-payment-order
 // Creates a Razorpay order for recruiter registration payment
@@ -248,7 +269,7 @@ exports.register = async (req, res) => {
       email, workEmail, password, fullName, firstName, lastName, phone, mobile,
       companyName, companyWebsite, companyDetails, companyDescription,
       companyEmail, companyEmailDomain, companyGst, gstNumber, companyCin, cinNumber,
-      industry, companySize, companyType, companyLocation,
+      industry, industryOther, companySize, companyType, companyTypeOther, companyLocation,
       paymentId, hiringVolume, hiringFor, departments, jobTitle, recruiterRole,
     } = req.body;
 
@@ -270,6 +291,14 @@ exports.register = async (req, res) => {
     const normalizedGst = companyGst || gstNumber;
     const normalizedCin = companyCin || cinNumber;
     const normalizedLocation = companyLocation;
+    const normalizedCompanyType = companyType === 'Other' && companyTypeOther?.trim()
+      ? `Other: ${companyTypeOther.trim()}`
+      : companyType;
+    const normalizedIndustry = industry === 'Other' && industryOther?.trim()
+      ? `Other: ${industryOther.trim()}`
+      : industry;
+    const normalizedHiringFor = Array.isArray(hiringFor) ? hiringFor : JSON.parse(hiringFor || '[]');
+    const normalizedDepartments = Array.isArray(departments) ? departments : JSON.parse(departments || '[]');
 
     if (!isValidEmail(normalizedEmail)) {
       return res.status(400).json({ error: 'Invalid email address' });
@@ -280,6 +309,26 @@ exports.register = async (req, res) => {
     if (!isStrongEnoughPassword(password)) {
       return res.status(400).json({ error: 'Password must be at least 8 characters' });
     }
+    if (companyType === 'Other' && !companyTypeOther?.trim()) {
+      return res.status(400).json({ error: 'Please specify your company type.' });
+    }
+    if (industry === 'Other' && !industryOther?.trim()) {
+      return res.status(400).json({ error: 'Please specify your industry.' });
+    }
+
+    const registrationFiles = req.files || {};
+    const gstFile = registrationFiles.gstFile?.[0];
+    const cinFile = registrationFiles.cinFile?.[0];
+    const bizRegFile = registrationFiles.bizRegFile?.[0];
+    if (!gstNumber?.trim() || !cinNumber?.trim() || !gstFile || !cinFile || !bizRegFile) {
+      return res.status(400).json({ error: 'GST number, CIN, GST certificate, CIN certificate, and business registration certificate are required.' });
+    }
+
+    const [gstCertificateUrl, cinCertificateUrl, businessRegistrationCertificateUrl] = await Promise.all([
+      uploadRegistrationDocument(req, gstFile, 'gst'),
+      uploadRegistrationDocument(req, cinFile, 'cin'),
+      uploadRegistrationDocument(req, bizRegFile, 'business-registration'),
+    ]);
 
     // Account security key: one company email can only ever back ONE
     // completed registration. This is checked here (not on the personal
@@ -322,16 +371,19 @@ exports.register = async (req, res) => {
       recruiter.companyEmail = normalizedCompanyEmail;
       recruiter.companyGst = normalizedGst;
       recruiter.companyCin = normalizedCin;
+      recruiter.gstCertificateUrl = gstCertificateUrl;
+      recruiter.cinCertificateUrl = cinCertificateUrl;
+      recruiter.businessRegistrationCertificateUrl = businessRegistrationCertificateUrl;
       recruiter.companyDetails = normalizedDetails;
-      recruiter.industry = industry;
+      recruiter.industry = normalizedIndustry;
       recruiter.companySize = companySize;
-      recruiter.companyType = companyType;
+      recruiter.companyType = normalizedCompanyType;
       recruiter.location = normalizedLocation;
       recruiter.jobTitle = jobTitle;
       recruiter.recruiterRole = recruiterRole;
       recruiter.hiringVolume = hiringVolume;
-      recruiter.hiringFor = hiringFor;
-      recruiter.departments = departments;
+      recruiter.hiringFor = normalizedHiringFor;
+      recruiter.departments = normalizedDepartments;
       recruiter.languages = recruiter.languages || [];
       recruiter.expertiseTags = recruiter.expertiseTags || [];
       recruiter.renewalDueDate = renewalDueDate;
@@ -348,16 +400,19 @@ exports.register = async (req, res) => {
         companyEmail: normalizedCompanyEmail,
         companyGst: normalizedGst,
         companyCin: normalizedCin,
+        gstCertificateUrl,
+        cinCertificateUrl,
+        businessRegistrationCertificateUrl,
         companyDetails: normalizedDetails,
-        industry,
+        industry: normalizedIndustry,
         companySize,
-        companyType,
+        companyType: normalizedCompanyType,
         location: normalizedLocation,
         jobTitle,
         recruiterRole,
         hiringVolume,
-        hiringFor,
-        departments,
+        hiringFor: normalizedHiringFor,
+        departments: normalizedDepartments,
         languages: [],
         expertiseTags: [],
         renewalDueDate,
@@ -395,7 +450,7 @@ exports.resumeRegistration = async (req, res) => {
       password, fullName, firstName, lastName, phone, mobile,
       companyName, companyWebsite, companyDetails, companyDescription,
       companyEmail, companyEmailDomain, companyGst, gstNumber, companyCin, cinNumber,
-      industry, companySize, companyType, companyLocation,
+      industry, industryOther, companySize, companyType, companyTypeOther, companyLocation,
       hiringVolume, hiringFor, departments, jobTitle, recruiterRole,
     } = req.body;
 
@@ -423,6 +478,20 @@ exports.resumeRegistration = async (req, res) => {
     if (!isStrongEnoughPassword(password)) {
       return res.status(400).json({ error: 'Password must be at least 8 characters' });
     }
+    if (companyType === 'Other' && !companyTypeOther?.trim()) {
+      return res.status(400).json({ error: 'Please specify your company type.' });
+    }
+    if (industry === 'Other' && !industryOther?.trim()) {
+      return res.status(400).json({ error: 'Please specify your industry.' });
+    }
+
+    const files = req.files || {};
+    const gstCertificate = files.gstCertificate?.[0];
+    const cinCertificate = files.cinCertificate?.[0];
+    const businessRegistrationCertificate = files.businessRegistrationCertificate?.[0];
+    if (!companyGst?.trim() || !companyCin?.trim() || !gstCertificate || !cinCertificate || !businessRegistrationCertificate) {
+      return res.status(400).json({ error: 'GST number, CIN, GST certificate, CIN certificate, and business registration certificate are required.' });
+    }
 
     const normalizedCompanyEmail = (companyEmail || companyEmailDomain || '').toLowerCase().trim();
     if (!isValidEmail(normalizedCompanyEmail)) {
@@ -446,6 +515,20 @@ exports.resumeRegistration = async (req, res) => {
     const normalizedGst = companyGst || gstNumber;
     const normalizedCin = companyCin || cinNumber;
     const normalizedLocation = companyLocation;
+    const normalizedCompanyType = companyType === 'Other' && companyTypeOther?.trim()
+      ? `Other: ${companyTypeOther.trim()}`
+      : companyType;
+    const normalizedIndustry = industry === 'Other' && industryOther?.trim()
+      ? `Other: ${industryOther.trim()}`
+      : industry;
+    const normalizedHiringFor = Array.isArray(hiringFor) ? hiringFor : JSON.parse(hiringFor || '[]');
+    const normalizedDepartments = Array.isArray(departments) ? departments : JSON.parse(departments || '[]');
+
+    const [gstCertificateUrl, cinCertificateUrl, businessRegistrationCertificateUrl] = await Promise.all([
+      uploadRegistrationDocument(req, gstCertificate, 'gst'),
+      uploadRegistrationDocument(req, cinCertificate, 'cin'),
+      uploadRegistrationDocument(req, businessRegistrationCertificate, 'business-registration'),
+    ]);
 
     // Update recruiter with full details
     const passwordHash = await hashPassword(password);
@@ -457,16 +540,19 @@ exports.resumeRegistration = async (req, res) => {
     recruiter.companyEmail = normalizedCompanyEmail;
     recruiter.companyGst = normalizedGst;
     recruiter.companyCin = normalizedCin;
+    recruiter.gstCertificateUrl = gstCertificateUrl;
+    recruiter.cinCertificateUrl = cinCertificateUrl;
+    recruiter.businessRegistrationCertificateUrl = businessRegistrationCertificateUrl;
     recruiter.companyDetails = normalizedDetails;
-    recruiter.industry = industry;
+    recruiter.industry = normalizedIndustry;
     recruiter.companySize = companySize;
-    recruiter.companyType = companyType;
+    recruiter.companyType = normalizedCompanyType;
     recruiter.location = normalizedLocation;
     recruiter.jobTitle = jobTitle;
     recruiter.recruiterRole = recruiterRole;
     recruiter.hiringVolume = hiringVolume;
-    recruiter.hiringFor = hiringFor;
-    recruiter.departments = departments;
+    recruiter.hiringFor = normalizedHiringFor;
+    recruiter.departments = normalizedDepartments;
     recruiter.registrationStatus = 'complete';
 
     await recruiter.save();

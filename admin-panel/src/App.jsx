@@ -34,6 +34,7 @@ export default function App() {
           <Route element={<AdminProtectedRoute><AdminLayout /></AdminProtectedRoute>}>
             <Route index element={<Dashboard />} />
             <Route path="recruiters" element={<Recruiters />} />
+            <Route path="recruiters/pending" element={<Recruiters />} />
             <Route path="recruiters/:recruiterId" element={<RecruiterProfile />} />
             <Route path="candidates" element={<Candidates />} />
             <Route path="candidates/:candidateId" element={<CandidateProfile />} />

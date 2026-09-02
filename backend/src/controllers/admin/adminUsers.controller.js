@@ -390,12 +390,16 @@ exports.listRecruiters = async (req, res) => {
     const page = Math.max(1, Number(req.query.page) || 1);
     const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 10));
     const skip = (page - 1) * limit;
-    const { status, search } = req.query;
+    const { status, search, registrationStatus } = req.query;
 
-    // Only show fully completed recruiter registrations in the admin list.
-    // Payment-only or profile-incomplete entries are kept temporarily for recovery,
-    // but they are not actual registered recruiters and should not appear here.
-    const query = { registrationStatus: 'complete' };
+    // Default list view is completed recruiters. Pending payment-only accounts
+    // can be fetched explicitly with ?registrationStatus=incomplete.
+    const query = {};
+    if (registrationStatus && registrationStatus !== 'all') {
+      query.registrationStatus = registrationStatus;
+    } else {
+      query.registrationStatus = 'complete';
+    }
     if (status && status !== 'all') {
       query.accountStatus = status;
     }

@@ -27,6 +27,7 @@ exports.getOverview = async (req, res) => {
     const [
       totalCandidates,
       totalRecruiters,
+      pendingRecruitersCount,
       activeCandidates,
       activeRecruiters,
       totalJobs,
@@ -38,15 +39,17 @@ exports.getOverview = async (req, res) => {
       signupsTrend,
       jobStatusTrend,
       recentRecruiters,
+      pendingRecruiters,
       recentCandidates,
       recentJobs,
       recentApplications,
     ] = await Promise.all([
       // Current stats
       Candidate.countDocuments(),
-      Recruiter.countDocuments(),
+      Recruiter.countDocuments({ registrationStatus: 'complete' }),
+      Recruiter.countDocuments({ registrationStatus: 'incomplete' }),
       Candidate.countDocuments({ accountStatus: 'active' }),
-      Recruiter.countDocuments({ accountStatus: 'active' }),
+      Recruiter.countDocuments({ accountStatus: 'active', registrationStatus: 'complete' }),
       Job.countDocuments(),
       Job.countDocuments({ status: 'open' }),
       Application.countDocuments(),
@@ -71,7 +74,8 @@ exports.getOverview = async (req, res) => {
       getSignupsTrend(),
       getJobStatusTrend(),
       // Recent activity
-      Recruiter.find().sort({ createdAt: -1 }).limit(5),
+      Recruiter.find({ registrationStatus: 'complete' }).sort({ createdAt: -1 }).limit(5),
+      Recruiter.find({ registrationStatus: 'incomplete' }).sort({ createdAt: -1 }).limit(5),
       Candidate.find().sort({ createdAt: -1 }).limit(5),
       Job.find().sort({ createdAt: -1 }).limit(5).populate('postedBy'),
       Application.find().sort({ createdAt: -1 }).limit(5).populate(['candidate', 'job']),
@@ -85,7 +89,13 @@ exports.getOverview = async (req, res) => {
 
     res.json({
       stats: {
-        users: { totalCandidates, totalRecruiters, activeCandidates, activeRecruiters },
+        users: {
+          totalCandidates,
+          totalRecruiters,
+          pendingRecruiters: pendingRecruitersCount,
+          activeCandidates,
+          activeRecruiters,
+        },
         jobs: { totalJobs, openJobs },
         applications: { totalApplications, hiredCount },
         revenue: {
@@ -104,6 +114,7 @@ exports.getOverview = async (req, res) => {
       },
       recentActivity: {
         recruiters: recentRecruiters,
+        pendingRecruiters,
         candidates: recentCandidates,
         jobs: recentJobs,
         applications: recentApplications,

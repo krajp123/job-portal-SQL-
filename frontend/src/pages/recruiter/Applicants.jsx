@@ -23,6 +23,9 @@ import {
   Sparkles,
   UserRound,
   X,
+  Clock,
+  CalendarClock,
+
   XCircle,
 } from 'lucide-react';
 import axiosInstance from '../../api/axiosInstance';
@@ -1281,70 +1284,128 @@ export default function Applicants() {
             </section>
           </div>
         )}
-      {interviewModalOpen && interviewCandidate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6 sm:px-6">
-          <div className="w-full max-w-xl rounded-[18px] bg-[#FFF9F5] p-6 shadow-2xl ring-1 ring-black/10">
-            <div className="mb-5 flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#C75560]">Interview schedule</p>
-                <h2 className="mt-2 text-2xl font-bold text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>Interview invitation</h2>
-                <p className="mt-2 text-sm text-[#80576A]">
-                  Send a ready-made interview invitation email to <strong>{interviewCandidate.candidate?.name || 'this candidate'}</strong>.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={closeInterviewModal}
-                className="rounded-full border border-[#EBC2AE] bg-white p-2 text-[#54263F] transition hover:border-[#C75560] hover:text-[#C75560]"
-                aria-label="Close interview modal"
-              >
-                <X size={18} />
-              </button>
-            </div>
+{interviewModalOpen && interviewCandidate && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-[2px] px-4 py-6 sm:px-6">
+    <div className="w-full max-w-xl rounded-[20px] bg-[#FFF9F5] shadow-2xl ring-1 ring-black/10 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4 border-b border-[#F3E2D8] px-6 pt-6 pb-5">
+        <div className="flex items-start gap-3">
+          <span className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#FFF0E8] text-[#C75560] ring-1 ring-[#EBC2AE]">
+            <CalendarClock size={18} />
+          </span>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#C75560]">
+              Interview schedule
+            </p>
+            <h2
+              className="mt-1 text-2xl font-bold text-[#1D181A]"
+              style={{ fontFamily: FONT_DISPLAY }}
+            >
+              Interview invitation
+            </h2>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={closeInterviewModal}
+          className="rounded-full border border-[#EBC2AE] bg-white p-2 text-[#54263F] transition hover:border-[#C75560] hover:bg-[#FFF0E8] hover:text-[#C75560]"
+          aria-label="Close interview modal"
+        >
+          <X size={18} />
+        </button>
+      </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="flex flex-col gap-2 text-[13px] font-semibold text-[#54263F]">
-                Interview date
+      {/* Body */}
+      <div className="px-6 py-5">
+        <p className="text-sm text-[#80576A]">
+          Send a ready-made interview invitation email to{' '}
+          <strong className="font-semibold text-[#1D181A]">
+            {interviewCandidate.candidate?.name || 'this candidate'}
+          </strong>
+          .
+        </p>
+
+        <div className="mt-5 rounded-[14px] border border-[#EBC2AE] bg-white p-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="flex flex-col gap-2 text-[12px] font-semibold uppercase tracking-wide text-[#80576A]">
+              Interview date
+              <div className="relative">
+                <Calendar
+                  size={16}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#C75560]"
+                />
                 <input
                   type="date"
                   value={interviewDate}
                   onChange={(e) => setInterviewDate(e.target.value)}
-                  className="rounded-[12px] border border-[#EBC2AE] bg-white px-3 py-2 text-sm text-[#1D181A] outline-none transition focus:border-[#C75560]"
+                  className="w-full rounded-[10px] border border-[#EBC2AE] bg-[#FFFDFB] py-2.5 pl-9 pr-3 text-sm font-medium normal-case text-[#1D181A] outline-none transition [color-scheme:light] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer focus:border-[#C75560] focus:ring-2 focus:ring-[#C75560]/15"
                 />
-              </label>
-              <label className="flex flex-col gap-2 text-[13px] font-semibold text-[#54263F]">
-                Interview time
+              </div>
+            </label>
+
+            <label className="flex flex-col gap-2 text-[12px] font-semibold uppercase tracking-wide text-[#80576A]">
+              Interview time
+              <div className="relative">
+                <Clock
+                  size={16}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#C75560]"
+                />
                 <input
                   type="time"
                   value={interviewTime}
                   onChange={(e) => setInterviewTime(e.target.value)}
-                  className="rounded-[12px] border border-[#EBC2AE] bg-white px-3 py-2 text-sm text-[#1D181A] outline-none transition focus:border-[#C75560]"
+                  className="w-full rounded-[10px] border border-[#EBC2AE] bg-[#FFFDFB] py-2.5 pl-9 pr-3 text-sm font-medium normal-case text-[#1D181A] outline-none transition [color-scheme:light] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer focus:border-[#C75560] focus:ring-2 focus:ring-[#C75560]/15"
                 />
-              </label>
-            </div>
-
-            {interviewError && <p className="mt-4 rounded-lg border border-[#E9B6AF] bg-[#FFF0EE] px-3 py-2 text-[12px] font-medium text-[#B3261E]">{interviewError}</p>}
-
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-              <button
-                type="button"
-                onClick={closeInterviewModal}
-                className="rounded-full border border-[#EBC2AE] bg-white px-4 py-2 text-sm font-semibold text-[#54263F] transition hover:border-[#C75560] hover:text-[#C75560]"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={submitInterviewSchedule}
-                disabled={isSchedulingInterview}
-                className="rounded-full bg-[#C75560] px-4 py-2 text-sm font-semibold text-white transition disabled:opacity-50"
-              >
-                {isSchedulingInterview ? 'Sending…' : 'Send interview invite'}
-              </button>
-            </div>
+              </div>
+            </label>
           </div>
+
+          {interviewDate && interviewTime && (
+            <div className="mt-4 flex items-center gap-2 rounded-[10px] bg-[#FFF4EF] px-3 py-2 text-[12px] font-medium text-[#54263F]">
+              <CalendarClock size={14} className="text-[#C75560]" />
+              Scheduled for{' '}
+              <span className="font-semibold">
+                {new Date(`${interviewDate}T${interviewTime}`).toLocaleString('en-IN', {
+                  weekday: 'short',
+                  day: 'numeric',
+                  month: 'short',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true,
+                })}
+              </span>
+            </div>
+          )}
         </div>
-      )}
+
+        {interviewError && (
+          <p className="mt-4 flex items-center gap-2 rounded-lg border border-[#E9B6AF] bg-[#FFF0EE] px-3 py-2 text-[12px] font-medium text-[#B3261E]">
+            {interviewError}
+          </p>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="flex flex-col gap-3 border-t border-[#F3E2D8] bg-[#FFF4EF] px-6 py-4 sm:flex-row sm:items-center sm:justify-end">
+        <button
+          type="button"
+          onClick={closeInterviewModal}
+          className="rounded-full border border-[#EBC2AE] bg-white px-4 py-2 text-sm font-semibold text-[#54263F] transition hover:border-[#C75560] hover:text-[#C75560]"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={submitInterviewSchedule}
+          disabled={isSchedulingInterview || !interviewDate || !interviewTime}
+          className="rounded-full bg-[#C75560] px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#A0182C] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isSchedulingInterview ? 'Sending…' : 'Send interview invite'}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       {offerModalOpen && offerCandidate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6 sm:px-6">

@@ -31,6 +31,25 @@ function fieldStyle(hasError) {
   return { borderColor: hasError ? '#E4A199' : border };
 }
 
+function DocumentInput({ label, name, file, error, onChange }) {
+  return (
+    <div>
+      <label className={labelBase}>
+        {label} <span className="text-[#C75560]">*</span>
+      </label>
+      <input
+        type="file"
+        name={name}
+        accept="application/pdf,image/jpeg,image/png"
+        onChange={(event) => onChange(event.target.files?.[0] || null)}
+        className={`${inputBase} cursor-pointer file:mr-3 file:rounded-[7px] file:border-0 file:bg-[#FFF0E8] file:px-3 file:py-1.5 file:text-[11px] file:font-semibold file:text-[#54263F] ${error ? 'border-[#E4A199]' : ''}`}
+      />
+      <p className="mt-1 text-[11px] text-[#8D6072]">{file ? file.name : 'PDF, JPG, or PNG up to 5 MB'}</p>
+      <FieldError error={error} />
+    </div>
+  );
+}
+
 /* ---------------------------------------------------------------------- */
 /* Icons                                                                  */
 /* ---------------------------------------------------------------------- */
@@ -402,9 +421,14 @@ export default function ResumeRegistration() {
     companyEmail: '',
     companyGst: '',
     companyCin: '',
+    gstCertificate: null,
+    cinCertificate: null,
+    businessRegistrationCertificate: null,
     industry: '',
+    industryOther: '',
     companySize: '',
     companyType: '',
+    companyTypeOther: '',
     companyLocation: '',
     hiringVolume: '',
     hiringFor: [],
@@ -415,11 +439,34 @@ export default function ResumeRegistration() {
 
   const hiringForOptions = ['Full-time', 'Part-time', 'Internship', 'Contract', 'Remote'];
   const industryOptions = [
-    'Technology', 'Finance', 'Healthcare', 'Education', 'Retail',
-    'Manufacturing', 'Consulting', 'Media', 'Hospitality', 'Other',
+    'Information Technology (IT)', 'Software / SaaS', 'IT Services & Consulting',
+    'BPO / KPO', 'Banking / Financial Services', 'Insurance', 'FinTech',
+    'E-commerce', 'Retail', 'Manufacturing', 'Automobile', 'Construction',
+    'Real Estate', 'Healthcare / Hospitals', 'Pharmaceutical', 'Education / EdTech',
+    'Telecommunications', 'Media & Entertainment', 'Advertising & Marketing',
+    'Travel & Tourism', 'Hospitality', 'Food & Beverage', 'Logistics & Supply Chain',
+    'Transportation', 'Government / Public Sector', 'Legal Services',
+    'Human Resources / Recruitment', 'Consulting', 'Agriculture', 'Energy / Oil & Gas',
+    'Electronics', 'FMCG / Consumer Goods', 'Textile & Apparel', 'NGO / Non-Profit', 'Other',
   ];
   const companySizeOptions = ['1-10', '10-50', '50-200', '200-1000', '1000+'];
-  const companyTypeOptions = ['Startup', 'SME', 'MNC', 'Non-profit', 'Government'];
+  const companyTypeOptions = [
+    'Private Limited Company',
+    'Public Limited Company',
+    'Startup',
+    'MNC (Multinational Company)',
+    'Government Organization',
+    'PSU (Public Sector Undertaking)',
+    'Non-Profit / NGO',
+    'Partnership Firm',
+    'LLP (Limited Liability Partnership)',
+    'Sole Proprietorship',
+    'Consulting Firm',
+    'Staffing / Recruitment Agency',
+    'Educational Institution',
+    'Hospital / Healthcare Organization',
+    'Other',
+  ];
   const hiringVolumeOptions = ['1-5', '5-20', '20-100', '100+'];
   const recruiterRoleOptions = ['HR', 'Talent Acquisition', 'Recruitment Manager', 'Sourcer', 'Other'];
 
@@ -453,7 +500,15 @@ export default function ResumeRegistration() {
       if (!formData.companyName?.trim()) e.companyName = 'Company name is required';
       if (!formData.companyEmail?.trim()) e.companyEmail = 'Company email is required';
       else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.companyEmail)) e.companyEmail = 'Enter a valid company email.';
+      if (!formData.companyGst?.trim()) e.companyGst = 'GST number is required';
+      if (!formData.gstCertificate) e.gstCertificate = 'GST certificate is required';
+      if (!formData.companyCin?.trim()) e.companyCin = 'CIN is required';
+      if (!formData.cinCertificate) e.cinCertificate = 'CIN certificate is required';
+      if (!formData.businessRegistrationCertificate) e.businessRegistrationCertificate = 'Business registration certificate is required';
+      if (!formData.companyType) e.companyType = 'Company type is required';
+      if (formData.companyType === 'Other' && !formData.companyTypeOther?.trim()) e.companyTypeOther = 'Please specify your company type';
       if (!formData.industry) e.industry = 'Industry is required';
+      if (formData.industry === 'Other' && !formData.industryOther?.trim()) e.industryOther = 'Please specify your industry';
       if (!formData.companySize) e.companySize = 'Company size is required';
     }
     if (n === 3) {
@@ -519,10 +574,14 @@ export default function ResumeRegistration() {
     setSuccess('');
 
     try {
-      const { data } = await axiosInstance.post(`/recruiter/resume-registration/${recruiterId}`, {
-        ...formData,
-        departments: formData.departments.split(',').map((d) => d.trim()).filter(Boolean),
+      const payload = new FormData();
+      Object.entries(formData).forEach(([key, value]) => {
+        if (value instanceof File) payload.append(key, value);
+        else if (key === 'hiringFor') payload.append(key, JSON.stringify(value));
+        else if (key === 'departments') payload.append(key, JSON.stringify(value.split(',').map((d) => d.trim()).filter(Boolean)));
+        else if (value !== null && value !== undefined) payload.append(key, value);
       });
+      const { data } = await axiosInstance.post(`/recruiter/resume-registration/${recruiterId}`, payload);
 
       setSuccess(data.message || 'Registration completed successfully!');
       localStorage.removeItem('recruiterId');
@@ -666,12 +725,23 @@ export default function ResumeRegistration() {
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
-                      <FieldLabel>GST number</FieldLabel>
+                      <FieldLabel required>GST number</FieldLabel>
                       <TextInput type="text" name="companyGst" value={formData.companyGst} onChange={handleChange} placeholder="27XXXX0000X1Z5" />
+                      <FieldError error={errors.companyGst} />
                     </div>
                     <div>
-                      <FieldLabel>CIN number</FieldLabel>
-                      <TextInput type="text" name="companyCin" value={formData.companyCin} onChange={handleChange} placeholder="U12345AB0000000000" />
+                      <DocumentInput label="Upload GST Certificate" name="gstCertificate" file={formData.gstCertificate} error={errors.gstCertificate} onChange={(file) => setFormData((prev) => ({ ...prev, gstCertificate: file }))} />
+                    </div>
+                    <div>
+                      <FieldLabel required>CIN (Corporate Identification Number)</FieldLabel>
+                      <TextInput type="text" name="companyCin" value={formData.companyCin} onChange={handleChange} placeholder="U12345AB2020PLC123456" />
+                      <FieldError error={errors.companyCin} />
+                    </div>
+                    <div>
+                      <DocumentInput label="Upload CIN Certificate" name="cinCertificate" file={formData.cinCertificate} error={errors.cinCertificate} onChange={(file) => setFormData((prev) => ({ ...prev, cinCertificate: file }))} />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <DocumentInput label="Business Registration Certificate" name="businessRegistrationCertificate" file={formData.businessRegistrationCertificate} error={errors.businessRegistrationCertificate} onChange={(file) => setFormData((prev) => ({ ...prev, businessRegistrationCertificate: file }))} />
                     </div>
                   </div>
                   <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -679,6 +749,12 @@ export default function ResumeRegistration() {
                       <FieldLabel required>Industry</FieldLabel>
                       <NativeSelect name="industry" value={formData.industry} onChange={handleChange} options={industryOptions} placeholder="Select industry" error={errors.industry} />
                       <FieldError error={errors.industry} />
+                      {formData.industry === 'Other' && (
+                        <>
+                          <TextInput type="text" name="industryOther" value={formData.industryOther} onChange={handleChange} placeholder="Enter your industry" />
+                          <FieldError error={errors.industryOther} />
+                        </>
+                      )}
                     </div>
                     <div>
                       <FieldLabel required>Company size</FieldLabel>
@@ -686,8 +762,15 @@ export default function ResumeRegistration() {
                       <FieldError error={errors.companySize} />
                     </div>
                     <div>
-                      <FieldLabel>Company type</FieldLabel>
+                      <FieldLabel required>Company type</FieldLabel>
                       <NativeSelect name="companyType" value={formData.companyType} onChange={handleChange} options={companyTypeOptions} placeholder="Select company type" />
+                      <FieldError error={errors.companyType} />
+                      {formData.companyType === 'Other' && (
+                        <>
+                          <TextInput type="text" name="companyTypeOther" value={formData.companyTypeOther} onChange={handleChange} placeholder="Enter your company type" />
+                          <FieldError error={errors.companyTypeOther} />
+                        </>
+                      )}
                     </div>
                     <div>
                       <FieldLabel>Location</FieldLabel>

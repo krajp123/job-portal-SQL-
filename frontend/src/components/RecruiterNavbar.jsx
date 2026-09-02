@@ -14,7 +14,15 @@ const links = [
     { to: '/recruiter/applicants', label: 'Applicants', icon: UsersRound },
 ];
 
-function navClass(isActive) {
+function navClass(isActive, isPostJob = false) {
+    if (isPostJob) {
+        return `inline-flex shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-[12.5px] font-bold transition-colors ${
+            isActive
+                ? 'border-[#A94658] bg-[#A94658] text-white'
+                : 'border-[#C75560] bg-[#C75560] text-white hover:border-[#A94658] hover:bg-[#A94658]'
+        }`;
+    }
+
     return `inline-flex items-center gap-2 rounded-lg px-3 py-2 text-[12.5px] font-semibold transition-colors ${
         isActive
             ? 'bg-[#FFF0E8] text-[#C75560]'
@@ -90,7 +98,7 @@ export default function RecruiterNavbar() {
 
                 <nav className="hidden items-center gap-1 md:flex" aria-label="Recruiter primary navigation">
                     {links.map(({ to, label, icon: Icon }) => (
-                        <NavLink key={to} to={to} className={({ isActive }) => navClass(isActive)}>
+                        <NavLink key={to} to={to} className={({ isActive }) => navClass(isActive, to === '/recruiter/post-job')}>
                             <Icon size={15} />
                             {label}
                         </NavLink>
@@ -122,9 +130,9 @@ export default function RecruiterNavbar() {
                     <RecruiterProfileMenu />
                 </div>
             </div>
-            <nav className="mx-auto flex w-full max-w-6xl gap-1 border-t border-[#F0D1BF] px-4 py-1 md:hidden sm:px-6" aria-label="Recruiter mobile navigation">
+            <nav className="mx-auto flex w-full max-w-6xl gap-1 overflow-x-auto border-t border-[#F0D1BF] px-4 py-1 md:hidden sm:px-6" aria-label="Recruiter mobile navigation">
                 {links.map(({ to, label, icon: Icon }) => (
-                    <NavLink key={to} to={to} className={({ isActive }) => navClass(isActive)}>
+                    <NavLink key={to} to={to} className={({ isActive }) => navClass(isActive, to === '/recruiter/post-job')}>
                         <Icon size={14} />
                         {label}
                     </NavLink>

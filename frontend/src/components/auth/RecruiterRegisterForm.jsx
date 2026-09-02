@@ -20,6 +20,10 @@ function NoScrollbar() {
             html::-webkit-scrollbar, body::-webkit-scrollbar { width: 0; height: 0; display: none; }
             .recruiter-register *::-webkit-scrollbar { width: 0; height: 0; display: none; }
             .recruiter-register * { scrollbar-width: none; -ms-overflow-style: none; }
+            .company-type-options { scrollbar-width: thin !important; -ms-overflow-style: auto !important; }
+            .company-type-options::-webkit-scrollbar { width: 6px !important; height: 6px !important; display: block !important; }
+            .company-type-options::-webkit-scrollbar-thumb { background: #C9A093; border-radius: 999px; }
+            .company-type-options::-webkit-scrollbar-track { background: #FFF0E8; }
         `}</style>
     );
 }
@@ -131,7 +135,7 @@ function SearchableSelect({ label, options, value, onChange, placeholder = 'Sele
                             placeholder="Search…"
                             className="w-full border-b border-[#F0D1BF] bg-transparent px-3.5 py-2.5 text-[13px] text-[#1D181A] placeholder:text-[#A77D8D] outline-none"
                         />
-                        <div className="py-1">
+                        <div className="company-type-options max-h-[208px] overflow-y-auto py-1">
                             {filtered.length === 0 && (
                                 <p className="px-3.5 py-2 text-[12.5px] text-[#8D6072]">No matches</p>
                             )}
@@ -172,8 +176,8 @@ function AutocompleteInput({ label, value, onChange, suggestions, placeholder, e
 
     const filtered =
         value.trim() === ''
-            ? suggestions.slice(0, 8)
-            : suggestions.filter((s) => s.toLowerCase().includes(value.toLowerCase())).slice(0, 8);
+            ? suggestions
+            : suggestions.filter((s) => s.toLowerCase().includes(value.toLowerCase()));
 
     return (
         <Field label={label} error={error} required={required}>
@@ -187,7 +191,7 @@ function AutocompleteInput({ label, value, onChange, suggestions, placeholder, e
                     className={`${inputBase} ${error ? 'border-[#F28B82]/60' : ''}`}
                 />
                 {open && filtered.length > 0 && (
-                    <div className="absolute z-20 mt-1.5 w-full overflow-hidden rounded-[10px] border border-[#EBC2AE] bg-[#FFFDFC] py-1 shadow-[0_16px_40px_-12px_rgba(29,24,26,0.2)]">
+                    <div className="company-type-options absolute z-20 mt-1.5 max-h-[208px] w-full overflow-y-auto rounded-[10px] border border-[#EBC2AE] bg-[#FFFDFC] py-1 shadow-[0_16px_40px_-12px_rgba(29,24,26,0.2)]">
                         {filtered.map((opt) => (
                             <button
                                 type="button"
@@ -201,6 +205,121 @@ function AutocompleteInput({ label, value, onChange, suggestions, placeholder, e
                                 {opt}
                             </button>
                         ))}
+                    </div>
+                )}
+            </div>
+        </Field>
+    );
+}
+
+function formatLocationResult(result) {
+    const address = result.address || {};
+    const city = address.city || address.town || address.village || address.municipality || address.hamlet;
+    const state = address.state || address.region;
+    const country = address.country;
+    const names = [city, state, country].filter(Boolean);
+
+    if (names.length > 0) {
+        return [...new Set(names)].join(', ');
+    }
+
+    return result.name || result.display_name?.split(',').slice(-1)[0]?.trim() || '';
+}
+
+function LocationAutocomplete({ label, value, onChange, error, required }) {
+    const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState(value || '');
+    const [suggestions, setSuggestions] = useState([]);
+    const [searching, setSearching] = useState(false);
+    const ref = useRef(null);
+    const selectedLocationRef = useRef('');
+
+    useEffect(() => {
+        setQuery(value || '');
+    }, [value]);
+
+    useEffect(() => {
+        function onClickOutside(event) {
+            if (ref.current && !ref.current.contains(event.target)) setOpen(false);
+        }
+        document.addEventListener('mousedown', onClickOutside);
+        return () => document.removeEventListener('mousedown', onClickOutside);
+    }, []);
+
+    useEffect(() => {
+        const cleanQuery = query.trim();
+        if (cleanQuery.length < 2 || cleanQuery === selectedLocationRef.current) {
+            setSuggestions([]);
+            setSearching(false);
+            selectedLocationRef.current = '';
+            return undefined;
+        }
+
+        const controller = new AbortController();
+        const timer = setTimeout(async () => {
+            setSearching(true);
+            try {
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=8&q=${encodeURIComponent(cleanQuery)}`,
+                    { signal: controller.signal, headers: { Accept: 'application/json' } }
+                );
+                if (!response.ok) throw new Error('Location search failed');
+                const results = await response.json();
+                const formattedResults = results
+                    .map((result) => ({ id: result.place_id, label: formatLocationResult(result) }))
+                    .filter((result) => result.label);
+                setSuggestions(formattedResults.filter((result, index, list) => list.findIndex((item) => item.label === result.label) === index));
+                setOpen(true);
+            } catch (searchError) {
+                if (searchError.name !== 'AbortError') setSuggestions([]);
+            } finally {
+                if (!controller.signal.aborted) setSearching(false);
+            }
+        }, 350);
+
+        return () => {
+            clearTimeout(timer);
+            controller.abort();
+        };
+    }, [query, value]);
+
+    return (
+        <Field label={label} error={error} required={required}>
+            <div className="relative" ref={ref}>
+                <input
+                    value={query}
+                    onChange={(event) => {
+                        setQuery(event.target.value);
+                        onChange(event.target.value);
+                        setOpen(true);
+                    }}
+                    onFocus={() => query.trim().length >= 2 && setOpen(true)}
+                    placeholder="Search city, state, or country"
+                    autoComplete="off"
+                    className={`${inputBase} ${error ? 'border-[#F28B82]/60' : ''}`}
+                />
+                {open && query.trim().length >= 2 && (searching || suggestions.length > 0) && (
+                    <div className="company-type-options absolute z-20 mt-1.5 max-h-[208px] w-full overflow-y-auto rounded-[10px] border border-[#EBC2AE] bg-[#FFFDFC] py-1 shadow-[0_16px_40px_-12px_rgba(29,24,26,0.2)]">
+                        {searching ? (
+                            <p className="px-3.5 py-2 text-[12.5px] text-[#8D6072]">Searching locations...</p>
+                        ) : (
+                            suggestions.map((suggestion) => (
+                                <button
+                                    type="button"
+                                    key={suggestion.id}
+                                    onMouseDown={(event) => event.preventDefault()}
+                                    onClick={() => {
+                                        setQuery(suggestion.label);
+                                        selectedLocationRef.current = suggestion.label;
+                                        onChange(suggestion.label);
+                                        setOpen(false);
+                                    }}
+                                    className="block w-full px-3.5 py-2 text-left text-[13px] text-[#54263F] transition hover:bg-[#FFF0E8]"
+                                >
+                                    {suggestion.label}
+                                </button>
+                            ))
+                        )}
                     </div>
                 )}
             </div>
@@ -368,7 +487,7 @@ function OtpInput({ value, onChange, length = 6 }) {
     );
 }
 
-function FileDropzone({ label, file, onFile, error, hint }) {
+function FileDropzone({ label, file, onFile, error, hint, required = true }) {
     const [dragOver, setDragOver] = useState(false);
     const inputRef = useRef(null);
 
@@ -386,7 +505,7 @@ function FileDropzone({ label, file, onFile, error, hint }) {
     }
 
     return (
-        <Field label={label} error={error} hint={!file ? hint : null}>
+        <Field label={label} required={required} error={error} hint={!file ? hint : null}>
             {!file ? (
                 <div
                     onClick={() => inputRef.current?.click()}
@@ -537,44 +656,85 @@ function StepDots({ step, total, labels, onJump }) {
 /* ---------------------------------------------------------------------- */
 
 const COMPANY_SIZE_OPTIONS = ['1–10', '11–50', '51–200', '201–500', '500+', 'Custom'];
-const COMPANY_TYPE_OPTIONS = ['Startup', 'Private', 'Public', 'Government', 'NGO'];
+const COMPANY_TYPE_OPTIONS = [
+    'Private Limited Company',
+    'Public Limited Company',
+    'Startup',
+    'MNC (Multinational Company)',
+    'Government Organization',
+    'PSU (Public Sector Undertaking)',
+    'Non-Profit / NGO',
+    'Partnership Firm',
+    'LLP (Limited Liability Partnership)',
+    'Sole Proprietorship',
+    'Consulting Firm',
+    'Staffing / Recruitment Agency',
+    'Educational Institution',
+    'Hospital / Healthcare Organization',
+    'Other',
+];
 const RECRUITER_ROLE_OPTIONS = ['HR', 'Talent Acquisition', 'Hiring Manager', 'Founder', 'CEO', 'Other'];
 const HIRING_VOLUME_OPTIONS = ['1–5', '5–20', '20–100', '100+'];
 const HIRING_FOR_OPTIONS = ['Full-time', 'Part-time', 'Internship', 'Contract', 'Remote'];
 const INDUSTRY_SUGGESTIONS = [
-    'Information Technology',
-    'Software & SaaS',
-    'Financial Services',
-    'Banking',
-    'Healthcare',
-    'Pharmaceuticals',
-    'E-commerce',
-    'Retail',
-    'Manufacturing',
-    'Education',
-    'EdTech',
-    'Real Estate',
-    'Construction',
-    'Telecommunications',
-    'Media & Entertainment',
-    'Hospitality',
-    'Travel & Tourism',
-    'Automotive',
-    'Logistics & Supply Chain',
-    'Consulting',
-    'Legal Services',
-    'Non-profit',
-    'Energy',
-    'Agriculture',
-    'Food & Beverage',
-    'FinTech',
-    'HealthTech',
-    'Insurance',
+    'Information Technology (IT)', 'Software / SaaS', 'IT Services & Consulting',
+    'BPO / KPO', 'Banking / Financial Services', 'Insurance', 'FinTech',
+    'E-commerce', 'Retail', 'Manufacturing', 'Automobile', 'Construction',
+    'Real Estate', 'Healthcare / Hospitals', 'Pharmaceutical', 'Education / EdTech',
+    'Telecommunications', 'Media & Entertainment', 'Advertising & Marketing',
+    'Travel & Tourism', 'Hospitality', 'Food & Beverage', 'Logistics & Supply Chain',
+    'Transportation', 'Government / Public Sector', 'Legal Services',
+    'Human Resources / Recruitment', 'Consulting', 'Agriculture', 'Energy / Oil & Gas',
+    'Electronics', 'FMCG / Consumer Goods', 'Textile & Apparel', 'NGO / Non-Profit', 'Other',
 ];
+const INDIAN_STATES = [
+    'Andhra Pradesh, India',
+    'Arunachal Pradesh, India',
+    'Assam, India',
+    'Bihar, India',
+    'Chhattisgarh, India',
+    'Goa, India',
+    'Gujarat, India',
+    'Haryana, India',
+    'Himachal Pradesh, India',
+    'Jharkhand, India',
+    'Karnataka, India',
+    'Kerala, India',
+    'Madhya Pradesh, India',
+    'Maharashtra, India',
+    'Manipur, India',
+    'Meghalaya, India',
+    'Mizoram, India',
+    'Nagaland, India',
+    'Odisha, India',
+    'Punjab, India',
+    'Rajasthan, India',
+    'Sikkim, India',
+    'Tamil Nadu, India',
+    'Telangana, India',
+    'Tripura, India',
+    'Uttar Pradesh, India',
+    'Uttarakhand, India',
+    'West Bengal, India',
+].sort((a, b) => a.localeCompare(b));
+
+const INDIAN_UNION_TERRITORIES = [
+    'Andaman and Nicobar Islands, India',
+    'Chandigarh, India',
+    'Dadra and Nagar Haveli and Daman and Diu, India',
+    'Delhi, India',
+    'Jammu and Kashmir, India',
+    'Ladakh, India',
+    'Lakshadweep, India',
+    'Puducherry, India',
+].sort((a, b) => a.localeCompare(b));
+
 const LOCATION_SUGGESTIONS = [
+    ...INDIAN_STATES,
+    ...INDIAN_UNION_TERRITORIES,
+    // Common Indian cities
     'Bengaluru, India',
     'Mumbai, India',
-    'Delhi, India',
     'Hyderabad, India',
     'Chennai, India',
     'Pune, India',
@@ -582,15 +742,27 @@ const LOCATION_SUGGESTIONS = [
     'Ahmedabad, India',
     'Gurugram, India',
     'Noida, India',
-    'New York, USA',
-    'San Francisco, USA',
-    'London, UK',
-    'Singapore',
-    'Dubai, UAE',
-    'Toronto, Canada',
-    'Berlin, Germany',
-    'Sydney, Australia',
-    'Remote',
+    'Bhubaneswar, India',
+    'Patna, India',
+    'Jaipur, India',
+    'Lucknow, India',
+    'Kochi, India',
+    'Thiruvananthapuram, India',
+    'Indore, India',
+    'Bhopal, India',
+    'Amritsar, India',
+    'Ranchi, India',
+    'Guwahati, India',
+    'Visakhapatnam, India',
+    'Vijayawada, India',
+    'Surat, India',
+    'Vadodara, India',
+    'Nagpur, India',
+    'Nashik, India',
+    'Coimbatore, India',
+    'Madurai, India',
+    'Mysuru, India',
+    'Mangaluru, India',
 ];
 const STEP_LABELS = ['Recruiter', 'Company', 'Verify', 'Hiring', 'Security'];
 const MOCK_OTP = '123456';
@@ -638,6 +810,8 @@ export default function RecruiterRegisterForm({ onSwitchToLogin }) {
         industry: '',
         companyLocation: '',
         companyType: '',
+        companyTypeOther: '',
+        industryOther: '',
         recruiterRole: '',
         companyDescription: '',
         // Step 3
@@ -703,8 +877,10 @@ export default function RecruiterRegisterForm({ onSwitchToLogin }) {
             if (!form.companySize) e.companySize = 'Select a company size.';
             if (form.companySize === 'Custom' && !form.companySizeCustom.trim()) e.companySizeCustom = 'Enter the company size.';
             if (!form.industry.trim()) e.industry = 'Industry is required.';
+            if (form.industry === 'Other' && !form.industryOther.trim()) e.industryOther = 'Please specify your industry.';
             if (!form.companyLocation.trim()) e.companyLocation = 'Company location is required.';
             if (!form.companyType) e.companyType = 'Select a company type.';
+            if (form.companyType === 'Other' && !form.companyTypeOther.trim()) e.companyTypeOther = 'Please specify your company type.';
             if (!form.recruiterRole) e.recruiterRole = 'Select your role.';
             if (form.companyDescription.length > 1000) e.companyDescription = 'Maximum 1000 characters.';
         }
@@ -712,6 +888,9 @@ export default function RecruiterRegisterForm({ onSwitchToLogin }) {
             if (!form.emailOtpVerified) e.emailVerify = 'Verify your work email via OTP.';
             if (!form.gstNumber.trim()) e.gstNumber = 'GST number is required.';
             if (!form.gstFile) e.gstFile = 'Upload your GST certificate.';
+            if (!form.cinNumber.trim()) e.cinNumber = 'CIN is required.';
+            if (!form.cinFile) e.cinFile = 'Upload your CIN certificate.';
+            if (!form.bizRegFile) e.bizRegFile = 'Upload your business registration certificate.';
         }
         if (n === 4) {
             if (!form.hiringVolume) e.hiringVolume = 'Select an option.';
@@ -924,7 +1103,8 @@ export default function RecruiterRegisterForm({ onSwitchToLogin }) {
         setSubmitError('');
         setLoading(true);
         try {
-            await axiosInstance.post('/recruiter/register', {
+            const payload = new FormData();
+            Object.entries({
                 firstName: form.firstName,
                 lastName: form.lastName,
                 workEmail: form.workEmail,
@@ -937,6 +1117,8 @@ export default function RecruiterRegisterForm({ onSwitchToLogin }) {
                 industry: form.industry,
                 companyLocation: form.companyLocation,
                 companyType: form.companyType,
+                companyTypeOther: form.companyTypeOther,
+                industryOther: form.industryOther,
                 recruiterRole: form.recruiterRole,
                 companyDescription: form.companyDescription,
                 gstNumber: form.gstNumber,
@@ -946,7 +1128,11 @@ export default function RecruiterRegisterForm({ onSwitchToLogin }) {
                 departments: form.departments,
                 password: form.password,
                 paymentId: verifiedPaymentId,
-            });
+            }).forEach(([key, value]) => payload.append(key, Array.isArray(value) ? JSON.stringify(value) : value));
+            payload.append('gstFile', form.gstFile);
+            payload.append('cinFile', form.cinFile);
+            payload.append('bizRegFile', form.bizRegFile);
+            await axiosInstance.post('/recruiter/register', payload);
             setSubmitted(true);
         } catch (err) {
             setSubmitError(err.response?.data?.error || 'Registration failed. Please try again.');
@@ -1230,16 +1416,24 @@ export default function RecruiterRegisterForm({ onSwitchToLogin }) {
                             error={errors.industry}
                             required
                         />
-                        <AutocompleteInput
+                        <LocationAutocomplete
                             label="Company Location"
-                            placeholder="City, Country"
                             value={form.companyLocation}
                             onChange={(v) => update({ companyLocation: v })}
-                            suggestions={LOCATION_SUGGESTIONS}
                             error={errors.companyLocation}
                             required
                         />
                     </div>
+                    {form.industry === 'Other' && (
+                        <Field label="Specify Industry" error={errors.industryOther} required>
+                            <TextInput
+                                placeholder="Enter your industry"
+                                value={form.industryOther}
+                                onChange={setField('industryOther')}
+                                error={errors.industryOther}
+                            />
+                        </Field>
+                    )}
 
                     <SearchableSelect
                         label="Company Type"
@@ -1250,6 +1444,16 @@ export default function RecruiterRegisterForm({ onSwitchToLogin }) {
                         error={errors.companyType}
                         required
                     />
+                    {form.companyType === 'Other' && (
+                        <Field label="Specify Company Type" error={errors.companyTypeOther} required>
+                            <TextInput
+                                placeholder="Enter your company type"
+                                value={form.companyTypeOther}
+                                onChange={setField('companyTypeOther')}
+                                error={errors.companyTypeOther}
+                            />
+                        </Field>
+                    )}
 
                     <Field label="Recruiter Role" error={errors.recruiterRole} required>
                         <NativeSelect
@@ -1334,6 +1538,7 @@ export default function RecruiterRegisterForm({ onSwitchToLogin }) {
                     </Field>
                     <FileDropzone
                         label="Upload GST Certificate"
+                        required
                         file={form.gstFile}
                         onFile={(f, err) => {
                             update({ gstFile: f });
@@ -1342,16 +1547,17 @@ export default function RecruiterRegisterForm({ onSwitchToLogin }) {
                         error={errors.gstFile}
                     />
 
-                    <Field label="CIN (Corporate Identification Number)" hint="Optional">
+                    <Field label="CIN (Corporate Identification Number)" required error={errors.cinNumber}>
                         <TextInput
                             placeholder="L12345MH2020PLC123456"
                             value={form.cinNumber}
                             onChange={setField('cinNumber')}
+                            error={errors.cinNumber}
                         />
                     </Field>
                     <FileDropzone
                         label="Upload CIN Certificate"
-                        hint="Optional"
+                        required
                         file={form.cinFile}
                         onFile={(f, err) => {
                             update({ cinFile: f });
@@ -1362,7 +1568,7 @@ export default function RecruiterRegisterForm({ onSwitchToLogin }) {
 
                     <FileDropzone
                         label="Business Registration Certificate"
-                        hint="Optional"
+                        required
                         file={form.bizRegFile}
                         onFile={(f, err) => {
                             update({ bizRegFile: f });

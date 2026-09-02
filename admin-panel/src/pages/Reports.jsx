@@ -101,66 +101,44 @@ function getRangeLabel(range, customDates) {
   return RANGES.find((item) => item.value === range)?.label || range;
 }
 
-const REVENUE_DATA = [
-  { label: 'Jan', revenue: 420000, refunds: 8200 },
-  { label: 'Feb', revenue: 465000, refunds: 6100 },
-  { label: 'Mar', revenue: 520000, refunds: 9400 },
-  { label: 'Apr', revenue: 490000, refunds: 7300 },
-  { label: 'May', revenue: 580000, refunds: 5800 },
-  { label: 'Jun', revenue: 625000, refunds: 6900 },
-  { label: 'Jul', revenue: 648000, refunds: 6200 },
-  { label: 'Aug', revenue: 672000, refunds: 7100 },
-];
+function normalizePaymentRangeKey(range) {
+  const normalized = String(range || '').toUpperCase();
+  if (normalized === '7D') return '7d';
+  if (normalized === '1M') return '30d';
+  if (normalized === '6M') return '6m';
+  if (normalized === '1Y') return '1y';
+  if (normalized === '5Y') return '1y';
+  if (normalized === '1D') return '7d';
+  return '30d';
+}
 
-const PLAN_SPLIT = [
-  { name: 'Recruiter Subscriptions', value: 68 },
-  { name: 'Candidate ₹9 Registration', value: 14 },
-  { name: 'Featured Job Listings', value: 12 },
-  { name: 'Other', value: 6 },
-];
+function formatINR(value) {
+  const amount = Number(value || 0);
+  return `₹${amount.toLocaleString('en-IN')}`;
+}
 
-const FUNNEL_DATA = [
-  { stage: 'Applied', count: 18400 },
-  { stage: 'Shortlisted', count: 6900 },
-  { stage: 'Interviewed', count: 3100 },
-  { stage: 'Offered', count: 1250 },
-  { stage: 'Hired', count: 940 },
-];
+function formatCompactINR(value) {
+  const amount = Number(value || 0);
+  const abs = Math.abs(amount);
+  if (abs >= 10000000) return `₹${(amount / 10000000).toFixed(1)}Cr`;
+  if (abs >= 100000) return `₹${(amount / 100000).toFixed(1)}L`;
+  if (abs >= 1000) return `₹${(amount / 1000).toFixed(1)}K`;
+  return `₹${amount.toLocaleString('en-IN')}`;
+}
 
-const JOB_CATEGORY_DATA = [
-  { name: 'IT & Software', value: 34 },
-  { name: 'Sales & Marketing', value: 21 },
-  { name: 'Finance', value: 16 },
-  { name: 'Operations', value: 15 },
-  { name: 'Others', value: 14 },
-];
-
-const TOP_RECRUITERS = [
-  { company: 'Wexford Analytics', jobsPosted: 42, hires: 31, avgResponse: '3h', score: 96 },
-  { company: 'Nimbus Retail Pvt Ltd', jobsPosted: 37, hires: 24, avgResponse: '5h', score: 91 },
-  { company: 'Solstice Fintech', jobsPosted: 29, hires: 22, avgResponse: '2h', score: 89 },
-  { company: 'Kavya Textiles', jobsPosted: 25, hires: 15, avgResponse: '9h', score: 78 },
-  { company: 'BrightPath Logistics', jobsPosted: 21, hires: 12, avgResponse: '11h', score: 72 },
-];
+function normalizeRevenueSeries(data = []) {
+  return data.map((item) => ({
+    label: item.label || 'N/A',
+    revenue: Number(item.revenue || 0),
+    refunds: Number(item.refunds || 0),
+  }));
+}
 
 const KPI_CARDS = [
-  { label: "Today's Candidates", value: '146', change: '+12.4%', up: true, icon: UserPlus },
-  { label: "Today's Recruiters", value: '18', change: '+4.1%', up: true, icon: Building2 },
-  { label: 'Revenue (30D)', value: '₹6.25L', change: '+7.8%', up: true, icon: IndianRupee },
-  { label: 'Active Job Posts', value: '2,184', change: '-2.3%', up: false, icon: Briefcase },
-];
-
-const DELIVERY_STATS = [
-  { label: 'Email', sent: '48,210', success: 98.4, icon: Mail },
-  { label: 'SMS / OTP', sent: '21,940', success: 96.1, icon: MessageSquare },
-  { label: 'Chat Response', sent: '9,320 msgs', success: 99.2, icon: Activity },
-];
-
-const MODERATION_STATS = [
-  { label: 'Flagged Job Posts', value: 14, icon: Flag, tone: 'warn' },
-  { label: 'Open Support Tickets', value: 27, icon: Ticket, tone: 'warn' },
-  { label: 'Resolved This Week', value: 63, icon: CheckCircle2, tone: 'good' },
-  { label: 'Suspected Fraud Flags', value: 3, icon: AlertTriangle, tone: 'bad' },
+  { id: 'candidates', label: "Today's Candidates", change: '+12.4%', up: true, icon: UserPlus, format: 'number' },
+  { id: 'recruiters', label: "Today's Recruiters", change: '+4.1%', up: true, icon: Building2, format: 'number' },
+  { id: 'revenue', label: 'Revenue (30D)', change: '+7.8%', up: true, icon: IndianRupee, format: 'currency' },
+  { id: 'activeJobs', label: 'Active Job Posts', change: '-2.3%', up: false, icon: Briefcase, format: 'number' },
 ];
 
 const TABS = [
@@ -363,12 +341,19 @@ function ExportMenu({ open, setOpen, onExport }) {
 
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
+
+  const formatValue = (value, dataKey) => {
+    const numeric = Number(value || 0);
+    const isCurrency = dataKey === 'revenue' || dataKey === 'refunds' || dataKey === 'amount' || dataKey === 'value';
+    return isCurrency ? formatINR(numeric) : numeric.toLocaleString();
+  };
+
   return (
     <div className="rounded-xl border px-3 py-2 text-xs shadow-lg" style={{ borderColor: COLORS.border, backgroundColor: COLORS.ivory }}>
       <p className="mb-1 font-medium" style={{ color: COLORS.black }}>{label}</p>
       {payload.map((p) => (
         <p key={p.dataKey} style={{ color: p.color }}>
-          {p.name}: <span className="font-semibold">{p.value.toLocaleString()}</span>
+          {p.name}: <span className="font-semibold">{formatValue(p.value, p.dataKey)}</span>
         </p>
       ))}
     </div>
@@ -379,6 +364,8 @@ function CustomTooltip({ active, payload, label }) {
    Tab content sections
 --------------------------------------------------------- */
 function OverviewTab({ growthData, revenueData, funnel, rangeLabel }) {
+  const revenueSeries = normalizeRevenueSeries(revenueData);
+
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <Card title="Signups Trend" subtitle={`Candidates vs recruiters, ${rangeLabel}`}>
@@ -423,13 +410,19 @@ function OverviewTab({ growthData, revenueData, funnel, rangeLabel }) {
       <Card title="Revenue Trend" subtitle={`Gross revenue, ${rangeLabel}`} className="lg:col-span-2">
         <div className="mt-4 h-40 sm:h-48">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={revenueData} margin={{ left: -12, right: 12, top: 8 }}>
+            <AreaChart data={revenueSeries} margin={{ left: -12, right: 12, top: 8 }}>
+              <defs>
+                <linearGradient id="revenueTrendFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={COLORS.coral} stopOpacity={0.35} />
+                  <stop offset="100%" stopColor={COLORS.coral} stopOpacity={0} />
+                </linearGradient>
+              </defs>
               <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
               <XAxis dataKey="label" tick={{ fontSize: 11, fill: COLORS.dustyRose }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: COLORS.dustyRose }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: COLORS.dustyRose }} axisLine={false} tickLine={false} tickFormatter={(value) => formatCompactINR(value)} />
               <Tooltip cursor={false} content={<CustomTooltip />} />
-              <Line type="monotone" dataKey="revenue" name="Revenue (₹)" stroke={COLORS.coral} strokeWidth={2.5} dot={{ r: 3, fill: COLORS.coral }} activeDot={{ r: 5 }} />
-            </LineChart>
+              <Area type="monotone" dataKey="revenue" name="Revenue (₹)" stroke={COLORS.coral} fill="url(#revenueTrendFill)" strokeWidth={2.5} dot={{ r: 3, fill: COLORS.coral }} activeDot={{ r: 5 }} />
+            </AreaChart>
           </ResponsiveContainer>
         </div>
       </Card>
@@ -483,15 +476,17 @@ function GrowthTab({ range, growthData, rangeLabel }) {
 }
 
 function RevenueTab({ revenueData, revenueSources, health, rangeLabel }) {
+  const revenueSeries = normalizeRevenueSeries(revenueData);
+
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <Card title="Revenue vs Refunds" subtitle={rangeLabel}>
         <div className="mt-4 h-56 sm:h-64">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={revenueData} margin={{ left: -12, right: 12, top: 8 }}>
+            <LineChart data={revenueSeries} margin={{ left: -12, right: 12, top: 8 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
               <XAxis dataKey="label" tick={{ fontSize: 11, fill: COLORS.dustyRose }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: COLORS.dustyRose }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: COLORS.dustyRose }} axisLine={false} tickLine={false} tickFormatter={(value) => formatCompactINR(value)} />
               <Tooltip cursor={false} content={<CustomTooltip />} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <Line type="monotone" dataKey="revenue" name="Revenue (₹)" stroke={COLORS.coral} strokeWidth={2.5} dot={{ r: 3, fill: COLORS.coral }} activeDot={{ r: 5 }} />
@@ -727,10 +722,36 @@ export default function Reports() {
       params.from = customDates.from;
       params.to = customDates.to;
     }
-    adminAxiosInstance.get('/reports', { params })
-      .then(({ data }) => { if (active) setReport(data); })
-      .catch((requestError) => { if (active) setError(requestError.response?.data?.error || 'Unable to load report data'); })
-      .finally(() => { if (active) setLoading(false); });
+
+    Promise.all([
+      adminAxiosInstance.get('/reports', { params }),
+      adminAxiosInstance.get('/payments/overview'),
+    ])
+      .then(([reportsResponse, paymentsResponse]) => {
+        if (!active) return;
+        const reportsData = reportsResponse.data || {};
+        const analytics = paymentsResponse.data?.analytics || {};
+        const paymentSeries = analytics[normalizePaymentRangeKey(range)] || [];
+        const hasMeaningfulRevenue = Array.isArray(reportsData.revenue) && reportsData.revenue.some((item) => Number(item.revenue || 0) > 0 || Number(item.refunds || 0) > 0);
+
+        const mergedReport = {
+          ...reportsData,
+          revenue: hasMeaningfulRevenue ? reportsData.revenue : paymentSeries.map((item) => ({
+            label: item.label,
+            revenue: Number(item.revenue || 0),
+            refunds: Number(item.refund || item.refunds || 0),
+          })),
+        };
+
+        setReport(mergedReport);
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError.response?.data?.error || 'Unable to load report data');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
     return () => { active = false; };
   }, [range, customDates.from, customDates.to]);
 
@@ -817,7 +838,12 @@ export default function Reports() {
       {loading && <div className="rounded-md border border-[#EBC2AE] bg-[#FFFDFB] px-3 py-2 text-xs text-[#80576A]">Loading report data...</div>}
 
       <div className="grid min-w-0 grid-cols-1 gap-2 min-[420px]:grid-cols-2 lg:grid-cols-4">
-        {KPI_CARDS.map((k, i) => <KpiCard key={k.label} {...k} value={k.label === "Today's Candidates" ? (report?.kpis.candidates || 0).toLocaleString() : k.label === "Today's Recruiters" ? (report?.kpis.recruiters || 0).toLocaleString() : k.label === 'Revenue (30D)' ? `₹${(report?.kpis.revenue || 0).toLocaleString()}` : (report?.kpis.activeJobs || 0).toLocaleString()} change="" delay={i * 0.05} />)}
+        {KPI_CARDS.map((k, i) => {
+          let value = (report?.kpis[k.id] || 0);
+          if (k.format === 'currency') value = `₹${value.toLocaleString()}`;
+          else value = value.toLocaleString();
+          return <KpiCard key={k.id} {...k} value={value} change="" delay={i * 0.05} />;
+        })}
       </div>
 
       <div className="flex min-w-0 gap-0.5 overflow-x-auto border border-[#EBC2AE] bg-[#FFFDFB] p-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

@@ -1,47 +1,11 @@
-import { useEffect, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState, useMemo, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import adminAxiosInstance from '../api/adminAxiosInstance';
 
-const DUMMY_RECRUITERS = [
-  {
-    _id: '1',
-    fullName: 'Rajesh Kumar',
-    uniqueId: 'REC-2026-001',
-    email: 'rajesh@techcorp.com',
-    phone: '+91 9876543210',
-    companyName: 'Tech Corp India',
-    companyWebsite: 'https://www.techcorp.com',
-    gstNumber: '27AABCT1234H1Z0',
-    accountStatus: 'active',
-  },
-  {
-    _id: '2',
-    fullName: 'Priya Sharma',
-    uniqueId: 'REC-2026-002',
-    email: 'priya@innovatehub.io',
-    phone: '+91 9876543211',
-    companyName: 'Innovate Hub Solutions',
-    companyWebsite: 'https://www.innovatehub.io',
-    gstNumber: '18AABCT5678H2Z0',
-    accountStatus: 'active',
-  },
-  {
-    _id: '3',
-    fullName: 'Amit Patel',
-    uniqueId: 'REC-2026-003',
-    email: 'amit@globaltech.co.in',
-    phone: '+91 9876543212',
-    companyName: 'Global Tech Pvt Ltd',
-    companyWebsite: 'https://www.globaltech.co.in',
-    gstNumber: '36AABCT9012H3Z0',
-    accountStatus: 'suspended',
-  },
-];
-
 const RECRUITERS_PER_PAGE = 10;
 
-const COLUMNS = [
+const ALL_RECRUITER_COLUMNS = [
   { key: 'fullName', label: 'Recruiter Name' },
   { key: 'uniqueId', label: 'Recruiter ID' },
   { key: 'email', label: 'Email' },
@@ -52,8 +16,15 @@ const COLUMNS = [
   { key: 'accountStatus', label: 'Status' },
 ];
 
+const PENDING_RECRUITER_COLUMNS = [
+  { key: 'email', label: 'Email' },
+  { key: 'accountStatus', label: 'Status' },
+];
+
 export default function Recruiters() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isPendingView = location.pathname.endsWith('/pending');
   const [recruiters, setRecruiters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -62,8 +33,10 @@ export default function Recruiters() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
+    const requestId = ++requestIdRef.current;
     const timer = setTimeout(async () => {
       try {
         setLoading(true);
@@ -73,10 +46,15 @@ export default function Recruiters() {
           params: {
             search: searchTerm.trim(),
             status: statusFilter === 'all' ? undefined : statusFilter,
+            registrationStatus: isPendingView ? 'incomplete' : 'complete',
             page: currentPage,
             limit: RECRUITERS_PER_PAGE,
           },
         });
+
+        if (requestId !== requestIdRef.current) {
+          return;
+        }
 
         const payload = response.data || {};
         const realData = Array.isArray(payload.recruiters) ? payload.recruiters : payload.recruiters || [];
@@ -85,22 +63,42 @@ export default function Recruiters() {
         setTotalCount(payload.totalCount || realData.length);
         setTotalPages(payload.totalPages || Math.max(1, Math.ceil(realData.length / RECRUITERS_PER_PAGE)));
       } catch (error) {
+        if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') {
+          return;
+        }
+
+        if (requestId !== requestIdRef.current) {
+          return;
+        }
+
         console.error('Failed to load recruiters:', error);
-        setError(error.message);
-        setRecruiters(DUMMY_RECRUITERS);
-        setTotalCount(DUMMY_RECRUITERS.length);
-        setTotalPages(Math.max(1, Math.ceil(DUMMY_RECRUITERS.length / RECRUITERS_PER_PAGE)));
+        setError(error.response?.data?.error || error.message || 'Failed to load recruiters');
+        setRecruiters([]);
+        setTotalCount(0);
+        setTotalPages(1);
       } finally {
-        setLoading(false);
+        if (requestId === requestIdRef.current) {
+          setLoading(false);
+        }
       }
     }, 300);
 
-    return () => clearTimeout(timer);
-  }, [searchTerm, statusFilter, currentPage]);
+    return () => {
+      clearTimeout(timer);
+      requestIdRef.current += 1;
+    };
+  }, [searchTerm, statusFilter, currentPage, isPendingView, location.pathname]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter]);
+    setSearchTerm('');
+    setStatusFilter('all');
+    setRecruiters([]);
+    setError(null);
+    setLoading(true);
+  }, [isPendingView]);
+
+  const columns = isPendingView ? PENDING_RECRUITER_COLUMNS : ALL_RECRUITER_COLUMNS;
 
   const renderCell = (recruiter, key) => {
     if (key === 'companyWebsite') {
@@ -119,9 +117,12 @@ export default function Recruiters() {
     }
 
     if (key === 'accountStatus') {
-      const status = recruiter.accountStatus || 'unknown';
+      const isPendingRecruiter = isPendingView && recruiter.registrationStatus === 'incomplete';
+      const status = isPendingRecruiter ? 'pending' : recruiter.accountStatus || 'unknown';
       const styles =
-        status === 'active'
+        status === 'pending'
+          ? 'bg-amber-50 text-amber-700 border-amber-200'
+          : status === 'active'
           ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
           : status === 'suspended'
           ? 'bg-red-50 text-red-700 border-red-200'
@@ -139,9 +140,42 @@ export default function Recruiters() {
 
   return (
     <div className="min-w-0 w-full space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold text-[#1D181A]">Recruiters</h1>
-        <p className="mt-1 text-sm text-[#80576A]">Manage and view all recruiter accounts on the platform.</p>
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-[#1D181A]">
+            {isPendingView ? 'Pending Recruiters' : 'Recruiters'}
+          </h1>
+          <p className="mt-1 text-sm text-[#80576A]">
+            {isPendingView
+              ? 'Recruiters who paid but did not complete registration yet.'
+              : 'Manage and view all recruiter accounts on the platform.'}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => navigate('/recruiters')}
+            className={`border px-3 py-2 text-[11px] font-semibold transition ${
+              isPendingView
+                ? 'border-[#1D181A] bg-[#FFFDFB] text-[#1D181A] hover:bg-[#FFF0E8]'
+                : 'border-[#C75560] bg-[#C75560] text-white hover:bg-[#A0182C]'
+            }`}
+          >
+            {isPendingView ? 'View All Recruiters' : 'Recruiters'}
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/recruiters/pending')}
+            className={`border px-3 py-2 text-[11px] font-semibold transition ${
+              isPendingView
+                ? 'border-[#C75560] bg-[#C75560] text-white hover:bg-[#A0182C]'
+                : 'border-[#1D181A] bg-[#FFFDFB] text-[#1D181A] hover:bg-[#FFF0E8]'
+            }`}
+          >
+            Pending Recruiters
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-3 border border-[#EBC2AE] bg-[#FFF4EF] p-3 md:flex-row md:items-center md:justify-between">
@@ -178,7 +212,7 @@ export default function Recruiters() {
         <table className="min-w-full w-full table-fixed border-collapse text-xs sm:text-[11px] md:min-w-[760px]">
           <thead>
             <tr>
-              {COLUMNS.map((col) => (
+              {columns.map((col) => (
                 <th
                   key={col.key}
                   className="border border-[#1D181A] bg-[#FFF4EF] px-2 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-[#1D181A] break-words"
@@ -191,30 +225,37 @@ export default function Recruiters() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={COLUMNS.length} className="border border-[#1D181A] px-2 py-6 text-center text-[#80576A]">
+                <td colSpan={columns.length} className="border border-[#1D181A] px-2 py-6 text-center text-[#80576A]">
                   Loading recruiters…
                 </td>
               </tr>
             ) : error && recruiters.length === 0 ? (
               <tr>
-                <td colSpan={COLUMNS.length} className="border border-[#1D181A] px-2 py-6 text-center text-red-600">
+                <td colSpan={columns.length} className="border border-[#1D181A] px-2 py-6 text-center text-red-600">
                   Error: {error}
                 </td>
               </tr>
             ) : recruiters.length === 0 ? (
               <tr>
-                <td colSpan={COLUMNS.length} className="border border-[#1D181A] px-2 py-6 text-center text-[#80576A]">
+                <td colSpan={columns.length} className="border border-[#1D181A] px-2 py-6 text-center text-[#80576A]">
                   No recruiters match your current search.
                 </td>
               </tr>
             ) : (
-              recruiters.map((recruiter, idx) => (
+              recruiters.map((recruiter, idx) => {
+                const isPendingRow = isPendingView && recruiter.registrationStatus === 'incomplete';
+
+                return (
                 <tr
                   key={recruiter._id}
-                  onClick={() => navigate(`/recruiters/${recruiter._id}`)}
-                  className={`cursor-pointer transition hover:bg-[#FFF0E8] ${idx % 2 === 0 ? 'bg-[#FFFDFB]' : 'bg-[#FFF4EF]/40'}`}
+                  onClick={() => {
+                    if (!isPendingRow) {
+                      navigate(`/recruiters/${recruiter._id}`);
+                    }
+                  }}
+                  className={`${!isPendingRow ? 'cursor-pointer transition hover:bg-[#FFF0E8]' : 'cursor-default'} ${idx % 2 === 0 ? 'bg-[#FFFDFB]' : 'bg-[#FFF4EF]/40'}`}
                 >
-                  {COLUMNS.map((col) => (
+                  {columns.map((col) => (
                     <td
                       key={col.key}
                       className={`border border-[#1D181A] overflow-hidden px-2 py-2 align-top text-[#1D181A] break-words ${
@@ -225,7 +266,8 @@ export default function Recruiters() {
                     </td>
                   ))}
                 </tr>
-              ))
+                );
+              })
             )}
           </tbody>
         </table>

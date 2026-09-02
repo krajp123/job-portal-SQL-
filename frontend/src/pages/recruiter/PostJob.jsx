@@ -11,7 +11,6 @@ import {
     ChevronLeft,
     ChevronRight,
     FileText,
-    Globe2,
     Image as ImageIcon,
     IndianRupee,
     Italic,
@@ -28,6 +27,7 @@ import {
     Underline,
     Users,
     X,
+    Globe2,
 } from 'lucide-react';
 import axiosInstance from '../../api/axiosInstance';
 import RecruiterNavbar from '../../components/RecruiterNavbar';
@@ -78,54 +78,6 @@ const CATEGORIES = [
     'Education & Teaching', 'Legal', 'Retail & E-commerce', 'Hospitality & Travel',
     'Manufacturing & Production', 'Media & Entertainment',
 ];
-const INDIAN_STATES = [
-    'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa',
-    'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala',
-    'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland',
-    'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura',
-    'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Andaman and Nicobar Islands',
-    'Chandigarh', 'Dadra and Nagar Haveli and Daman and Diu', 'Delhi', 'Jammu and Kashmir',
-    'Ladakh', 'Lakshadweep', 'Puducherry',
-];
-const CITIES_BY_STATE = {
-    'Andhra Pradesh': ['Visakhapatnam', 'Vijayawada', 'Guntur', 'Nellore', 'Kurnool', 'Tirupati', 'Rajahmundry', 'Kakinada', 'Kadapa', 'Anantapur'],
-    'Arunachal Pradesh': ['Itanagar', 'Naharlagun', 'Tawang', 'Bomdila', 'Pasighat', 'Ziro', 'Along', 'Tezu'],
-    Assam: ['Guwahati', 'Dibrugarh', 'Silchar', 'Jorhat', 'Nagaon', 'Tinsukia', 'Tezpur', 'Sivasagar', 'Dhubri'],
-    Bihar: ['Patna', 'Gaya', 'Bhagalpur', 'Muzaffarpur', 'Purnia', 'Darbhanga', 'Arrah', 'Begusarai', 'Katihar', 'Munger'],
-    Chhattisgarh: ['Raipur', 'Bhilai', 'Bilaspur', 'Korba', 'Durg', 'Rajnandgaon', 'Jagdalpur', 'Ambikapur'],
-    Goa: ['Panaji', 'Vasco da Gama', 'Margao', 'Mapusa', 'Ponda', 'Bicholim', 'Calangute'],
-    Gujarat: ['Ahmedabad', 'Surat', 'Vadodara', 'Rajkot', 'Bhavnagar', 'Jamnagar', 'Gandhinagar', 'Junagadh', 'Anand', 'Vapi'],
-    Haryana: ['Gurugram', 'Faridabad', 'Panipat', 'Ambala', 'Hisar', 'Karnal', 'Rohtak', 'Sonipat', 'Panchkula', 'Yamunanagar'],
-    'Himachal Pradesh': ['Shimla', 'Dharamshala', 'Manali', 'Solan', 'Mandi', 'Baddi', 'Kullu', 'Chamba', 'Una'],
-    Jharkhand: ['Ranchi', 'Jamshedpur', 'Dhanbad', 'Bokaro', 'Deoghar', 'Hazaribagh', 'Giridih', 'Ramgarh'],
-    Karnataka: ['Bengaluru', 'Mysuru', 'Mangaluru', 'Hubballi', 'Belagavi', 'Kalaburagi', 'Davanagere', 'Ballari', 'Shivamogga', 'Tumakuru'],
-    Kerala: ['Thiruvananthapuram', 'Kochi', 'Kozhikode', 'Thrissur', 'Kollam', 'Kannur', 'Alappuzha', 'Kottayam', 'Palakkad'],
-    'Madhya Pradesh': ['Bhopal', 'Indore', 'Jabalpur', 'Gwalior', 'Ujjain', 'Sagar', 'Rewa', 'Satna', 'Ratlam', 'Dewas'],
-    Maharashtra: ['Mumbai', 'Pune', 'Nagpur', 'Nashik', 'Thane', 'Aurangabad', 'Navi Mumbai', 'Kolhapur', 'Solapur', 'Amravati'],
-    Manipur: ['Imphal', 'Thoubal', 'Bishnupur', 'Churachandpur', 'Ukhrul', 'Senapati'],
-    Meghalaya: ['Shillong', 'Tura', 'Jowai', 'Nongpoh', 'Williamnagar', 'Nongstoin'],
-    Mizoram: ['Aizawl', 'Lunglei', 'Champhai', 'Kolasib', 'Serchhip', 'Saiha'],
-    Nagaland: ['Kohima', 'Dimapur', 'Mokokchung', 'Tuensang', 'Wokha', 'Mon'],
-    Odisha: ['Bhubaneswar', 'Cuttack', 'Rourkela', 'Berhampur', 'Sambalpur', 'Puri', 'Balasore', 'Baripada', 'Jharsuguda'],
-    Punjab: ['Ludhiana', 'Amritsar', 'Jalandhar', 'Patiala', 'Bathinda', 'Mohali', 'Pathankot', 'Hoshiarpur', 'Moga'],
-    Rajasthan: ['Jaipur', 'Jodhpur', 'Udaipur', 'Kota', 'Ajmer', 'Bikaner', 'Alwar', 'Bharatpur', 'Sikar', 'Sri Ganganagar'],
-    Sikkim: ['Gangtok', 'Namchi', 'Gyalshing', 'Mangan', 'Ravangla', 'Singtam'],
-    'Tamil Nadu': ['Chennai', 'Coimbatore', 'Madurai', 'Tiruchirappalli', 'Salem', 'Tiruppur', 'Erode', 'Vellore', 'Thoothukudi', 'Thanjavur'],
-    Telangana: ['Hyderabad', 'Warangal', 'Nizamabad', 'Karimnagar', 'Khammam', 'Ramagundam', 'Secunderabad', 'Adilabad'],
-    Tripura: ['Agartala', 'Udaipur', 'Dharmanagar', 'Kailasahar', 'Belonia', 'Ambassa'],
-    'Uttar Pradesh': ['Lucknow', 'Kanpur', 'Ghaziabad', 'Agra', 'Varanasi', 'Meerut', 'Prayagraj', 'Bareilly', 'Noida', 'Gorakhpur'],
-    Uttarakhand: ['Dehradun', 'Haridwar', 'Nainital', 'Haldwani', 'Rishikesh', 'Roorkee', 'Rudrapur', 'Kashipur', 'Almora'],
-    'West Bengal': ['Kolkata', 'Howrah', 'Durgapur', 'Asansol', 'Siliguri', 'Bardhaman', 'Malda', 'Kharagpur', 'Darjeeling'],
-    'Andaman and Nicobar Islands': ['Port Blair', 'Diglipur', 'Rangat', 'Mayabunder', 'Havelock Island'],
-    Chandigarh: ['Chandigarh'],
-    'Dadra and Nagar Haveli and Daman and Diu': ['Daman', 'Diu', 'Silvassa'],
-    Delhi: ['New Delhi', 'Delhi'],
-    'Jammu and Kashmir': ['Srinagar', 'Jammu', 'Anantnag', 'Baramulla', 'Kathua', 'Udhampur', 'Leh'],
-    Ladakh: ['Leh', 'Kargil'],
-    Lakshadweep: ['Kavaratti', 'Agatti', 'Amini', 'Andrott', 'Minicoy'],
-    Puducherry: ['Puducherry', 'Karaikal', 'Mahe', 'Yanam'],
-};
-const COUNTRIES = ['India', 'United States', 'United Kingdom', 'United Arab Emirates', 'Singapore', 'Other'];
 const SALARY_TYPES = ['Range', 'Fixed', 'Not disclosed'];
 
 const SUGGESTED_SKILLS = {
@@ -153,9 +105,7 @@ const INITIAL_FORM = {
     openings: 1,
     status: 'active',
 
-    country: 'India',
-    state: '',
-    city: '',
+    location: '',
     extraLocations: [],
     remoteOption: false,
     panIndia: false,
@@ -411,11 +361,26 @@ function CategoryAutocomplete({ value, onChange }) {
     );
 }
 
-function CityAutocomplete({ state, value, onChange, disabled, className }) {
+function formatLocationResult(result) {
+    const address = result.address || {};
+    const city = address.city || address.town || address.village || address.municipality || address.hamlet;
+    const state = address.state || address.region;
+    const country = address.country;
+    const names = [...new Set([city, state, country].filter(Boolean))];
+    return names.length > 0 ? names.join(', ') : result.name || result.display_name?.split(',').slice(-1)[0]?.trim() || '';
+}
+
+function LocationAutocomplete({ value, onChange, error }) {
     const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState(value || '');
+    const [suggestions, setSuggestions] = useState([]);
+    const [searching, setSearching] = useState(false);
     const wrapperRef = useRef(null);
-    const cities = CITIES_BY_STATE[state] || [];
-    const matches = cities.filter((city) => city.toLowerCase().includes(value.trim().toLowerCase()));
+    const selectedLocationRef = useRef('');
+
+    useEffect(() => {
+        setQuery(value || '');
+    }, [value]);
 
     useEffect(() => {
         function handleClickOutside(event) {
@@ -425,41 +390,76 @@ function CityAutocomplete({ state, value, onChange, disabled, className }) {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    function handleKeyDown(event) {
-        if (event.key === 'Escape') setOpen(false);
-    }
+    useEffect(() => {
+        const cleanQuery = query.trim();
+        if (cleanQuery.length < 2 || cleanQuery === selectedLocationRef.current) {
+            setSuggestions([]);
+            setSearching(false);
+            selectedLocationRef.current = '';
+            return undefined;
+        }
+
+        const controller = new AbortController();
+        const timer = setTimeout(async () => {
+            setSearching(true);
+            try {
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=8&q=${encodeURIComponent(cleanQuery)}`,
+                    { signal: controller.signal, headers: { Accept: 'application/json' } }
+                );
+                if (!response.ok) throw new Error('Location search failed');
+                const results = await response.json();
+                const formatted = results
+                    .map((result) => ({ id: result.place_id, label: formatLocationResult(result) }))
+                    .filter((result) => result.label);
+                setSuggestions(formatted.filter((result, index, list) => list.findIndex((item) => item.label === result.label) === index));
+                setOpen(true);
+            } catch (searchError) {
+                if (searchError.name !== 'AbortError') setSuggestions([]);
+            } finally {
+                if (!controller.signal.aborted) setSearching(false);
+            }
+        }, 350);
+
+        return () => {
+            clearTimeout(timer);
+            controller.abort();
+        };
+    }, [query, value]);
 
     return (
         <div ref={wrapperRef} className="relative">
             <MapPin size={15} className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-[#A77D8D]" />
             <input
-                value={value}
+                value={query}
                 onChange={(event) => {
+                    setQuery(event.target.value);
                     onChange(event.target.value);
-                    setOpen(Boolean(event.target.value.trim()));
+                    setOpen(true);
                 }}
-                onFocus={() => value.trim() && setOpen(true)}
-                onKeyDown={handleKeyDown}
-                disabled={disabled}
-                placeholder={state ? 'Type city name' : 'Select a state first'}
-                className={className}
+                onFocus={() => query.trim() && setOpen(true)}
+                placeholder="Search city, state, or country"
+                className={`${inputClass} pl-9 ${error ? errorInputClass : ''}`}
                 role="combobox"
                 aria-autocomplete="list"
-                aria-expanded={open && Boolean(value.trim())}
+                aria-expanded={open && Boolean(query.trim())}
             />
-            {open && value.trim() && matches.length > 0 && (
+            {open && query.trim().length >= 2 && (searching || suggestions.length > 0) && (
                 <div className="absolute left-0 right-0 top-full z-30 mt-1.5 max-h-52 overflow-y-auto rounded-[10px] border border-[#EBC2AE] bg-white p-1.5 shadow-lg">
-                    {matches.map((city) => (
+                    {searching ? <p className="px-3 py-2 text-[12px] text-[#80576A]">Searching locations...</p> : suggestions.map((suggestion) => (
                         <button
-                            key={city}
+                            key={suggestion.id}
                             type="button"
+                            onMouseDown={(event) => event.preventDefault()}
                             onClick={() => {
-                                onChange(city);
+                                setQuery(suggestion.label);
+                                selectedLocationRef.current = suggestion.label;
+                                onChange(suggestion.label);
                                 setOpen(false);
                             }}
                             className="block w-full rounded-[8px] px-3 py-2 text-left text-[12.5px] text-[#54263F] transition-colors hover:bg-[#FFF0E8] hover:text-[#C75560]"
                         >
-                            {city}
+                            {suggestion.label}
                         </button>
                     ))}
                 </div>
@@ -659,9 +659,8 @@ export default function PostJob() {
             if (!form.workMode) e.workMode = 'Choose a work mode.';
         }
         if (index === 1) {
-            if (!form.country) e.country = 'Country is required.';
-            if (!form.panIndia && !form.remoteOption && !form.city.trim()) {
-                e.city = 'Add a city, or mark this role as Pan India / remote.';
+            if (!form.panIndia && !form.remoteOption && !form.location.trim()) {
+                e.location = 'Add a location, or mark this role as Pan India / remote.';
             }
         }
         if (index === 2) {
@@ -721,16 +720,6 @@ export default function PostJob() {
                 ? `${form.minExperience || 0} - ${form.maxExperience} years`
                 : `${form.minExperience || 0}+ years`;
 
-        const locationParts = [];
-        if (form.panIndia) locationParts.push('Pan India');
-        else {
-            if (form.city.trim()) locationParts.push(form.city.trim());
-            if (form.state) locationParts.push(form.state);
-        }
-        if (form.extraLocations.length) locationParts.push(...form.extraLocations);
-        if (form.remoteOption) locationParts.push('Remote friendly');
-        const location = locationParts.length ? locationParts.join(', ') : form.workMode;
-
         let salary = 'Not disclosed';
         if (form.salaryType === 'Fixed' && form.minSalary !== '') salary = `${form.minSalary} LPA`;
         if (form.salaryType === 'Range' && form.minSalary !== '' && form.maxSalary !== '') {
@@ -747,12 +736,18 @@ export default function PostJob() {
 
         const description = descriptionSections.map(([heading, html]) => `${heading}\n${stripHtml(html)}`).join('\n\n');
 
+        const locationParts = [];
+        if (form.panIndia) locationParts.push('Pan India');
+        else if (form.location.trim()) locationParts.push(form.location.trim());
+        if (form.extraLocations.length) locationParts.push(...form.extraLocations);
+        if (form.remoteOption) locationParts.push('Remote friendly');
+
         return {
             // Fields the existing /jobs endpoint already understands
             title: form.title.trim(),
             role: form.role.trim(),
             description,
-            location,
+            location: locationParts.length ? locationParts.join(', ') : form.workMode,
             salary,
             experienceLevel,
             skillsRequired: form.skills,
@@ -766,12 +761,6 @@ export default function PostJob() {
             employmentType: form.employmentType,
             workMode: form.workMode,
             openings: form.openings,
-            country: form.country,
-            state: form.state,
-            city: form.city.trim(),
-            extraLocations: form.extraLocations,
-            remoteOption: form.remoteOption,
-            panIndia: form.panIndia,
             minExperience: form.minExperience,
             maxExperience: form.maxExperience,
             salaryType: form.salaryType,
@@ -784,6 +773,9 @@ export default function PostJob() {
                 enabled: form.applicationFields.length > 0,
                 fields: form.applicationFields,
             },
+            extraLocations: form.extraLocations,
+            remoteOption: form.remoteOption,
+            panIndia: form.panIndia,
         };
     }
 
@@ -941,46 +933,13 @@ export default function PostJob() {
                         {/* -------------------------------------------------- */}
                         {stepIndex === 1 && (
                             <div className="space-y-5">
-                                <div className="grid gap-4 sm:grid-cols-3">
-                                    <Field label="Country" required error={errors.country}>
-                                        <select
-                                            value={form.country}
-                                            onChange={(e) => update({ country: e.target.value })}
-                                            className={`${inputClass} ${errors.country ? errorInputClass : ''}`}
-                                        >
-                                            {COUNTRIES.map((c) => (
-                                                <option key={c} value={c}>{c}</option>
-                                            ))}
-                                        </select>
-                                    </Field>
-                                    <Field label="State" hint={form.panIndia ? 'Not needed for Pan India' : undefined}>
-                                        <select
-                                            value={form.state}
-                                            onChange={(e) => update({ state: e.target.value, city: '' })}
-                                            disabled={form.panIndia}
-                                            className={`${inputClass} disabled:cursor-not-allowed disabled:opacity-50`}
-                                        >
-                                            <option value="">Select a state</option>
-                                            {INDIAN_STATES.map((s) => (
-                                                <option key={s} value={s}>{s}</option>
-                                            ))}
-                                        </select>
-                                    </Field>
-                                    <Field
-                                        label="City"
-                                        required={!form.panIndia && !form.remoteOption}
-                                        error={errors.city}
-                                        hint={form.panIndia ? 'Not needed for Pan India' : undefined}
-                                    >
-                                        <CityAutocomplete
-                                            state={form.state}
-                                            value={form.city}
-                                            onChange={(city) => update({ city })}
-                                            disabled={form.panIndia}
-                                            className={`${inputClass} disabled:cursor-not-allowed disabled:opacity-50 ${errors.city ? errorInputClass : ''}`}
-                                        />
-                                    </Field>
-                                </div>
+                                <Field label="Location" required error={errors.location}>
+                                    <LocationAutocomplete
+                                        value={form.location}
+                                        onChange={(location) => update({ location })}
+                                        error={errors.location}
+                                    />
+                                </Field>
 
                                 <Field label="Additional locations" hint="Optional — for multi-city hiring">
                                     <ChipInput
@@ -1007,7 +966,7 @@ export default function PostJob() {
                                         <input
                                             type="checkbox"
                                             checked={form.panIndia}
-                                            onChange={(e) => update({ panIndia: e.target.checked, state: '', city: '' })}
+                                            onChange={(e) => update({ panIndia: e.target.checked })}
                                             className="mt-0.5 h-4 w-4 accent-[#C75560]"
                                         />
                                         <span>
@@ -1273,7 +1232,7 @@ export default function PostJob() {
                                 </p>
                                 <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#80576A]">
                                     <span className="flex items-center gap-1"><Briefcase size={11} /> {form.employmentType}</span>
-                                    <span className="flex items-center gap-1"><MapPin size={11} /> {form.panIndia ? 'Pan India' : form.city || form.workMode}</span>
+                                    <span className="flex items-center gap-1"><MapPin size={11} /> {form.location || form.workMode}</span>
                                     <span className="flex items-center gap-1"><Users size={11} /> {form.openings} opening{form.openings === 1 ? '' : 's'}</span>
                                 </div>
                                 {form.skills.length > 0 && (

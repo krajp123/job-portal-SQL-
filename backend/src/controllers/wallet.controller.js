@@ -335,6 +335,7 @@ exports.verifyWalletRecharge = async (req, res) => {
     // Update payment
     payment.status = 'success';
     payment.razorpayPaymentId = razorpay_payment_id || 'dev_payment';
+    payment.paidAt = new Date();
     await payment.save();
 
     // Find and update the pending transaction

@@ -61,17 +61,19 @@ function formatRelativeTime(dateInput) {
 }
 
 function formatCurrency(amount) {
-  if (!amount) return '₹0';
-  if (amount >= 100000000) {
-    return `₹${(amount / 10000000).toFixed(1)}Cr`;
+  const value = Number(amount || 0);
+  if (!Number.isFinite(value) || value <= 0) return '₹0';
+
+  if (value >= 10000000) {
+    return `₹${(value / 10000000).toFixed(1)}Cr`;
   }
-  if (amount >= 100000) {
-    return `₹${(amount / 100000).toFixed(1)}L`;
+  if (value >= 100000) {
+    return `₹${(value / 100000).toFixed(1)}L`;
   }
-  if (amount >= 1000) {
-    return `₹${(amount / 1000).toFixed(1)}K`;
+  if (value >= 1000) {
+    return `₹${value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
   }
-  return `₹${Number(amount.toFixed(2))}`;
+  return `₹${value.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 }
 
 function formatCount(count) {
@@ -202,6 +204,8 @@ export default function Dashboard() {
   const stats = dashboardData.stats || {};
   const trends = dashboardData.trends || {};
   const recentActivity = dashboardData.recentActivity || {};
+  const pendingRecruiters = recentActivity.pendingRecruiters || [];
+  const pendingRecruitersCount = stats.users?.pendingRecruiters || 0;
 
   // Build stat cards from real data
   const statCards = [
@@ -210,6 +214,12 @@ export default function Dashboard() {
       value: formatCount(stats.users?.totalRecruiters || 0),
       change: '+4.2%',
       tone: 'indigo',
+    },
+    {
+      label: 'Pending Recruiters',
+      value: formatCount(pendingRecruitersCount),
+      change: pendingRecruitersCount > 0 ? 'Awaiting' : 'Clear',
+      tone: 'amber',
     },
     {
       label: 'Total Candidates',
@@ -264,7 +274,7 @@ export default function Dashboard() {
           </div>
         </header>
 
-        <section className="grid shrink-0 gap-2 sm:grid-cols-2 xl:grid-cols-5">
+        <section className="grid shrink-0 gap-2 sm:grid-cols-2 xl:grid-cols-6">
           {statCards.map((card) => (
             <StatCard key={card.label} {...card} />
           ))}
@@ -307,7 +317,7 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
-          <div className="h-48">
+          <div className="h-48 [&_*]:outline-none [&_*]:focus:outline-none [&_*]:focus-visible:outline-none">
             <ResponsiveContainer width="100%" height="100%">
               {selectedMetric === 'signups' ? (
                 <AreaChart data={signupsTrend} margin={{ left: -20, top: 5, right: 5 }}>
@@ -346,11 +356,11 @@ export default function Dashboard() {
         <section className="grid shrink-0 gap-3 lg:grid-cols-2">
           <RecentListCard
             title="Recent recruiters"
-            subtitle="Last 5 recruiter signups."
+            subtitle="Last 5 completed recruiter signups."
             viewAllTo="/recruiters"
             loading={loading}
             items={recentRecruiters}
-            emptyText="No recruiters yet."
+            emptyText="No completed recruiters yet."
             renderItem={(r) => (
               <div key={r._id} className="flex items-center gap-2 py-2">
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#FFF0E8] text-[9px] font-semibold text-[#C75560]">

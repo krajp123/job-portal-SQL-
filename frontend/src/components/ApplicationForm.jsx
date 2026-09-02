@@ -110,7 +110,7 @@ export function DynamicApplicationForm({ fields = [], initialValues = {}, onSubm
         <div className="space-y-3">
             {fields.map((field) => <div key={field.fieldId}><label className="text-[12.5px] font-semibold text-stone-800">{FIELD_LABELS[field.fieldId] || field.label} {field.required && <span className="text-red-600">*</span>}</label><FieldInput field={field} value={values[field.fieldId]} onChange={(value) => setValues((current) => ({ ...current, [field.fieldId]: value }))} />{errors[field.fieldId] && <p className="mt-1 text-[11px] font-medium text-red-600">{errors[field.fieldId]}</p>}</div>)}
         </div>
-        <div className="flex items-center justify-end border-t border-stone-100 pt-3"><button type="submit" disabled={submitting} className="rounded-[8px] bg-[#8B1E2F] px-5 py-2 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-[#701525] disabled:opacity-60">{submitting ? 'Applying...' : 'Submit Application'}</button></div>
+        <div className="flex items-center justify-end pt-0"><button type="submit" disabled={submitting} className="rounded-[8px] bg-[#8B1E2F] px-5 py-2 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-[#701525] disabled:opacity-60">{submitting ? 'Applying...' : 'Submit Application'}</button></div>
     </form>;
 }
 

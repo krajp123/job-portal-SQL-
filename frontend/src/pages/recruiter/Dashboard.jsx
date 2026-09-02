@@ -953,6 +953,17 @@ function TopNav({ recruiterProfile, onMenuClick, notifications = [] }) {
             <span className="hidden sm:inline">Wallet</span>
           </button>
 
+          <button
+            type="button"
+            onClick={() => navigate('/recruiter/post-job')}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[#C75560] px-3 py-2 text-[12px] font-bold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-[#A94658] focus:outline-none focus:ring-2 focus:ring-[#C75560]/25"
+            title="Post Job"
+            aria-label="Post Job"
+          >
+            <Plus size={15} />
+            <span className="hidden sm:inline">Post Job</span>
+          </button>
+
           <RecruiterProfileMenu recruiterProfile={recruiterProfile} />
         </div>
       </div>
