@@ -190,22 +190,24 @@ export default function Recruiters() {
           />
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-[#1D181A] md:justify-end">
-          <label htmlFor="statusFilter" className="font-medium whitespace-nowrap">
-            Status
-          </label>
-          <select
-            id="statusFilter"
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value)}
-            className="w-full border border-[#1D181A] bg-[#FFFDFB] px-2 py-2 text-xs text-[#1D181A] outline-none md:w-auto"
-          >
-            <option value="all">All</option>
-            <option value="active">Active</option>
-            <option value="suspended">Suspended</option>
-            <option value="banned">Banned</option>
-          </select>
-        </div>
+        {!isPendingView && (
+          <div className="flex items-center gap-2 text-xs text-[#1D181A] md:justify-end">
+            <label htmlFor="statusFilter" className="font-medium whitespace-nowrap">
+              Status
+            </label>
+            <select
+              id="statusFilter"
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+              className="w-full border border-[#1D181A] bg-[#FFFDFB] px-2 py-2 text-xs text-[#1D181A] outline-none md:w-auto"
+            >
+              <option value="all">All</option>
+              <option value="active">Active</option>
+              <option value="suspended">Suspended</option>
+              <option value="banned">Banned</option>
+            </select>
+          </div>
+        )}
       </div>
 
       <div className="w-full max-w-full overflow-x-auto border border-[#1D181A] bg-[#FFFDFB]">

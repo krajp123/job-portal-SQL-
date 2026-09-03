@@ -261,8 +261,17 @@ export default function AdminLayout() {
           <button className="text-[#80576A] md:hidden" onClick={() => setSidebarOpen(true)}>
             <Menu size={19} />
           </button>
-          <div className="rounded-lg border border-[#EBC2AE] bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#C75560]">
-            Admin workspace
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#FFF0E8] text-[10px] font-bold text-[#C75560]">
+              {platformBranding.logo ? (
+                <img src={platformBranding.logo} alt={`${platformBranding.siteName} logo`} className="h-full w-full object-cover" />
+              ) : (
+                platformBranding.siteName.slice(0, 2).toUpperCase()
+              )}
+            </div>
+            <span className="max-w-40 truncate text-sm font-semibold text-[#1D181A]">
+              {platformBranding.siteName}
+            </span>
           </div>
         </div>
 
@@ -441,19 +450,13 @@ export default function AdminLayout() {
             {sidebarCollapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
           </button>
 
-          <div className={`mb-3 flex shrink-0 items-center px-1 ${sidebarCollapsed ? 'justify-center' : 'gap-2.5'}`}>
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#C75560] text-[13px] font-bold text-white">
-              {platformBranding.logo ? <img src={platformBranding.logo} alt="" className="h-full w-full object-cover" /> : platformBranding.siteName.slice(0, 2).toUpperCase()}
+          {!sidebarCollapsed && (
+            <div className="mb-3 px-1">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#80576A]">Admin Console</p>
             </div>
-            {!sidebarCollapsed && (
-              <div className="overflow-hidden">
-                <p className="whitespace-nowrap text-[13px] font-semibold text-[#1D181A]">{platformBranding.siteName}</p>
-                <p className="whitespace-nowrap text-[10px] text-[#80576A]">Admin Console</p>
-              </div>
-            )}
-          </div>
+          )}
 
-          <nav className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <nav className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {NAV_LINK_SECTIONS.map((section) => (
               <div key={section.title || 'dashboard'} className="space-y-1">
                 {!sidebarCollapsed && section.title && (
@@ -511,21 +514,15 @@ export default function AdminLayout() {
           <div className="fixed inset-0 z-40 flex md:hidden">
             <div className="absolute inset-0 bg-black/30" onClick={() => setSidebarOpen(false)} />
             <aside className="relative z-50 flex w-64 flex-col bg-[#FFFDFB] px-3 py-5">
-              <div className="mb-6 flex items-center justify-between px-1">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg bg-[#C75560] text-[13px] font-bold text-white">
-                    {platformBranding.logo ? <img src={platformBranding.logo} alt="" className="h-full w-full object-cover" /> : platformBranding.siteName.slice(0, 2).toUpperCase()}
-                  </div>
-                  <div>
-                    <p className="text-[13px] font-semibold text-[#1D181A]">{platformBranding.siteName}</p>
-                    <p className="text-[10px] text-[#80576A]">Admin Console</p>
-                  </div>
-                </div>
+              <div className="mb-4 flex items-center justify-end px-1">
                 <button onClick={() => setSidebarOpen(false)} className="text-[#80576A]">
                   <X size={19} />
                 </button>
               </div>
-              <nav className="flex flex-1 flex-col gap-2.5 overflow-y-auto">
+              <div className="mb-3 px-1">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#80576A]">Admin Console</p>
+              </div>
+              <nav className="flex flex-1 flex-col gap-2 overflow-y-auto">
                 {NAV_LINK_SECTIONS.map((section) => (
                   <div key={section.title || 'dashboard'} className="space-y-1">
                     {section.title && (
