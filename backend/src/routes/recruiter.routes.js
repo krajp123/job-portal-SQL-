@@ -7,6 +7,7 @@ const recruiterController = require('../controllers/recruiter.controller');
 const walletRoutes = require('./wallet.routes');
 const { verifyTokenAndStatus } = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
+const requireRecruiterWorkspaceRole = require('../middleware/requireRecruiterWorkspaceRole');
 const upload = require('../middleware/uploadHandler');
 const { uploadProfilePicture } = require('../middleware/uploadHandler');
 
@@ -23,6 +24,16 @@ router.post(
     { name: 'businessRegistrationCertificate', maxCount: 1 },
   ]),
   recruiterAuth.resumeRegistration
+);
+router.get('/resume-registration/:recruiterId', recruiterAuth.getResumeRegistration);
+router.put(
+  '/resume-registration/:recruiterId/draft',
+  upload.fields([
+    { name: 'gstFile', maxCount: 1 },
+    { name: 'cinFile', maxCount: 1 },
+    { name: 'bizRegFile', maxCount: 1 },
+  ]),
+  recruiterAuth.saveResumeRegistrationDraft
 );
 
 // Public
@@ -42,29 +53,30 @@ router.get('/company-members', recruiterController.getCompanyMembers);
 router.get('/:recruiterId/public-profile', recruiterController.getPublicProfile);
 
 // Authenticated (recruiter only)
-router.get('/me/profile', verifyTokenAndStatus, requireRole('recruiter'), recruiterController.getMyProfile);
-router.get('/dashboard/overview', verifyTokenAndStatus, requireRole('recruiter'), recruiterController.getDashboardOverview);
-router.put('/me/profile', verifyTokenAndStatus, requireRole('recruiter'), recruiterController.updateMyProfile);
-router.post('/me/upload-company-image', verifyTokenAndStatus, requireRole('recruiter'), uploadProfilePicture.single('companyImage'), recruiterController.uploadCompanyImage);
-router.put('/me/settings/:section', verifyTokenAndStatus, requireRole('recruiter'), recruiterController.updateMySettings);
-router.get('/me/team', verifyTokenAndStatus, requireRole('recruiter'), recruiterController.listTeamMembers);
-router.post('/me/team/invite', verifyTokenAndStatus, requireRole('recruiter'), recruiterController.inviteTeamMember);
-router.delete('/me/team/:email', verifyTokenAndStatus, requireRole('recruiter'), recruiterController.removeTeamMember);
+router.get('/me/profile', verifyTokenAndStatus, requireRole('recruiter'), requireRecruiterWorkspaceRole('read'), recruiterController.getMyProfile);
+router.get('/dashboard/overview', verifyTokenAndStatus, requireRole('recruiter'), requireRecruiterWorkspaceRole('read'), recruiterController.getDashboardOverview);
+router.put('/me/profile', verifyTokenAndStatus, requireRole('recruiter'), requireRecruiterWorkspaceRole('write'), recruiterController.updateMyProfile);
+router.post('/me/upload-company-image', verifyTokenAndStatus, requireRole('recruiter'), requireRecruiterWorkspaceRole('write'), uploadProfilePicture.single('companyImage'), recruiterController.uploadCompanyImage);
+router.put('/me/settings/:section', verifyTokenAndStatus, requireRole('recruiter'), requireRecruiterWorkspaceRole('write'), recruiterController.updateMySettings);
+router.get('/me/team', verifyTokenAndStatus, requireRole('recruiter'), requireRecruiterWorkspaceRole('read'), recruiterController.listTeamMembers);
+router.post('/me/team/invite', verifyTokenAndStatus, requireRole('recruiter'), requireRecruiterWorkspaceRole('manageTeam'), recruiterController.inviteTeamMember);
+router.delete('/me/team/:email', verifyTokenAndStatus, requireRole('recruiter'), requireRecruiterWorkspaceRole('manageTeam'), recruiterController.removeTeamMember);
+router.patch('/me/team/:email/role', verifyTokenAndStatus, requireRole('recruiter'), requireRecruiterWorkspaceRole('manageTeam'), recruiterController.updateTeamMemberRole);
 router.get('/me/invites', verifyTokenAndStatus, requireRole('recruiter'), recruiterController.listInvites);
 router.post('/me/invites/accept', verifyTokenAndStatus, requireRole('recruiter'), recruiterController.acceptInvite);
 router.post('/me/invites/decline', verifyTokenAndStatus, requireRole('recruiter'), recruiterController.declineInvite);
-router.post('/me/change-password', verifyTokenAndStatus, requireRole('recruiter'), recruiterController.changePassword);
-router.put('/me/security', verifyTokenAndStatus, requireRole('recruiter'), recruiterController.changePassword);
-router.post('/me/upload-profile-picture', verifyTokenAndStatus, requireRole('recruiter'), uploadProfilePicture.single('profilePicture'), recruiterController.uploadProfilePicture);
-router.delete('/me/profile-picture', verifyTokenAndStatus, requireRole('recruiter'), recruiterController.deleteProfilePicture);
-router.get('/candidate/:candidateId/resume/availability', verifyTokenAndStatus, requireRole('recruiter'), recruiterController.checkCandidateResumeAvailability);
-router.get('/candidate/:candidateId/resume/download', verifyTokenAndStatus, requireRole('recruiter'), recruiterController.downloadCandidateResume);
-router.get('/resume-downloads', verifyTokenAndStatus, requireRole('recruiter'), recruiterController.getDownloadedResumes);
-router.delete('/resume-downloads/:paymentId', verifyTokenAndStatus, requireRole('recruiter'), recruiterController.deleteDownloadedResume);
-router.get('/resume-downloads/:paymentId', verifyTokenAndStatus, requireRole('recruiter'), recruiterController.downloadPurchasedResume);
+router.post('/me/change-password', verifyTokenAndStatus, requireRole('recruiter'), requireRecruiterWorkspaceRole('write'), recruiterController.changePassword);
+router.put('/me/security', verifyTokenAndStatus, requireRole('recruiter'), requireRecruiterWorkspaceRole('write'), recruiterController.changePassword);
+router.post('/me/upload-profile-picture', verifyTokenAndStatus, requireRole('recruiter'), requireRecruiterWorkspaceRole('write'), uploadProfilePicture.single('profilePicture'), recruiterController.uploadProfilePicture);
+router.delete('/me/profile-picture', verifyTokenAndStatus, requireRole('recruiter'), requireRecruiterWorkspaceRole('write'), recruiterController.deleteProfilePicture);
+router.get('/candidate/:candidateId/resume/availability', verifyTokenAndStatus, requireRole('recruiter'), requireRecruiterWorkspaceRole('read'), recruiterController.checkCandidateResumeAvailability);
+router.get('/candidate/:candidateId/resume/download', verifyTokenAndStatus, requireRole('recruiter'), requireRecruiterWorkspaceRole('write'), recruiterController.downloadCandidateResume);
+router.get('/resume-downloads', verifyTokenAndStatus, requireRole('recruiter'), requireRecruiterWorkspaceRole('read'), recruiterController.getDownloadedResumes);
+router.delete('/resume-downloads/:paymentId', verifyTokenAndStatus, requireRole('recruiter'), requireRecruiterWorkspaceRole('write'), recruiterController.deleteDownloadedResume);
+router.get('/resume-downloads/:paymentId', verifyTokenAndStatus, requireRole('recruiter'), requireRecruiterWorkspaceRole('read'), recruiterController.downloadPurchasedResume);
 
 // DEBUG TEST ENDPOINT - remove after debugging
-router.get('/me/debug-languages', verifyTokenAndStatus, requireRole('recruiter'), async (req, res) => {
+router.get('/me/debug-languages', verifyTokenAndStatus, requireRole('recruiter'), requireRecruiterWorkspaceRole('read'), async (req, res) => {
   try {
     const Recruiter = require('../models/Recruiter');
     const recruiter = await Recruiter.findById(req.user.id).lean();

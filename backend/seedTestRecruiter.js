@@ -2,7 +2,7 @@
 // testing — real login, no payment/OTP flow needed (dev only, never use in prod).
 //
 // Usage (from the backend/ folder):
-//   node seedTestRecruiter.js "test@example.com" "password123" "Demo Corp"
+//   node seedTestRecruiter.js "test@example.com" "password123" "Demo Corp" "+91 9999999999"
 
 require('dotenv').config();
 const mongoose = require('mongoose');
@@ -11,10 +11,10 @@ const Recruiter = require('./src/models/Recruiter');
 const { hashPassword } = require('./src/utils/hashPassword');
 
 async function run() {
-  const [email, password, companyName] = process.argv.slice(2);
+  const [email, password, companyName, phone = '+91 9999999999'] = process.argv.slice(2);
 
   if (!email || !password || !companyName) {
-    console.error('Usage: node seedTestRecruiter.js "<email>" "<password>" "<companyName>"');
+    console.error('Usage: node seedTestRecruiter.js "<email>" "<password>" "<companyName>" ["<phone>"]');
     process.exit(1);
   }
 
@@ -31,7 +31,7 @@ async function run() {
       email,
       passwordHash,
       fullName: 'Test Recruiter',
-      phone: '+91 9999999999',
+      phone,
       companyName,
       companyWebsite: 'https://example.com',
       languages: [],

@@ -4,9 +4,10 @@ const router = express.Router();
 const walletController = require('../controllers/wallet.controller');
 const { verifyTokenAndStatus } = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
+const requireRecruiterWorkspaceRole = require('../middleware/requireRecruiterWorkspaceRole');
 
 // All routes require authentication and recruiter role
-router.use(verifyTokenAndStatus, requireRole('recruiter'));
+router.use(verifyTokenAndStatus, requireRole('recruiter'), requireRecruiterWorkspaceRole('read'));
 
 // GET /api/recruiter/wallet/summary
 router.get('/summary', walletController.getWalletSummary);
@@ -18,13 +19,13 @@ router.get('/transactions', walletController.getTransactions);
 router.get('/transactions/:transactionId', walletController.getTransactionById);
 
 // POST /api/recruiter/wallet/recharge
-router.post('/recharge', walletController.initiateWalletRecharge);
+router.post('/recharge', requireRecruiterWorkspaceRole('write'), walletController.initiateWalletRecharge);
 
 // POST /api/recruiter/wallet/recharge/verify
-router.post('/recharge/verify', walletController.verifyWalletRecharge);
+router.post('/recharge/verify', requireRecruiterWorkspaceRole('write'), walletController.verifyWalletRecharge);
 
 // POST /api/recruiter/wallet/deduct-for-resume
-router.post('/deduct-for-resume', walletController.deductForResumeDownload);
+router.post('/deduct-for-resume', requireRecruiterWorkspaceRole('write'), walletController.deductForResumeDownload);
 
 // GET /api/recruiter/wallet/downloads
 router.get('/downloads', walletController.getResumeDownloads);

@@ -4,9 +4,10 @@ const router = express.Router();
 const messageController = require('../controllers/message.controller');
 const { verifyTokenAndStatus } = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
+const requireRecruiterWorkspaceRole = require('../middleware/requireRecruiterWorkspaceRole');
 
 // Only a recruiter can start a conversation
-router.post('/start', verifyTokenAndStatus, requireRole('recruiter'), messageController.startConversation);
+router.post('/start', verifyTokenAndStatus, requireRole('recruiter'), requireRecruiterWorkspaceRole('write'), messageController.startConversation);
 
 // Either participant can reply to an existing conversation.
 router.post('/reply', verifyTokenAndStatus, messageController.reply);
@@ -17,7 +18,7 @@ router.post('/reply', verifyTokenAndStatus, messageController.reply);
 router.get('/mine', verifyTokenAndStatus, messageController.myConversations);
 
 router.get('/preference/:candidateId', verifyTokenAndStatus, messageController.getChatPreference);
-router.patch('/preference/:candidateId', verifyTokenAndStatus, requireRole('recruiter'), messageController.updateChatPreference);
+router.patch('/preference/:candidateId', verifyTokenAndStatus, requireRole('recruiter'), requireRecruiterWorkspaceRole('write'), messageController.updateChatPreference);
 
 // Either role can fetch a thread
 router.get('/:withUserId', verifyTokenAndStatus, messageController.getThread);

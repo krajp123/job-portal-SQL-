@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { connectSocket, disconnectSocket } from '../socket';
+import axiosInstance from '../api/axiosInstance';
 
 const AuthContext = createContext(null);
 
@@ -57,6 +58,22 @@ function isTokenExpired() {
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(getStoredUser);
+
+  useEffect(() => {
+    if (user?.role !== 'recruiter') return;
+    let active = true;
+    axiosInstance.get('/recruiter/me/profile')
+      .then(({ data }) => {
+        if (!active || !data?.workspaceAccess) return;
+        setUser((current) => {
+          const updated = { ...current, workspaceAccess: data.workspaceAccess };
+          localStorage.setItem('user', JSON.stringify(updated));
+          return updated;
+        });
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [user?.role]);
 
   // Reconnect the socket automatically on a page refresh if a token is
   // already present (i.e. the user was already logged in).

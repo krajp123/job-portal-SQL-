@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import axiosInstance from '../../api/axiosInstance';
+import { dedupeRequest } from '../../api/requestCache';
 
 const FONT_DISPLAY = "'Space Grotesk','Inter',ui-sans-serif,sans-serif";
 
@@ -771,9 +772,10 @@ const MOCK_OTP = '123456';
 /* Main component                                                         */
 /* ---------------------------------------------------------------------- */
 
-export default function RecruiterRegisterForm({ onSwitchToLogin }) {
+export default function RecruiterRegisterForm({ onSwitchToLogin, resumeRecruiterId = '', onStepChange, onPaymentComplete }) {
+    const resumeMode = Boolean(resumeRecruiterId);
     // Payment flow state
-    const [paymentStep, setPaymentStep] = useState('idle'); // 'idle' | 'loading' | 'awaiting' | 'verifying' | 'completed'
+    const [paymentStep, setPaymentStep] = useState(resumeRecruiterId ? 'completed' : 'idle'); // 'idle' | 'loading' | 'awaiting' | 'verifying' | 'completed'
     const [paymentError, setPaymentError] = useState('');
     const [paymentData, setPaymentData] = useState({
         orderId: '',
@@ -839,6 +841,59 @@ export default function RecruiterRegisterForm({ onSwitchToLogin }) {
     });
 
     const [errors, setErrors] = useState({});
+    const [draftSaving, setDraftSaving] = useState(false);
+    const [draftMessage, setDraftMessage] = useState('');
+
+    useEffect(() => {
+        onStepChange?.(step);
+    }, [onStepChange, step]);
+
+    useEffect(() => {
+        if (!resumeMode) return undefined;
+        let cancelled = false;
+        async function loadDraft() {
+            try {
+                const { data } = await dedupeRequest(`recruiter-resume-${resumeRecruiterId}`, () => axiosInstance.get(`/recruiter/resume-registration/${resumeRecruiterId}`));
+                if (cancelled) return;
+                const recruiter = data.recruiter || {};
+                const mobile = recruiter.phone || '';
+                const countryCode = ['+91', '+1', '+44', '+61', '+971', '+65'].find((code) => mobile.startsWith(code)) || '+91';
+                const phoneNumber = mobile.startsWith(countryCode) ? mobile.slice(countryCode.length) : mobile;
+                update({
+                    firstName: recruiter.fullName?.split(' ')[0] || '',
+                    lastName: recruiter.fullName?.split(' ').slice(1).join(' ') || '',
+                    workEmail: recruiter.email || '',
+                    mobileCountryCode: countryCode,
+                    mobileNumber: phoneNumber,
+                    jobTitle: recruiter.jobTitle || '',
+                    companyName: recruiter.companyName === 'Pending' ? '' : recruiter.companyName || '',
+                    companyWebsite: recruiter.companyWebsite || '',
+                    companyEmailDomain: recruiter.companyEmail || '',
+                    companySize: recruiter.companySize || '',
+                    industry: recruiter.industry?.startsWith('Other:') ? 'Other' : recruiter.industry || '',
+                    industryOther: recruiter.industry?.startsWith('Other:') ? recruiter.industry.slice(6).trim() : '',
+                    companyLocation: recruiter.location || '',
+                    companyType: recruiter.companyType?.startsWith('Other:') ? 'Other' : recruiter.companyType || '',
+                    companyTypeOther: recruiter.companyType?.startsWith('Other:') ? recruiter.companyType.slice(6).trim() : '',
+                    recruiterRole: recruiter.recruiterRole || '',
+                    companyDescription: recruiter.companyDetails || '',
+                    gstNumber: recruiter.companyGst || '',
+                    cinNumber: recruiter.companyCin || '',
+                    hiringVolume: recruiter.hiringVolume || '',
+                    hiringFor: recruiter.hiringFor || [],
+                    departments: recruiter.departments || [],
+                    gstFile: recruiter.gstCertificateUrl ? { name: 'GST certificate (saved)', url: recruiter.gstCertificateUrl } : null,
+                    cinFile: recruiter.cinCertificateUrl ? { name: 'CIN certificate (saved)', url: recruiter.cinCertificateUrl } : null,
+                    bizRegFile: recruiter.businessRegistrationCertificateUrl ? { name: 'Business certificate (saved)', url: recruiter.businessRegistrationCertificateUrl } : null,
+                });
+                setStep(Math.min(5, Math.max(1, recruiter.registrationDraftStep || 1)));
+            } catch (err) {
+                if (!cancelled) setDraftMessage(err.response?.data?.error || 'Could not load saved draft.');
+            }
+        }
+        loadDraft();
+        return () => { cancelled = true; };
+    }, [resumeMode, resumeRecruiterId]);
 
     function update(patch) {
         setForm((f) => ({ ...f, ...patch }));
@@ -932,6 +987,39 @@ export default function RecruiterRegisterForm({ onSwitchToLogin }) {
         }
     }
 
+    async function saveDraft() {
+        if (!resumeMode) return;
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.workEmail)) {
+            setDraftMessage('Enter a valid personal email before saving.');
+            return;
+        }
+        setDraftSaving(true);
+        setDraftMessage('');
+        try {
+            const payload = new FormData();
+            Object.entries({
+                firstName: form.firstName, lastName: form.lastName, workEmail: form.workEmail,
+                mobile: `${form.mobileCountryCode}${form.mobileNumber}`, jobTitle: form.jobTitle,
+                companyName: form.companyName, companyWebsite: form.companyWebsite,
+                companyEmailDomain: form.companyEmailDomain, companySize: form.companySize === 'Custom' ? form.companySizeCustom : form.companySize,
+                industry: form.industry, industryOther: form.industryOther, companyLocation: form.companyLocation,
+                companyType: form.companyType, companyTypeOther: form.companyTypeOther, recruiterRole: form.recruiterRole,
+                companyDescription: form.companyDescription, gstNumber: form.gstNumber, cinNumber: form.cinNumber,
+                hiringVolume: form.hiringVolume, hiringFor: form.hiringFor, departments: form.departments,
+                password: form.password, currentStep: step,
+            }).forEach(([key, value]) => payload.append(key, Array.isArray(value) ? JSON.stringify(value) : value || ''));
+            if (form.gstFile instanceof File) payload.append('gstFile', form.gstFile);
+            if (form.cinFile instanceof File) payload.append('cinFile', form.cinFile);
+            if (form.bizRegFile instanceof File) payload.append('bizRegFile', form.bizRegFile);
+            const { data } = await axiosInstance.put(`/recruiter/resume-registration/${resumeRecruiterId}/draft`, payload);
+            setDraftMessage(data.message || 'Draft saved successfully.');
+        } catch (err) {
+            setDraftMessage(err.response?.data?.error || 'Could not save draft.');
+        } finally {
+            setDraftSaving(false);
+        }
+    }
+
     /* ---------------- Payment Flow (NEW) ---------------- */
 
     async function createPaymentOrder() {
@@ -977,6 +1065,7 @@ export default function RecruiterRegisterForm({ onSwitchToLogin }) {
                     });
                     setVerifiedPaymentId(verifyData.paymentId);
                     setPaymentStep('completed');
+                    onPaymentComplete?.();
                     // Store recruiterId for recovery if needed
                     localStorage.setItem('recruiterId', verifyData.recruiterId);
                     localStorage.setItem('recruiterEmail', form.workEmail);
@@ -1047,6 +1136,7 @@ export default function RecruiterRegisterForm({ onSwitchToLogin }) {
                     });
                     setVerifiedPaymentId(verifyData.paymentId);
                     setPaymentStep('completed');
+                    onPaymentComplete?.();
                     // Store recruiterId for recovery if needed
                     localStorage.setItem('recruiterId', verifyData.recruiterId);
                     localStorage.setItem('recruiterEmail', form.workEmail);
@@ -1129,10 +1219,22 @@ export default function RecruiterRegisterForm({ onSwitchToLogin }) {
                 password: form.password,
                 paymentId: verifiedPaymentId,
             }).forEach(([key, value]) => payload.append(key, Array.isArray(value) ? JSON.stringify(value) : value));
-            payload.append('gstFile', form.gstFile);
-            payload.append('cinFile', form.cinFile);
-            payload.append('bizRegFile', form.bizRegFile);
-            await axiosInstance.post('/recruiter/register', payload);
+            if (form.gstFile instanceof File) payload.append('gstFile', form.gstFile);
+            if (form.cinFile instanceof File) payload.append('cinFile', form.cinFile);
+            if (form.bizRegFile instanceof File) payload.append('bizRegFile', form.bizRegFile);
+            const endpoint = resumeRecruiterId
+                ? `/recruiter/resume-registration/${resumeRecruiterId}`
+                : '/recruiter/register';
+            if (resumeRecruiterId) {
+                payload.delete('paymentId');
+                payload.delete('gstFile');
+                payload.delete('cinFile');
+                payload.delete('bizRegFile');
+                payload.append('gstCertificate', form.gstFile);
+                payload.append('cinCertificate', form.cinFile);
+                payload.append('businessRegistrationCertificate', form.bizRegFile);
+            }
+            await axiosInstance.post(endpoint, payload);
             setSubmitted(true);
         } catch (err) {
             setSubmitError(err.response?.data?.error || 'Registration failed. Please try again.');
@@ -1267,31 +1369,22 @@ export default function RecruiterRegisterForm({ onSwitchToLogin }) {
     /* ---- Registration Form (shown after payment) ---- */
 
     return (
-        <form onSubmit={handleSubmit} className="recruiter-register">
+        <form onSubmit={handleSubmit} className={`recruiter-register ${resumeMode ? 'w-full' : ''}`}>
             <NoScrollbar />
-            <div className="mb-6 rounded-[12px] border border-[#10B981]/30 bg-[#ECFDF5] p-4">
-                <p className="text-[12.5px] text-[#065F46]">
-                    <strong>✓ Payment Successful!</strong> Your payment has been verified. Please complete the registration form below.
-                </p>
-                <p className="mt-2 text-[11.5px] text-[#047857]">
-                    💡 <strong>Recovery Tip:</strong> If you need to come back later, you can resume registration using the recovery link. Check your email for the link or use your recruiter ID to complete registration anytime.
-                </p>
-            </div>
-            <div className="mb-4 flex items-center gap-2">
-                <button
-                    type="button"
-                    onClick={() => {
-                        if (window.confirm('Changing payment will require re-verification. Continue?')) {
-                            resetPayment();
-                        }
-                    }}
-                    className="text-[12.5px] text-[#C75560] hover:underline font-medium"
-                >
-                    ← Back to Payment
-                </button>
-            </div>
+            {!resumeMode && (
+                <>
+                    <div className="mb-6 rounded-[12px] border border-[#10B981]/30 bg-[#ECFDF5] p-4">
+                        <p className="text-[12.5px] text-[#065F46]">
+                            <strong>✓ Payment Successful!</strong> Your payment has been verified. Please complete the registration form below.
+                        </p>
+                        <p className="mt-2 text-[11.5px] text-[#047857]">
+                            💡 <strong>Recovery Tip:</strong> If you need to come back later, you can resume registration using the recovery link. Check your email for the link or use your recruiter ID to complete registration anytime.
+                        </p>
+                    </div>
+                </>
+            )}
             <h2 className="mb-5 text-[22px] font-bold text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>
-                Recruiter Sign Up
+                {resumeMode ? 'Complete your registration' : 'Recruiter Sign Up'}
             </h2>
 
             <StepDots step={step} total={5} labels={STEP_LABELS} onJump={setStep} />
@@ -1327,8 +1420,8 @@ export default function RecruiterRegisterForm({ onSwitchToLogin }) {
                             value={form.workEmail}
                             onChange={setField('workEmail')}
                             error={errors.workEmail}
-                            readOnly
-                            className="cursor-not-allowed opacity-70"
+                            readOnly={!resumeMode}
+                            className={!resumeMode ? 'cursor-not-allowed opacity-70' : ''}
                         />
                     </Field>
                     <PhoneInput
@@ -1667,6 +1760,7 @@ export default function RecruiterRegisterForm({ onSwitchToLogin }) {
             )}
 
             {submitError && <p className="mb-3 mt-4 text-[12.5px] font-medium text-[#B3261E]">{submitError}</p>}
+            {resumeMode && draftMessage && <p className="mb-3 mt-4 text-center text-[12.5px] font-medium text-[#80576A]">{draftMessage}</p>}
 
             <div className="mt-4 flex items-center gap-3">
                 {step > 1 && (
@@ -1679,21 +1773,15 @@ export default function RecruiterRegisterForm({ onSwitchToLogin }) {
                     </button>
                 )}
                 {step < 5 ? (
-                    <button
-                        type="button"
-                        onClick={goNext}
-                        className="flex-1 rounded-[12px] bg-[#1D181A] px-4 py-2.5 text-[13.5px] font-semibold text-white shadow-[0_10px_24px_-10px_rgba(29,24,26,0.6)] transition-transform duration-150 hover:-translate-y-0.5 hover:bg-[#3A3034]"
-                    >
-                        Continue
-                    </button>
+                    <>
+                        {resumeMode && <button type="button" onClick={saveDraft} disabled={draftSaving} className="rounded-[12px] border border-[#C75560] px-4 py-2.5 text-[13.5px] font-semibold text-[#C75560] disabled:opacity-60">{draftSaving ? 'Saving…' : 'Save draft'}</button>}
+                        <button type="button" onClick={goNext} className="flex-1 rounded-[12px] bg-[#1D181A] px-4 py-2.5 text-[13.5px] font-semibold text-white shadow-[0_10px_24px_-10px_rgba(29,24,24,0.6)] transition-transform duration-150 hover:-translate-y-0.5 hover:bg-[#3A3034]">Continue</button>
+                    </>
                 ) : (
-                    <button
-                        type="submit"
-                        disabled={loading || !form.agreeTerms || !form.agreePrivacy}
-                        className="flex-1 rounded-[12px] bg-[#C75560] px-4 py-2.5 text-[13.5px] font-semibold text-white shadow-[0_10px_24px_-10px_rgba(199,85,96,0.65)] transition-transform duration-150 hover:-translate-y-0.5 hover:bg-[#AB4054] disabled:opacity-60 disabled:hover:translate-y-0"
-                    >
-                        {loading ? 'Registering…' : 'Register'}
-                    </button>
+                    <>
+                        {resumeMode && <button type="button" onClick={saveDraft} disabled={draftSaving} className="rounded-[12px] border border-[#C75560] px-4 py-2.5 text-[13.5px] font-semibold text-[#C75560] disabled:opacity-60">{draftSaving ? 'Saving…' : 'Save draft'}</button>}
+                        <button type="submit" disabled={loading || !form.agreeTerms || !form.agreePrivacy} className="flex-1 rounded-[12px] bg-[#C75560] px-4 py-2.5 text-[13.5px] font-semibold text-white shadow-[0_10px_24px_-10px_rgba(199,85,96,0.65)] transition-transform duration-150 hover:-translate-y-0.5 hover:bg-[#AB4054] disabled:opacity-60 disabled:hover:translate-y-0">{loading ? 'Registering…' : 'Register'}</button>
+                    </>
                 )}
             </div>
 

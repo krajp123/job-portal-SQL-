@@ -6,6 +6,7 @@ import { FONT_DISPLAY } from '../theme';
 import axiosInstance from '../api/axiosInstance';
 import { fetchPlatformBranding, getCachedPlatformBranding } from '../api/platformBranding';
 import { connectSocket } from '../socket';
+import { useAuth } from '../context/AuthContext';
 
 const links = [
     { to: '/recruiter/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -32,6 +33,8 @@ function navClass(isActive, isPostJob = false) {
 
 export default function RecruiterNavbar() {
     const navigate = useNavigate();
+    const { user } = useAuth();
+    const isViewer = user?.workspaceAccess?.role === 'viewer';
     const [platformBranding, setPlatformBranding] = useState(getCachedPlatformBranding);
     const [logoError, setLogoError] = useState(false);
     const [brandingLoaded, setBrandingLoaded] = useState(() => {
@@ -79,11 +82,11 @@ export default function RecruiterNavbar() {
 
     return (
         <header className="sticky top-0 z-50 overflow-visible border-b border-[#EBC2AE] bg-[#FFFDFC]/95 backdrop-blur-md">
-            <div className="mx-auto flex w-full max-w-6xl items-center gap-3 overflow-visible px-4 py-2.5 sm:px-6">
-                <Link to="/recruiter/dashboard" className="flex min-w-[140px] shrink-0 items-center gap-2" aria-label={`${brandName || 'Platform'} recruiter dashboard`}>
-                    <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#C75560] to-[#E7A24B] text-sm font-extrabold text-white shadow-sm">
+            <div className="mx-auto flex w-full max-w-[1400px] items-center gap-4 overflow-visible px-4 py-3 sm:px-6">
+                <Link to="/recruiter/dashboard" className="flex min-w-[220px] shrink-0 items-center gap-2.5" aria-label={`${brandName || 'Platform'} recruiter dashboard`}>
+                    <span className={`flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl text-sm font-extrabold text-white ${platformBranding.logo && !logoError ? '' : 'bg-[#1D181A]'}`}>
                         {platformBranding.logo && !logoError ? (
-                            <img src={platformBranding.logo} alt={`${brandName} logo`} onError={() => setLogoError(true)} className="h-full w-full object-cover" />
+                            <img src={platformBranding.logo} alt={`${brandName} logo`} onError={() => setLogoError(true)} className="h-full w-full object-contain" />
                         ) : (
                             brandingLoaded ? brandName.slice(0, 2).toUpperCase() : <BriefcaseBusiness size={19} />
                         )}
@@ -98,10 +101,15 @@ export default function RecruiterNavbar() {
 
                 <nav className="hidden items-center gap-1 md:flex" aria-label="Recruiter primary navigation">
                     {links.map(({ to, label, icon: Icon }) => (
-                        <NavLink key={to} to={to} className={({ isActive }) => navClass(isActive, to === '/recruiter/post-job')}>
-                            <Icon size={15} />
-                            {label}
-                        </NavLink>
+                            to === '/recruiter/post-job' && isViewer ? (
+                                                <span key={to} aria-disabled="true" title="Viewer access is read-only" className={`${navClass(false, true)} cursor-not-allowed opacity-50`}>
+                                    <Icon size={15} /> {label}
+                                </span>
+                            ) : (
+                                <NavLink key={to} to={to} className={({ isActive }) => navClass(isActive, to === '/recruiter/post-job')}>
+                                    <Icon size={15} /> {label}
+                                </NavLink>
+                            )
                     ))}
                 </nav>
 
@@ -109,7 +117,8 @@ export default function RecruiterNavbar() {
                     <button
                         type="button"
                         onClick={() => navigate('/recruiter/messages')}
-                        className="inline-flex items-center gap-2 rounded-lg border border-[#EBC2AE] bg-[#FFF0E8] px-3 py-2 text-[12px] font-bold text-[#1D181A] transition-all hover:-translate-y-0.5 hover:border-[#C75560]"
+                        disabled={isViewer}
+                        className="inline-flex items-center gap-2 rounded-lg border border-[#EBC2AE] bg-[#FFF0E8] px-4 py-2.5 text-[12px] font-bold text-[#1D181A] transition-all hover:-translate-y-0.5 hover:border-[#C75560]"
                         title="Message"
                         aria-label="Message"
                     >
@@ -120,7 +129,8 @@ export default function RecruiterNavbar() {
                     <button
                         type="button"
                         onClick={() => navigate('/recruiter/wallet')}
-                        className="inline-flex items-center gap-2 rounded-lg border border-[#EBC2AE] bg-[#FFF0E8] px-3 py-2 text-[12px] font-bold text-[#1D181A] transition-all hover:-translate-y-0.5 hover:border-[#C75560]"
+                        disabled={isViewer}
+                        className="inline-flex items-center gap-2 rounded-lg border border-[#EBC2AE] bg-[#FFF0E8] px-4 py-2.5 text-[12px] font-bold text-[#1D181A] transition-all hover:-translate-y-0.5 hover:border-[#C75560]"
                         title="Wallet"
                     >
                         <Wallet size={15} className="text-[#C75560]" />
@@ -130,7 +140,7 @@ export default function RecruiterNavbar() {
                     <RecruiterProfileMenu />
                 </div>
             </div>
-            <nav className="mx-auto flex w-full max-w-6xl gap-1 overflow-x-auto border-t border-[#F0D1BF] px-4 py-1 md:hidden sm:px-6" aria-label="Recruiter mobile navigation">
+            <nav className="mx-auto flex w-full max-w-[1400px] gap-1 overflow-x-auto border-t border-[#F0D1BF] px-4 py-1 md:hidden sm:px-6" aria-label="Recruiter mobile navigation">
                 {links.map(({ to, label, icon: Icon }) => (
                     <NavLink key={to} to={to} className={({ isActive }) => navClass(isActive, to === '/recruiter/post-job')}>
                         <Icon size={14} />

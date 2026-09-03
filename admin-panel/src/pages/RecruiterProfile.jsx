@@ -44,6 +44,13 @@ import {
 } from 'lucide-react';
 import adminAxiosInstance from '../api/adminAxiosInstance';
 
+function formatCurrency(value) {
+  return new Intl.NumberFormat('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(value) || 0);
+}
+
 /* ------------------------------------------------------------------ */
 /* Dummy fallback data — used only if the API call fails (dev/preview) */
 /* ------------------------------------------------------------------ */
@@ -1380,7 +1387,7 @@ export default function RecruiterProfile() {
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="rounded-xl bg-[#FFF9F5] border border-[#F0E1D6] p-3">
                     <p className="text-[10px] text-[#A08A93] uppercase font-bold tracking-wide">Current Balance</p>
-                    <p className="rc-serif text-lg font-semibold text-[#1D181A] mt-1">₹{recruiter.walletBalance ?? 0}</p>
+                    <p className="rc-serif text-lg font-semibold text-[#1D181A] mt-1">₹{formatCurrency(recruiter.walletBalance)}</p>
                   </div>
                   <div className="rounded-xl bg-[#FFF9F5] border border-[#F0E1D6] p-3">
                     <p className="text-[10px] text-[#A08A93] uppercase font-bold tracking-wide">Subscription Plan</p>

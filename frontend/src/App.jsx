@@ -47,7 +47,7 @@ import RecruiterMessages from './pages/recruiter/RecruiterMessage';
 
 function AppLayout() {
   return (
-    <div className=" flex flex-col">
+    <div className="flex flex-col">
       <div className="flex-1">
         <Outlet />
       </div>

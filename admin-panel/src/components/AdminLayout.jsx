@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import adminAxiosInstance from '../api/adminAxiosInstance';
+import { dedupeRequest } from '../api/requestCache';
 
 const NAV_LINK_SECTIONS = [
   {
@@ -128,7 +129,7 @@ export default function AdminLayout() {
 
   useEffect(() => {
     let active = true;
-    adminAxiosInstance.get('/admin/settings')
+    dedupeRequest('admin-settings', () => adminAxiosInstance.get('/admin/settings'))
       .then(({ data }) => {
         if (!active) return;
         const settings = data.settings || {};
@@ -145,8 +146,8 @@ export default function AdminLayout() {
   const refreshNotifications = async () => {
     try {
       const [requestsResponse, notificationsResponse] = await Promise.all([
-        adminAxiosInstance.get('/jobs/reopen-requests'),
-        adminAxiosInstance.get('/admin/notifications'),
+        dedupeRequest('admin-reopen-requests', () => adminAxiosInstance.get('/jobs/reopen-requests')),
+        dedupeRequest('admin-notifications', () => adminAxiosInstance.get('/admin/notifications')),
       ]);
       const pending = Array.isArray(requestsResponse.data)
         ? requestsResponse.data.filter((req) => req.status === 'pending')
@@ -262,9 +263,9 @@ export default function AdminLayout() {
             <Menu size={19} />
           </button>
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#FFF0E8] text-[10px] font-bold text-[#C75560]">
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl text-[10px] font-bold text-[#C75560] ${platformBranding.logo ? '' : 'bg-[#FFF0E8]'}`}>
               {platformBranding.logo ? (
-                <img src={platformBranding.logo} alt={`${platformBranding.siteName} logo`} className="h-full w-full object-cover" />
+                <img src={platformBranding.logo} alt={`${platformBranding.siteName} logo`} className="h-full w-full object-contain" />
               ) : (
                 platformBranding.siteName.slice(0, 2).toUpperCase()
               )}

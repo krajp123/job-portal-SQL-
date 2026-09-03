@@ -6,6 +6,7 @@ import NotificationCenter from "../../components/NotificationCenter";
 import axiosInstance from "../../api/axiosInstance";
 import { connectSocket } from "../../socket";
 import { fetchPlatformBranding, getCachedPlatformBranding } from "../../api/platformBranding";
+import { dedupeRequest } from "../../api/requestCache";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
@@ -519,6 +520,31 @@ function SidebarProfileCard({ expanded, onToggle, recruiterProfile }) {
 }
 
 function SidebarWelcomePanel() {
+  const { user } = useAuth();
+  const [overview, setOverview] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    axiosInstance.get('/recruiter/dashboard/overview')
+      .then(({ data }) => {
+        if (active) setOverview(data);
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  const displayName = overview?.recruiterName || user?.name || 'Recruiter';
+  const firstName = displayName.trim().split(/\s+/)[0] || 'Recruiter';
+  const todayLabel = new Intl.DateTimeFormat('en-IN', {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date());
+  const monthlyHires = overview?.monthlyHires ?? 0;
+  const monthlyGoal = overview?.monthlyHiringGoal ?? 0;
+  const hiringStreak = overview?.hiringStreak ?? 0;
+
   return (
     <div
       className="relative mx-3 mt-3 overflow-hidden rounded-2xl p-4"
@@ -527,7 +553,7 @@ function SidebarWelcomePanel() {
       <div className="absolute -top-10 -right-10 h-28 w-28 rounded-full bg-gradient-to-br from-[#FBCFC8]/50 to-[#F9E7BA]/50 blur-2xl" />
       <div className="relative">
         <p className="text-sm font-bold text-slate-900">
-          Good morning, Shiv 👋
+          Good morning, {firstName} 👋
         </p>
         <p className="text-xs text-slate-500 mt-1 leading-relaxed">
           Welcome back to your hiring workspace. Here's where things stand
@@ -536,13 +562,13 @@ function SidebarWelcomePanel() {
 
         <div className="flex flex-col items-start gap-3.5 mt-3">
           <Pill className="bg-white ring-1 ring-slate-200 text-slate-600">
-            <Clock size={11} /> Tue, 28 Jul 2026
+            <Clock size={11} /> {todayLabel}
           </Pill>
           <Pill className="bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
-            <Zap size={11} /> Goal: 5 hires this month · 5/5 on track
+            <Zap size={11} /> Goal: {monthlyGoal} hires this month · {monthlyHires}/{monthlyGoal} {monthlyHires >= monthlyGoal && monthlyGoal > 0 ? 'on track' : 'in progress'}
           </Pill>
           <Pill className="bg-amber-50 text-amber-700 ring-1 ring-amber-200">
-            <Flame size={11} /> 12-day hiring streak
+            <Flame size={11} /> {hiringStreak}-day hiring streak
           </Pill>
         </div>
       </div>
@@ -825,6 +851,7 @@ const NOTIFICATIONS_CLEARED_KEY = "jobhub_recruiter_notifications_cleared_at";
 function TopNav({ recruiterProfile, onMenuClick, notifications = [] }) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const isViewer = user?.workspaceAccess?.role === 'viewer';
   const [openMenu, setOpenMenu] = useState(null); // null | "calendar" | "notif"
   const [platformBranding, setPlatformBranding] = useState(getCachedPlatformBranding);
   const toggleMenu = (key) => setOpenMenu((prev) => (prev === key ? null : key));
@@ -894,7 +921,7 @@ function TopNav({ recruiterProfile, onMenuClick, notifications = [] }) {
         </button>
 
         <div className="flex items-center gap-2 shrink-0 min-w-0">
-          <div className={`h-10 w-10 shrink-0 overflow-hidden rounded-xl flex items-center justify-center shadow-md ${platformBranding.siteName || platformBranding.logo ? 'bg-gradient-to-br from-[#C75560] to-[#F7C56B] shadow-[#C75560]/20' : 'animate-pulse bg-[#F3E5DE]'}`}>
+          <div className={`h-10 w-10 shrink-0 overflow-hidden rounded-xl flex items-center justify-center ${platformBranding.logo ? '' : platformBranding.siteName ? 'bg-transparent' : 'animate-pulse bg-[#F3E5DE]'}`}>
             {platformBranding.logo ? (
               <img src={platformBranding.logo} alt={`${brandName || 'Platform'} logo`} className="h-full w-full object-cover" />
             ) : brandName ? (
@@ -956,6 +983,7 @@ function TopNav({ recruiterProfile, onMenuClick, notifications = [] }) {
           <button
             type="button"
             onClick={() => navigate('/recruiter/post-job')}
+            disabled={isViewer}
             className="inline-flex items-center gap-1.5 rounded-lg bg-[#C75560] px-3 py-2 text-[12px] font-bold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-[#A94658] focus:outline-none focus:ring-2 focus:ring-[#C75560]/25"
             title="Post Job"
             aria-label="Post Job"
@@ -1599,6 +1627,8 @@ function JobDetailModal({
   onSave,
   onClose,
 }) {
+  const { user } = useAuth();
+  const isViewer = user?.workspaceAccess?.role === 'viewer';
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -1855,6 +1885,7 @@ function JobDetailModal({
                   <button
                     type="button"
                     onClick={() => onStartEdit(job)}
+                    disabled={isViewer}
                     className="flex items-center gap-2 rounded-[10px] bg-[#C75560] px-4 py-2.5 text-[12.5px] font-semibold text-white transition-colors hover:bg-[#A94658]"
                   >
                     <Pencil size={14} /> Edit job
@@ -2031,6 +2062,8 @@ function DeleteJobModal({ job, submitting, error, onConfirm, onCancel }) {
 /* ============================== ACTIVE JOBS ============================== */
 
 function ActiveJobs({ onJobsLoaded } = {}) {
+  const { user } = useAuth();
+  const isViewer = user?.workspaceAccess?.role === 'viewer';
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -2350,6 +2383,8 @@ function ActiveJobs({ onJobsLoaded } = {}) {
                     </div>
                     <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-slate-100">
                       <button
+                        type="button"
+                        disabled={isViewer}
                         title={displayStatus === "Active" ? "Pause" : "Resume"}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -2364,6 +2399,8 @@ function ActiveJobs({ onJobsLoaded } = {}) {
                         )}
                       </button>
                       <button
+                        type="button"
+                        disabled={isViewer}
                         title="Delete"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -2445,7 +2482,7 @@ function RecentApplications({ onApplicationsLoaded }) {
       setPage(1);
       if (onApplicationsLoaded) onApplicationsLoaded([]);
       try {
-        const res = await axiosInstance.get("/applications/recruiter");
+        const res = await dedupeRequest("recruiter-applications", () => axiosInstance.get("/applications/recruiter"));
         const apps = res.data || [];
         setApplications(apps);
         if (onApplicationsLoaded) onApplicationsLoaded(apps);

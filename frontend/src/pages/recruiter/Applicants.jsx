@@ -29,6 +29,8 @@ import {
   XCircle,
 } from 'lucide-react';
 import axiosInstance from '../../api/axiosInstance';
+import { useAuth } from '../../context/AuthContext';
+import { dedupeRequest } from '../../api/requestCache';
 import RecruiterNavbar from '../../components/RecruiterNavbar';
 import { FONT_DISPLAY } from '../../theme';
 import { connectSocket } from '../../socket';
@@ -470,7 +472,7 @@ export default function Applicants() {
   useEffect(() => {
     const socket = connectSocket();
     const handleApplicationUpdate = () => {
-      axiosInstance.get('/applications/recruiter')
+      dedupeRequest('recruiter-applications', () => axiosInstance.get('/applications/recruiter'))
         .then(({ data }) => setApplicants(data || []))
         .catch(() => {});
     };
@@ -491,7 +493,7 @@ export default function Applicants() {
 
       try {
         setLoadingApplicants(true);
-        const { data } = await axiosInstance.get('/applications/recruiter');
+        const { data } = await dedupeRequest('recruiter-applications', () => axiosInstance.get('/applications/recruiter'));
         setApplicants(data || []);
       } catch (requestError) {
         setError((currentError) => currentError || requestError.response?.data?.error || 'Could not load applicants.');
@@ -1671,6 +1673,9 @@ function IconAction({ icon: Icon, label, href, onClick, disabled, title, tone = 
 }
 
 function ActionRow({ icon: Icon, label, onClick, href, disabled, tone = 'default', title }) {
+  const { user } = useAuth();
+  const viewerDisabled = user?.workspaceAccess?.role === 'viewer';
+  disabled = disabled || viewerDisabled;
   const toneClasses =
     tone === 'danger'
       ? 'border-[#E9B6AF] text-[#B3261E] hover:border-[#D8574F] hover:bg-[#FFF0EE]'
@@ -1861,6 +1866,8 @@ function CandidateDetail({
   statusUpdateError,
 }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isViewer = user?.workspaceAccess?.role === 'viewer';
   if (!application) return null;
   const c = application.candidate || {};
   const profile = c.profile || {};
@@ -2063,7 +2070,7 @@ function CandidateDetail({
             <button
               type="button"
               onClick={onMoveToNextStage}
-              disabled={!nextStageKey || isUpdatingStatus || !isShortlistUnlocked}
+              disabled={isViewer || !nextStageKey || isUpdatingStatus || !isShortlistUnlocked}
               title={!isShortlistUnlocked ? 'Shortlist the candidate first to unlock pipeline actions' : undefined}
               className="portal-primary-action flex w-full items-center justify-center gap-1.5 px-3.5 py-3 text-[13px] disabled:cursor-not-allowed disabled:opacity-50"
             >

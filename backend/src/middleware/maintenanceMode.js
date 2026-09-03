@@ -5,7 +5,7 @@ async function maintenanceMode(req, res, next) {
     const settings = await getPlatformSettings();
     if (settings.maintenanceMode) {
       return res.status(503).json({
-        error: 'Platform is temporarily unavailable for maintenance.',
+        error: 'Platform is Under maintenance.',
         code: 'MAINTENANCE_MODE',
       });
     }

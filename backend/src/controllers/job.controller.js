@@ -13,6 +13,10 @@ function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function workspaceRecruiterId(req) {
+  return req.workspaceOwnerId || req.user.id;
+}
+
 // Only the formatting the RichTextField toolbar can actually produce
 // (bold/italic/underline + bulleted/numbered lists) is allowed through.
 // Everything else (script tags, style attrs, event handlers, etc.) is stripped.
@@ -152,7 +156,7 @@ function findModerationMatches(job, flaggedKeywords = []) {
 exports.create = async (req, res) => {
   try {
     const { title, role, category, description, location, salary, skillsRequired, experienceLevel, descriptionSections } = req.body;
-    const recruiter = await Recruiter.findById(req.user.id).select('industry');
+    const recruiter = await Recruiter.findById(workspaceRecruiterId(req)).select('industry');
     const settings = await getPlatformSettings();
     const moderationMatches = findModerationMatches(
       { title, description, location, salary, experienceLevel, skillsRequired },
@@ -172,7 +176,7 @@ exports.create = async (req, res) => {
       skillsRequired,
       experienceLevel,
       applicationForm: normalizeApplicationForm(req.body.applicationForm),
-      postedBy: req.user.id,
+      postedBy: workspaceRecruiterId(req),
       status: moderationMatches.length ? 'draft' : requestedStatus === 'open' ? 'open' : 'draft',
       moderationStatus: moderationMatches.length ? 'flagged' : 'clear',
       moderationMatches,
@@ -424,7 +428,7 @@ exports.topCompanies = async (req, res) => {
 // GET /api/jobs/mine (recruiter only)
 exports.myJobs = async (req, res) => {
   try {
-    const jobs = await Job.find({ postedBy: req.user.id }).sort({ createdAt: -1 }).lean();
+    const jobs = await Job.find({ postedBy: workspaceRecruiterId(req) }).sort({ createdAt: -1 }).lean();
 
     const jobsWithCounts = await Promise.all(
       jobs.map(async (job) => ({
@@ -468,7 +472,7 @@ exports.update = async (req, res) => {
       return res.status(400).json({ error: 'No valid fields were provided to update.' });
     }
 
-    const currentJob = await Job.findOne({ _id: req.params.id, postedBy: req.user.id }).lean();
+    const currentJob = await Job.findOne({ _id: req.params.id, postedBy: workspaceRecruiterId(req) }).lean();
     if (!currentJob) return res.status(404).json({ error: 'Job not found' });
     const moderationInput = { ...currentJob, ...updates };
     const settings = await getPlatformSettings();
@@ -478,7 +482,7 @@ exports.update = async (req, res) => {
     if (moderationMatches.length) updates.status = 'draft';
 
     const job = await Job.findOneAndUpdate(
-      { _id: req.params.id, postedBy: req.user.id },
+      { _id: req.params.id, postedBy: workspaceRecruiterId(req) },
       updates,
       { new: true }
     );
@@ -493,7 +497,7 @@ exports.update = async (req, res) => {
 // DELETE /api/jobs/:id (recruiter only)
 exports.remove = async (req, res) => {
   try {
-    const job = await Job.findOneAndDelete({ _id: req.params.id, postedBy: req.user.id });
+    const job = await Job.findOneAndDelete({ _id: req.params.id, postedBy: workspaceRecruiterId(req) });
     if (!job) return res.status(404).json({ error: 'Job not found' });
     await Application.deleteMany({ job: job._id });
     res.json({ message: 'Job deleted successfully' });
@@ -519,7 +523,7 @@ exports.getById = async (req, res) => {
 // PATCH /api/jobs/:id/close (recruiter only)
 exports.closeJob = async (req, res) => {
   try {
-    const job = await Job.findOne({ _id: req.params.id, postedBy: req.user.id });
+    const job = await Job.findOne({ _id: req.params.id, postedBy: workspaceRecruiterId(req) });
     if (!job) return res.status(404).json({ error: 'Job not found' });
 
     const nextStatus = req.body?.status === 'open' ? 'open' : 'closed';
@@ -540,7 +544,7 @@ exports.closeJob = async (req, res) => {
 // POST /api/jobs/:id/reopen-request (recruiter only)
 exports.requestReopen = async (req, res) => {
   try {
-    const job = await Job.findOne({ _id: req.params.id, postedBy: req.user.id });
+    const job = await Job.findOne({ _id: req.params.id, postedBy: workspaceRecruiterId(req) });
     if (!job) return res.status(404).json({ error: 'Job not found' });
     if (job.status !== 'closed' || !job.adminClosed) {
       return res.status(400).json({ error: 'This job is not locked by an admin closure.' });
@@ -551,14 +555,14 @@ exports.requestReopen = async (req, res) => {
       return res.status(400).json({ error: 'Please provide a reason for reopening the job.' });
     }
 
-    const existingRequest = await JobReopenRequest.findOne({ job: job._id, recruiter: req.user.id, status: 'pending' });
+    const existingRequest = await JobReopenRequest.findOne({ job: job._id, recruiter: workspaceRecruiterId(req), status: 'pending' });
     if (existingRequest) {
       return res.status(400).json({ error: 'You already have a pending reopen request for this job.' });
     }
 
     const request = await JobReopenRequest.create({
       job: job._id,
-      recruiter: req.user.id,
+      recruiter: workspaceRecruiterId(req),
       message,
     });
 

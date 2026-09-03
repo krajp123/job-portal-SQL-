@@ -4,12 +4,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import axiosInstance from '../../api/axiosInstance';
 import RecruiterNavbar from '../../components/RecruiterNavbar';
 
-const DEMO_MEMBERS = [
-    { _id: 'demo-recruiter-1', fullName: 'Neha Sharma', designation: 'Senior Talent Partner', location: 'Patna, India' },
-    { _id: 'demo-recruiter-2', fullName: 'Rohan Mehta', designation: 'Recruitment Manager', location: 'Bengaluru, India' },
-    { _id: 'demo-recruiter-3', fullName: 'Aisha Khan', designation: 'People Operations Lead', location: 'Delhi, India' },
-];
-
 function getInitials(name = '') {
     const parts = name.trim().split(/\s+/).filter(Boolean);
     return parts.length > 1
@@ -48,19 +42,13 @@ export default function Recruiters() {
                 if (mounted) {
                     setCompany(companyName);
                     const loadedMembers = Array.isArray(membersResponse.data) ? membersResponse.data : [];
-                    setMembers(import.meta.env.DEV ? [...loadedMembers, ...DEMO_MEMBERS] : loadedMembers);
+                    setMembers(loadedMembers);
                     setError('');
                 }
             } catch (requestError) {
                 console.error('Failed to load company recruiters:', requestError);
                 if (mounted) {
-                    if (import.meta.env.DEV) {
-                        setCompany('Demo Company');
-                        setMembers(DEMO_MEMBERS);
-                        setError('');
-                    } else {
-                        setError('Recruiters could not be loaded right now. Please try again.');
-                    }
+                    setError('Recruiters could not be loaded right now. Please try again.');
                 }
             } finally {
                 if (mounted) setLoading(false);

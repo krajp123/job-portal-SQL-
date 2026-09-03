@@ -447,7 +447,7 @@ exports.resumeRegistration = async (req, res) => {
   try {
     const { recruiterId } = req.params;
     const {
-      password, fullName, firstName, lastName, phone, mobile,
+      email, workEmail, password, fullName, firstName, lastName, phone, mobile,
       companyName, companyWebsite, companyDetails, companyDescription,
       companyEmail, companyEmailDomain, companyGst, gstNumber, companyCin, cinNumber,
       industry, industryOther, companySize, companyType, companyTypeOther, companyLocation,
@@ -471,8 +471,10 @@ exports.resumeRegistration = async (req, res) => {
       return res.status(400).json({ error: 'No successful payment found. Please complete payment first.' });
     }
 
-    // Validate required fields
-    if (!isValidEmail(recruiter.email)) {
+    // Resume mode displays the personal email as an editable field. Keep the
+    // stored value in sync with the submitted form before completing the account.
+    const normalizedEmail = (email || workEmail || recruiter.email || '').toLowerCase().trim();
+    if (!isValidEmail(normalizedEmail)) {
       return res.status(400).json({ error: 'Invalid email address' });
     }
     if (!isStrongEnoughPassword(password)) {
@@ -532,6 +534,7 @@ exports.resumeRegistration = async (req, res) => {
 
     // Update recruiter with full details
     const passwordHash = await hashPassword(password);
+    recruiter.email = normalizedEmail;
     recruiter.passwordHash = passwordHash;
     recruiter.fullName = normalizedName;
     recruiter.phone = normalizedPhone;
@@ -570,6 +573,95 @@ exports.resumeRegistration = async (req, res) => {
     });
   } catch (err) {
     console.error('Error resuming registration:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// GET /api/recruiter/resume-registration/:recruiterId
+// Returns the saved draft for the registration recovery form.
+exports.getResumeRegistration = async (req, res) => {
+  try {
+    const recruiter = await Recruiter.findOne({
+      _id: req.params.recruiterId,
+      registrationStatus: 'incomplete',
+    }).select('-passwordHash -passwordResetToken -passwordResetExpiry');
+
+    if (!recruiter) {
+      return res.status(404).json({ error: 'Registration session not found. Please start fresh.' });
+    }
+
+    res.json({ recruiter });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// PUT /api/recruiter/resume-registration/:recruiterId/draft
+// Saves any fields completed so far without requiring the full registration.
+exports.saveResumeRegistrationDraft = async (req, res) => {
+  try {
+    const recruiter = await Recruiter.findOne({
+      _id: req.params.recruiterId,
+      registrationStatus: 'incomplete',
+    });
+    if (!recruiter) {
+      return res.status(404).json({ error: 'Registration session not found. Please start fresh.' });
+    }
+
+    const {
+      email, workEmail, firstName, lastName, fullName, phone, mobile, jobTitle,
+      companyName, companyWebsite, companyEmailDomain, companyEmail, companySize,
+      industry, industryOther, companyLocation, companyType, companyTypeOther,
+      recruiterRole, companyDescription, gstNumber, cinNumber, hiringVolume,
+      hiringFor, departments, password, currentStep,
+    } = req.body;
+
+    const normalizedEmail = (email || workEmail || recruiter.email || '').toLowerCase().trim();
+    if (!isValidEmail(normalizedEmail)) {
+      return res.status(400).json({ error: 'Enter a valid personal email before saving.' });
+    }
+
+    const setIfPresent = (field, value) => {
+      if (value !== undefined && value !== null && value !== '') recruiter[field] = value;
+    };
+
+    recruiter.email = normalizedEmail;
+    if (currentStep) recruiter.registrationDraftStep = Math.min(5, Math.max(1, Number(currentStep)));
+    setIfPresent('fullName', fullName || [firstName, lastName].filter(Boolean).join(' '));
+    setIfPresent('phone', phone || mobile);
+    setIfPresent('jobTitle', jobTitle);
+    setIfPresent('companyName', companyName);
+    setIfPresent('companyWebsite', companyWebsite);
+    setIfPresent('companyEmail', companyEmail || companyEmailDomain);
+    setIfPresent('companySize', companySize);
+    setIfPresent('industry', industry === 'Other' && industryOther ? `Other: ${industryOther}` : industry);
+    setIfPresent('location', companyLocation);
+    setIfPresent('companyType', companyType === 'Other' && companyTypeOther ? `Other: ${companyTypeOther}` : companyType);
+    setIfPresent('recruiterRole', recruiterRole);
+    setIfPresent('companyDetails', companyDescription);
+    setIfPresent('companyGst', gstNumber);
+    setIfPresent('companyCin', cinNumber);
+    setIfPresent('hiringVolume', hiringVolume);
+
+    if (hiringFor !== undefined) recruiter.hiringFor = Array.isArray(hiringFor) ? hiringFor : JSON.parse(hiringFor || '[]');
+    if (departments !== undefined) recruiter.departments = Array.isArray(departments) ? departments : JSON.parse(departments || '[]');
+    if (password && isStrongEnoughPassword(password)) recruiter.passwordHash = await hashPassword(password);
+
+    const files = req.files || {};
+    const uploads = [
+      ['gstFile', 'gstCertificateUrl', 'gst'],
+      ['cinFile', 'cinCertificateUrl', 'cin'],
+      ['bizRegFile', 'businessRegistrationCertificateUrl', 'business-registration'],
+    ];
+    for (const [fileKey, field, folder] of uploads) {
+      const file = files[fileKey]?.[0];
+      if (file) recruiter[field] = await uploadRegistrationDocument(req, file, folder);
+    }
+
+    await recruiter.save();
+    res.json({ message: 'Draft saved successfully.', recruiter });
+  } catch (err) {
+    console.error('Error saving recruiter registration draft:', err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -617,7 +709,22 @@ exports.login = async (req, res) => {
 
     const token = generateUserToken({ id: recruiter._id, role: 'recruiter' });
 
-    res.json({ token, companyName: recruiter.companyName });
+    const workspaceOwner = await Recruiter.findOne({
+      'teamMembers.email': recruiter.email,
+      'teamMembers.status': 'active',
+      registrationStatus: 'complete',
+    }).select('_id teamMembers').lean();
+    const membership = workspaceOwner?.teamMembers?.find(
+      (member) => member.email === recruiter.email && member.status === 'active'
+    );
+
+    res.json({
+      token,
+      companyName: recruiter.companyName,
+      workspaceAccess: membership
+        ? { role: membership.role, isOwner: false, ownerId: workspaceOwner._id }
+        : { role: 'admin', isOwner: true, ownerId: recruiter._id },
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

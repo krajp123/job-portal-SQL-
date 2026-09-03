@@ -126,10 +126,22 @@ function normalizeRecruiterJob(job, applicantsCount) {
 exports.getMyProfile = async (req, res) => {
   try {
     const recruiter = await Recruiter.findById(req.user.id).select('-passwordHash');
-    
+    if (!recruiter) return res.status(404).json({ error: 'Recruiter account not found' });
+
+    const workspaceOwner = await Recruiter.findById(req.recruiterAccess?.ownerId || recruiter._id)
+      .select('teamMembers')
+      .lean();
+    const payload = recruiter.toObject();
+    payload.workspaceAccess = {
+      role: req.recruiterAccess?.role || 'admin',
+      isOwner: req.recruiterAccess?.isOwner ?? true,
+      ownerId: String(req.recruiterAccess?.ownerId || recruiter._id),
+    };
+    payload.teamMembers = workspaceOwner?.teamMembers || [];
+
     // Debug: getMyProfile languages from DB
-    
-    res.json(recruiter);
+
+    res.json(payload);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -394,11 +406,13 @@ exports.getPublicProfile = async (req, res) => {
 // GET /api/recruiter/dashboard/overview
 exports.getDashboardOverview = async (req, res) => {
   try {
-    const recruiterId = req.user.id;
+    const recruiterId = req.workspaceOwnerId || req.user.id;
+    const recruiter = await Recruiter.findById(recruiterId).select('fullName monthlyHiringGoal').lean();
     const today = new Date();
     const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-    const [openJobs, activeApplications, candidatesScreened, shortlisted, interviewsScheduled, offersSent, newHires, aiMatchesToday] = await Promise.all([
+    const [openJobs, activeApplications, candidatesScreened, shortlisted, interviewsScheduled, offersSent, newHires, aiMatchesToday, monthlyHires, hiredApplications] = await Promise.all([
       Job.countDocuments({ postedBy: recruiterId, status: 'open' }),
       Application.countDocuments({ recruiter: recruiterId }),
       Application.countDocuments({
@@ -417,9 +431,23 @@ exports.getDashboardOverview = async (req, res) => {
         skillsMatch: { $gte: 50 },
         createdAt: { $gte: startOfToday },
       }),
+      Application.countDocuments({ recruiter: recruiterId, status: 'hired', updatedAt: { $gte: startOfMonth } }),
+      Application.find({ recruiter: recruiterId, status: 'hired' }).select('updatedAt').sort({ updatedAt: -1 }).lean(),
     ]);
 
+    const hiredDays = new Set(hiredApplications.map((application) => new Date(application.updatedAt).toISOString().slice(0, 10)));
+    let hiringStreak = 0;
+    const streakDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    while (hiredDays.has(streakDate.toISOString().slice(0, 10))) {
+      hiringStreak += 1;
+      streakDate.setDate(streakDate.getDate() - 1);
+    }
+
     res.json({
+      recruiterName: recruiter?.fullName || 'Recruiter',
+      monthlyHires,
+      monthlyHiringGoal: recruiter?.monthlyHiringGoal ?? 5,
+      hiringStreak,
       openJobs,
       activeApplications,
       candidatesScreened,
@@ -997,11 +1025,42 @@ exports.downloadPurchasedResume = async (req, res) => {
 // GET /api/recruiter/me/team
 exports.listTeamMembers = async (req, res) => {
   try {
-    const recruiter = await Recruiter.findById(req.user.id).select('teamMembers');
+    const ownerId = req.recruiterAccess?.ownerId || req.user.id;
+    const recruiter = await Recruiter.findById(ownerId).select('teamMembers');
     if (!recruiter) return res.status(404).json({ error: 'Recruiter account not found' });
-    return res.json({ teamMembers: recruiter.teamMembers || [] });
+    const emails = (recruiter.teamMembers || []).map((member) => member.email);
+    const profiles = await Recruiter.find({ email: { $in: emails } }).select('email fullName profilePictureUrl').lean();
+    const profileMap = new Map(profiles.map((profile) => [profile.email.toLowerCase(), profile]));
+    return res.json({
+      teamMembers: (recruiter.teamMembers || []).map((member) => ({
+        ...member.toObject(),
+        fullName: profileMap.get(member.email.toLowerCase())?.fullName || '',
+        profilePictureUrl: profileMap.get(member.email.toLowerCase())?.profilePictureUrl || '',
+      })),
+    });
   } catch (err) {
     console.error('Failed to list team members:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// PATCH /api/recruiter/me/team/:email/role
+exports.updateTeamMemberRole = async (req, res) => {
+  try {
+    const { role } = req.body;
+    if (!['recruiter', 'viewer'].includes(role)) return res.status(400).json({ error: 'Invalid team role' });
+
+    const recruiter = await Recruiter.findById(req.user.id).select('teamMembers');
+    if (!recruiter) return res.status(404).json({ error: 'Recruiter account not found' });
+    const email = decodeURIComponent(req.params.email).toLowerCase();
+    const member = (recruiter.teamMembers || []).find((item) => item.email.toLowerCase() === email);
+    if (!member) return res.status(404).json({ error: 'Team member not found' });
+
+    member.role = role;
+    await recruiter.save();
+    return res.json({ message: 'Team role updated.', member });
+  } catch (err) {
+    console.error('Update team member role failed:', err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -1009,14 +1068,18 @@ exports.listTeamMembers = async (req, res) => {
 // POST /api/recruiter/me/team/invite
 exports.inviteTeamMember = async (req, res) => {
   try {
-    const { email, role } = req.body;
+    const { email, role = 'recruiter' } = req.body;
     if (!email) return res.status(400).json({ error: 'Email is required' });
     if (!isValidEmail(email)) return res.status(400).json({ error: 'Invalid email address' });
+    if (!['recruiter', 'viewer'].includes(role)) return res.status(400).json({ error: 'Invalid team role' });
 
-    const inviter = await Recruiter.findById(req.user.id).select('companyName teamMembers');
+    const normalizedEmail = email.toLowerCase().trim();
+    const inviter = await Recruiter.findById(req.user.id).select('email companyName teamMembers registrationStatus');
     if (!inviter) return res.status(404).json({ error: 'Recruiter account not found' });
+    if (inviter.registrationStatus !== 'complete') return res.status(403).json({ error: 'Complete your registration before inviting team members' });
+    if (inviter.email.toLowerCase() === normalizedEmail) return res.status(400).json({ error: 'You cannot invite yourself' });
 
-    const target = await Recruiter.findOne({ email: email.toLowerCase() }).select('companyName email');
+    const target = await Recruiter.findOne({ email: normalizedEmail, registrationStatus: 'complete' }).select('companyName email');
     if (!target) {
       return res.status(404).json({ error: 'Recruiter with this email not found. They must register first.' });
     }
@@ -1026,11 +1089,12 @@ exports.inviteTeamMember = async (req, res) => {
     }
 
     // prevent duplicates
-    if ((inviter.teamMembers || []).some((m) => m.email.toLowerCase() === email.toLowerCase())) {
-      return res.status(409).json({ error: 'Team member already invited' });
+    const existingMember = (inviter.teamMembers || []).find((m) => m.email.toLowerCase() === normalizedEmail);
+    if (existingMember) {
+      return res.status(409).json({ error: existingMember.status === 'active' ? 'This recruiter is already a team member' : 'Team member already invited' });
     }
 
-    const member = { email: email.toLowerCase(), role: role || 'recruiter', status: 'pending', invitedAt: new Date() };
+    const member = { email: normalizedEmail, role, status: 'pending', invitedAt: new Date() };
     inviter.teamMembers = inviter.teamMembers || [];
     inviter.teamMembers.push(member);
     await inviter.save();

@@ -18,6 +18,8 @@ const recruiterSchema = new mongoose.Schema(
         email: { type: String, required: true, lowercase: true, trim: true },
         role: { type: String, enum: ['admin', 'recruiter', 'viewer'], default: 'recruiter' },
         status: { type: String, enum: ['pending', 'active'], default: 'pending' },
+        invitedAt: { type: Date, default: Date.now },
+        acceptedAt: { type: Date },
       },
     ],
     companyName: { type: String, required: true },
@@ -41,6 +43,7 @@ const recruiterSchema = new mongoose.Schema(
     coverImageUrl: { type: String },
     companyDetails: { type: String },
     hiringVolume: { type: String, trim: true }, // 1-5, 5-20, 20-100, 100+
+    monthlyHiringGoal: { type: Number, min: 0, default: 5 },
     hiringFor: [{ type: String, trim: true }], // Full-time, Part-time, Internship, Contract, Remote
     departments: [{ type: String, trim: true }], // List of departments they hire for
     tags: [{ type: String, trim: true }],
@@ -85,6 +88,7 @@ const recruiterSchema = new mongoose.Schema(
       enum: ['incomplete', 'complete'],
       default: 'complete',
     },
+    registrationDraftStep: { type: Number, min: 1, max: 5, default: 1 },
     verificationStatus: {
       type: String,
       enum: ['pending', 'verified', 'rejected'],

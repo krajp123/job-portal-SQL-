@@ -529,10 +529,18 @@ export default function RecruiterProfile() {
                 <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#C75560]">Our people</p>
                 <h2 className="mt-1 text-lg font-bold text-[#1D181A]">Other recruiters at {recruiter.companyName}</h2>
               </div>
-              <Users size={20} className="shrink-0 text-[#C75560]" />
+              {companyMembers.length > 3 && (
+                <button
+                  type="button"
+                  onClick={() => navigate('/recruiters')}
+                  className="shrink-0 text-sm font-semibold text-[#C75560] transition hover:text-[#A0182C]"
+                >
+                  View all
+                </button>
+              )}
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {companyMembers.map((member) => (
+              {companyMembers.slice(0, 3).map((member) => (
                 <Link
                   key={member._id}
                   to={`/recruiter/${member._id}`}

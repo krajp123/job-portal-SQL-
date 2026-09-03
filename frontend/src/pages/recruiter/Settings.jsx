@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import Cropper from 'react-easy-crop';
 import axiosInstance from '../../api/axiosInstance';
 import RecruiterNavbar from '../../components/RecruiterNavbar';
+import { useAuth } from '../../context/AuthContext';
 import { FONT_DISPLAY } from '../../theme';
 import {
   User,
@@ -73,6 +74,110 @@ function SettingRow({ title, description, children }) {
         {description && <p className="mt-0.5 text-xs leading-5 text-slate-500">{description}</p>}
       </div>
       <div className="shrink-0 pt-0.5">{children}</div>
+    </div>
+  );
+}
+
+function LocationAutocomplete({ value, onChange, className }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState(value || '');
+  const [suggestions, setSuggestions] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const containerRef = React.useRef(null);
+  const selectedRef = React.useRef('');
+
+  useEffect(() => setQuery(value || ''), [value]);
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (!containerRef.current?.contains(event.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
+  useEffect(() => {
+    const cleanQuery = query.trim();
+    if (cleanQuery.length < 2 || cleanQuery === selectedRef.current) {
+      setSuggestions([]);
+      setSearching(false);
+      selectedRef.current = '';
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=8&q=${encodeURIComponent(cleanQuery)}`,
+          { signal: controller.signal, headers: { Accept: 'application/json' } }
+        );
+        if (!response.ok) throw new Error('Location search failed');
+        const results = await response.json();
+        const formatted = results
+          .map((result) => {
+            const address = result.address || {};
+            const parts = [
+              address.city || address.town || address.village || address.municipality || address.hamlet,
+              address.state || address.region,
+              address.country,
+            ].filter(Boolean);
+            return [...new Set(parts)].join(', ') || result.name || result.display_name;
+          })
+          .filter(Boolean)
+          .filter((item, index, list) => list.indexOf(item) === index);
+        setSuggestions(formatted);
+        setOpen(true);
+      } catch (error) {
+        if (error.name !== 'AbortError') setSuggestions([]);
+      } finally {
+        if (!controller.signal.aborted) setSearching(false);
+      }
+    }, 350);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query]);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <input
+        className={className}
+        value={query}
+        onChange={(event) => {
+          setQuery(event.target.value);
+          onChange(event.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => query.trim().length >= 2 && setOpen(true)}
+        placeholder="e.g. Bengaluru, India"
+        autoComplete="off"
+      />
+      {open && query.trim().length >= 2 && (searching || suggestions.length > 0) && (
+        <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-52 overflow-y-auto rounded-lg border border-[#EBC2AE] bg-white py-1 shadow-lg">
+          {searching ? (
+            <p className="px-3 py-2 text-xs text-[#80576A]">Searching locations...</p>
+          ) : suggestions.map((suggestion) => (
+            <button
+              key={suggestion}
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                selectedRef.current = suggestion;
+                setQuery(suggestion);
+                onChange(suggestion);
+                setOpen(false);
+              }}
+              className="block w-full px-3 py-2 text-left text-xs text-[#54263F] hover:bg-[#FFF0E8]"
+            >
+              {suggestion}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -345,6 +450,8 @@ function validateExperienceEntry(exp) {
 /* --------------------------------------------------------------------- */
 
 export default function RecruiterSettings() {
+  const { user } = useAuth();
+  const isViewer = user?.workspaceAccess?.role === 'viewer';
   const [activeTab, setActiveTab] = useState('account');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -409,6 +516,7 @@ export default function RecruiterSettings() {
   const [teamMembers, setTeamMembers] = useState([]);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('recruiter');
+  const [updatingRole, setUpdatingRole] = useState('');
 
   /* ---- danger zone ---- */
   const [confirmAction, setConfirmAction] = useState(null); // 'deactivate' | 'delete' | null
@@ -421,7 +529,10 @@ export default function RecruiterSettings() {
   useEffect(() => {
     async function fetchSettings() {
       try {
-        const { data } = await axiosInstance.get('/recruiter/me/profile');
+        const [{ data }, { data: teamData }] = await Promise.all([
+          axiosInstance.get('/recruiter/me/profile'),
+          axiosInstance.get('/recruiter/me/team'),
+        ]);
         // API response loaded
         const loadedAccount = {
           fullName: data?.fullName || '',
@@ -441,7 +552,7 @@ export default function RecruiterSettings() {
         // Account state loaded
         setAccount(loadedAccount);
         setAccountDraft(loadedAccount);
-        setTeamMembers(data?.teamMembers || []);
+        setTeamMembers(teamData?.teamMembers || data?.teamMembers || []);
       } catch (err) {
         setError(err.response?.data?.error || 'Could not load settings.');
       } finally {
@@ -740,8 +851,15 @@ export default function RecruiterSettings() {
   }
 
   function addTeamMember() {
-    if (!inviteEmail.trim()) return;
-    const email = inviteEmail.trim();
+    const email = inviteEmail.trim().toLowerCase();
+    if (!email) {
+      setError('Enter a colleague email address.');
+      return;
+    }
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      setError('Enter a valid colleague email address.');
+      return;
+    }
     (async () => {
       setError('');
       setSaving(true);
@@ -778,6 +896,21 @@ export default function RecruiterSettings() {
       setError(err.response?.data?.error || 'Failed to remove team member.');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function updateTeamMemberRole(member, role) {
+    if (!member?.email || role === member.role) return;
+    setUpdatingRole(member.email);
+    setError('');
+    try {
+      const { data } = await axiosInstance.patch(`/recruiter/me/team/${encodeURIComponent(member.email)}/role`, { role });
+      setTeamMembers((current) => current.map((item) => item.email === member.email ? { ...item, role: data.member?.role || role } : item));
+      notify('Team role updated.');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to update team role.');
+    } finally {
+      setUpdatingRole('');
     }
   }
 
@@ -862,6 +995,7 @@ export default function RecruiterSettings() {
                   <button
                     key={tab.id}
                     type="button"
+                    data-viewer-allowed="true"
                     onClick={() => setActiveTab(tab.id)}
                     className={`flex shrink-0 items-center gap-2.5 rounded-2xl px-4 py-2.5 text-left text-sm font-semibold transition lg:w-full ${
                       isActive
@@ -1027,11 +1161,10 @@ export default function RecruiterSettings() {
 
           <Field label="Location">
             {accountEditMode ? (
-              <input
+              <LocationAutocomplete
                 className={inputClass}
                 value={accountDraft.location}
-                onChange={(e) => setAccountDraft((p) => ({ ...p, location: e.target.value }))}
-                placeholder="e.g. Bengaluru, India"
+                onChange={(location) => setAccountDraft((p) => ({ ...p, location }))}
               />
             ) : (
               <p className="text-sm text-[#1D181A]">{account.location || '—'}</p>
@@ -1577,7 +1710,13 @@ export default function RecruiterSettings() {
             {activeTab === 'team' && (
               <>
                 <Card title="Invite a team member" description="Give colleagues access to this recruiter workspace.">
-                  <div className="flex flex-col gap-3 pt-4 sm:flex-row">
+                  <form
+                    className="flex flex-col gap-3 pt-4 sm:flex-row"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      addTeamMember();
+                    }}
+                  >
                     <input
                       type="email"
                       className={`${inputClass} sm:flex-1`}
@@ -1593,6 +1732,13 @@ export default function RecruiterSettings() {
                       <option value="recruiter">Recruiter</option>
                       <option value="viewer">Viewer</option>
                     </select>
+                    <button
+                      type="submit"
+                      disabled={isViewer || saving || !inviteEmail.trim()}
+                      className="inline-flex items-center justify-center rounded-xl bg-[#C75560] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#B44852] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {saving ? 'Sending…' : 'Send invite'}
+                    </button>
                     <Link
                       to="/recruiter/invites"
                       onClick={() => setActiveTab('team')}
@@ -1600,7 +1746,7 @@ export default function RecruiterSettings() {
                     >
                       Manage invites
                     </Link>
-                  </div>
+                  </form>
                 </Card>
 
                 <Card title="Workspace members" description={`${teamMembers.length} member${teamMembers.length === 1 ? '' : 's'} with access.`}>
@@ -1609,21 +1755,41 @@ export default function RecruiterSettings() {
                   ) : (
                     teamMembers.map((member) => (
                       <div key={member.id || member.email} className="flex items-center justify-between gap-4 py-4">
-                        <div className="flex min-w-0 items-center gap-3">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#FFF1EB] text-sm font-bold text-[#C75560]">
-                            {member.email.charAt(0).toUpperCase()}
-                          </div>
+                          <div className="flex min-w-0 items-center gap-3">
+                            {member.profilePictureUrl ? (
+                              <img
+                                src={member.profilePictureUrl}
+                                alt={member.fullName || member.email}
+                                className="h-9 w-9 shrink-0 rounded-full border border-[#EBC2AE] object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#FFF1EB] text-sm font-bold text-[#C75560]">
+                                {member.fullName?.charAt(0)?.toUpperCase() || member.email.charAt(0).toUpperCase()}
+                              </div>
+                            )}
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-[#1D181A]">{member.email}</p>
+                            <p className="truncate text-sm font-semibold text-[#1D181A]">{member.fullName || member.email}</p>
+                            <p className="truncate text-xs text-slate-500">{member.email}</p>
                             <p className="text-xs text-slate-500">
                               {ROLE_LABELS[member.role] || member.role}
-                              {member.status === 'pending' && ' · Invite pending'}
+                              {member.status === 'pending' ? ' · Invite pending' : ' · Active'}
                             </p>
                           </div>
                         </div>
+                        <select
+                          value={member.role || 'recruiter'}
+                          onChange={(event) => updateTeamMemberRole(member, event.target.value)}
+                          disabled={isViewer || updatingRole === member.email}
+                          aria-label={`Update role for ${member.fullName || member.email}`}
+                          className="w-28 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <option value="recruiter">Recruiter</option>
+                          <option value="viewer">Viewer</option>
+                        </select>
                         <button
                           type="button"
                           onClick={() => removeTeamMember(member.id || member.email)}
+                          disabled={isViewer}
                           aria-label="Remove member"
                           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
                         >

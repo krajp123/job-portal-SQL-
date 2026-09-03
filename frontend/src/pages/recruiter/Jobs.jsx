@@ -29,6 +29,7 @@ import {
     XCircle,
 } from 'lucide-react';
 import axiosInstance from '../../api/axiosInstance';
+import { useAuth } from '../../context/AuthContext';
 import RecruiterNavbar from '../../components/RecruiterNavbar';
 import { FONT_DISPLAY } from '../../theme';
 import { ApplicationRequirementsBuilder } from '../../components/ApplicationForm';
@@ -235,6 +236,8 @@ function SortMenu({ value, onChange }) {
 /* Job card (grid view)                                                */
 /* ------------------------------------------------------------------ */
 function IconActionButton({ icon: Icon, label, tone = 'neutral', onClick }) {
+    const { user } = useAuth();
+    const disabled = user?.workspaceAccess?.role === 'viewer';
     const toneStyles = {
         neutral:
             'border-[#EBC2AE] bg-[#FFF9F5] text-[#54263F] hover:border-[#C75560] hover:bg-white hover:text-[#C75560]',
@@ -247,6 +250,7 @@ function IconActionButton({ icon: Icon, label, tone = 'neutral', onClick }) {
                 type="button"
                 aria-label={label}
                 onClick={onClick}
+                disabled={disabled}
                 className={`flex h-9 w-9 items-center justify-center rounded-[10px] border transition-colors ${toneStyles[tone]}`}
             >
                 <Icon size={15} />
@@ -262,6 +266,8 @@ function IconActionButton({ icon: Icon, label, tone = 'neutral', onClick }) {
 }
 
 function JobCard({ job, onOpenDetail, onRequestClose, onRequestEdit, onRequestDelete }) {
+    const { user } = useAuth();
+    const isViewer = user?.workspaceAccess?.role === 'viewer';
     const skills = Array.isArray(job.skillsRequired) ? job.skillsRequired.filter(Boolean) : [];
     const visibleSkills = skills.slice(0, 4);
     const overflowCount = skills.length - visibleSkills.length;
@@ -365,6 +371,7 @@ function JobCard({ job, onOpenDetail, onRequestClose, onRequestEdit, onRequestDe
                         <button
                             type="button"
                             onClick={() => onRequestClose(job)}
+                            disabled={isViewer}
                             className="flex h-9 items-center gap-1.5 rounded-[10px] border border-[#1D181A] bg-[#1D181A] px-3.5 text-[11.5px] font-semibold text-white transition-colors hover:bg-[#3A3034]"
                         >
                             <LockKeyhole size={14} /> Close
@@ -373,6 +380,7 @@ function JobCard({ job, onOpenDetail, onRequestClose, onRequestEdit, onRequestDe
                         <button
                             type="button"
                             onClick={() => onRequestClose(job)}
+                            disabled={isViewer}
                             className="flex h-9 items-center gap-1.5 rounded-[10px] border border-[#2E7D32] bg-[#ECF9F0] px-3.5 text-[11.5px] font-semibold text-[#2E7D32] transition-colors hover:bg-[#DFF5E6]"
                         >
                             <LockOpen size={14} /> Request reopen
@@ -381,6 +389,7 @@ function JobCard({ job, onOpenDetail, onRequestClose, onRequestEdit, onRequestDe
                         <button
                             type="button"
                             onClick={() => onRequestClose(job)}
+                            disabled={isViewer}
                             className="flex h-9 items-center gap-1.5 rounded-[10px] border border-[#2E7D32] bg-[#ECF9F0] px-3.5 text-[11.5px] font-semibold text-[#2E7D32] transition-colors hover:bg-[#DFF5E6]"
                         >
                             <LockOpen size={14} /> Open
@@ -396,6 +405,8 @@ function JobCard({ job, onOpenDetail, onRequestClose, onRequestEdit, onRequestDe
 /* Job row (list view)                                                 */
 /* ------------------------------------------------------------------ */
 function JobRow({ job, onOpenDetail, onRequestClose, onRequestEdit, onRequestDelete }) {
+    const { user } = useAuth();
+    const isViewer = user?.workspaceAccess?.role === 'viewer';
     const total = job.applicantStats?.total ?? null;
     return (
         <div className="portal-card flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-5 sm:p-4">
@@ -452,6 +463,7 @@ function JobRow({ job, onOpenDetail, onRequestClose, onRequestEdit, onRequestDel
                     <button
                         type="button"
                         onClick={() => onRequestClose(job)}
+                        disabled={isViewer}
                         className="flex items-center gap-1.5 rounded-[10px] border border-[#1D181A] bg-[#1D181A] px-3 py-1.5 text-[11.5px] font-semibold text-white transition-colors hover:bg-[#3A3034]"
                     >
                         <LockKeyhole size={13} /> Close
@@ -460,6 +472,7 @@ function JobRow({ job, onOpenDetail, onRequestClose, onRequestEdit, onRequestDel
                     <button
                         type="button"
                         onClick={() => onRequestClose(job)}
+                        disabled={isViewer}
                         className="flex items-center gap-1.5 rounded-[10px] border border-[#2E7D32] bg-[#ECF9F0] px-3 py-1.5 text-[11.5px] font-semibold text-[#2E7D32] transition-colors hover:bg-[#DFF5E6]"
                     >
                         <LockOpen size={13} /> Open
@@ -1092,6 +1105,7 @@ function JobDetailDrawer({ job, onClose, onRequestClose }) {
                                 <button
                                     type="button"
                                     onClick={() => onRequestClose(job)}
+                                    disabled={isViewer}
                                     className="rounded-[10px] border border-[#B3261E] px-4 py-2.5 text-[12.5px] font-semibold text-[#B3261E] transition-colors hover:bg-[#FFF0EE]"
                                 >
                                     Close job

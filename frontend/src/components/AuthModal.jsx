@@ -33,6 +33,7 @@ const PROMO_COPY = {
  */
 export default function AuthModal({ isOpen, role, mode, onClose, onModeChange, onRoleChange }) {
     const [videoOpen, setVideoOpen] = useState(false);
+    const [recruiterPaymentComplete, setRecruiterPaymentComplete] = useState(false);
     const promo = PROMO_COPY[role] || PROMO_COPY.candidate;
 
     return (
@@ -132,10 +133,14 @@ export default function AuthModal({ isOpen, role, mode, onClose, onModeChange, o
                                         {['candidate', 'recruiter'].map((r) => (
                                             <button
                                                 key={r}
-                                                onClick={() => onRoleChange(r)}
+                                                type="button"
+                                                onClick={() => !recruiterPaymentComplete && onRoleChange(r)}
+                                                disabled={r === 'candidate' && recruiterPaymentComplete}
                                                 className={`flex-1 rounded-[9px] py-1.5 text-[12.5px] font-semibold capitalize transition-colors ${
                                                     role === r
                                                         ? 'bg-[#1D181A] text-white shadow-[0_8px_16px_-12px_rgba(29,24,26,0.8)]'
+                                                            : recruiterPaymentComplete && r === 'candidate'
+                                                            ? 'cursor-not-allowed text-[#BDA9A8] opacity-60'
                                                             : 'text-[#80576A] hover:bg-[#FFE1D2] hover:text-[#54263F]'
                                                 }`}
                                             >
@@ -176,7 +181,10 @@ export default function AuthModal({ isOpen, role, mode, onClose, onModeChange, o
                                         onSuccess={onClose}
                                     />
                                 ) : (
-                                    <RecruiterRegisterForm onSwitchToLogin={() => onModeChange('login')} />
+                                    <RecruiterRegisterForm
+                                        onSwitchToLogin={() => onModeChange('login')}
+                                        onPaymentComplete={() => setRecruiterPaymentComplete(true)}
+                                    />
                                 )}
                             </div>
                         </motion.div>

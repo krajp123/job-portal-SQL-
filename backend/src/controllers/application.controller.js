@@ -9,6 +9,10 @@ const { createNotification } = require('../services/notification.service');
 const { sendEmail, sendShortlistEmail, sendInterviewScheduleEmail, sendRejectionEmail } = require('../services/email.service');
 const { getPlatformSettings } = require('../services/platformSettings.service');
 
+function workspaceRecruiterId(req) {
+  return req.workspaceOwnerId || req.user.id;
+}
+
 const APPLICATION_FIELD_TYPES = new Set(['text', 'textarea', 'number', 'radio', 'checkbox', 'select', 'skills', 'date', 'url', 'file']);
 
 function validateApplicationAnswers(fields, submittedAnswers) {
@@ -183,7 +187,7 @@ exports.myApplications = async (req, res) => {
 // GET /api/applications/recruiter (recruiter only)
 exports.applicantsForRecruiter = async (req, res) => {
   try {
-    const applications = await Application.find({ recruiter: req.user.id })
+    const applications = await Application.find({ recruiter: workspaceRecruiterId(req) })
       .populate({
         path: 'candidate',
         select: '-passwordHash -phone',
@@ -224,7 +228,7 @@ exports.emailCandidate = async (req, res) => {
       return res.status(400).json({ error: 'Subject and message are required.' });
     }
 
-    const application = await Application.findOne({ _id: req.params.id, recruiter: req.user.id })
+    const application = await Application.findOne({ _id: req.params.id, recruiter: workspaceRecruiterId(req) })
       .populate('candidate', 'name email')
       .populate('job', 'title');
     if (!application) return res.status(404).json({ error: 'Application not found' });
@@ -247,7 +251,7 @@ exports.applicantsForJob = async (req, res) => {
   try {
     const applications = await Application.find({
       job: req.params.jobId,
-      recruiter: req.user.id,
+      recruiter: workspaceRecruiterId(req),
     })
       .populate({
         path: 'candidate',
@@ -330,17 +334,17 @@ exports.updateStatus = async (req, res) => {
 
     const application = await Application.findOne({
       _id: req.params.id,
-      recruiter: req.user.id,
+      recruiter: workspaceRecruiterId(req),
     })
       .populate({ path: 'candidate', select: 'name email' })
       .populate({ path: 'job', select: 'title' });
 
     if (!application) return res.status(404).json({ error: 'Application not found' });
 
-    const recruiter = await Recruiter.findById(req.user.id).select('name companyName');
+    const recruiter = await Recruiter.findById(workspaceRecruiterId(req)).select('name companyName');
 
     const updatedApplication = await Application.findOneAndUpdate(
-      { _id: req.params.id, recruiter: req.user.id },
+      { _id: req.params.id, recruiter: workspaceRecruiterId(req) },
       updateObj,
       { new: true }
     ).populate({ path: 'candidate', select: 'name email' }).populate({ path: 'job', select: 'title' });
@@ -348,7 +352,7 @@ exports.updateStatus = async (req, res) => {
     if (status === 'shortlisted') {
       await CandidatePerformanceEvent.create({
         candidate: application.candidate._id || application.candidate,
-        recruiter: req.user.id,
+        recruiter: workspaceRecruiterId(req),
         type: 'application_shortlisted',
         metadata: { applicationId: application._id, jobId: application.job?._id || application.job },
       });
