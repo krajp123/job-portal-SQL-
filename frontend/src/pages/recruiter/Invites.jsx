@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import axiosInstance from '../../api/axiosInstance';
 import RecruiterNavbar from '../../components/RecruiterNavbar';
+import { useAuth } from '../../context/AuthContext';
 import { FONT_DISPLAY } from '../../theme';
 import { Check, Clock3, Mail, UserRound, X } from 'lucide-react';
 
 export default function RecruiterInvites() {
+  const { refreshUser } = useAuth();
   const [invites, setInvites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -37,6 +39,7 @@ export default function RecruiterInvites() {
     try {
       const path = accept ? '/recruiter/me/invites/accept' : '/recruiter/me/invites/decline';
       await axiosInstance.post(path, { inviterEmail: invite.inviterEmail });
+      if (accept) await refreshUser();
       setInvites((prev) => prev.filter((item) => item.inviterEmail !== invite.inviterEmail));
     } catch (err) {
       setError(err?.response?.data?.error || 'Action failed.');

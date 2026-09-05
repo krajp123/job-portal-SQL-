@@ -218,6 +218,13 @@ export default function CandidateNavbar({ profile, onOpenAccountMenu, hideMobile
                                 >
                                     Saved Jobs
                                 </Link>
+                                <Link
+                                    to="/candidate/jobs/referred"
+                                    onClick={() => setJobsDropdownOpen(false)}
+                                    className="block rounded-lg px-3 py-2.5 text-[12.5px] font-semibold text-[#54263F] transition-colors hover:bg-[#FFF0E8] hover:text-[#C75560]"
+                                >
+                                    Referred Jobs
+                                </Link>
                             </div>
                         )}
                     </div>

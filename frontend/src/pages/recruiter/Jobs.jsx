@@ -560,6 +560,7 @@ function EditJobModal({ job, submitting, error, onSubmit, onCancel }) {
         experienceLevel: '',
         skillsRequired: '',
         applicationFields: [],
+        externalApplyLink: '',
     });
 
     useEffect(() => {
@@ -572,6 +573,7 @@ function EditJobModal({ job, submitting, error, onSubmit, onCancel }) {
                 experienceLevel: job.experienceLevel || '',
                 skillsRequired: Array.isArray(job.skillsRequired) ? job.skillsRequired.join(', ') : '',
                 applicationFields: job.applicationForm?.fields || [],
+                externalApplyLink: job.applicationForm?.externalApplyLink || '',
             });
         }
     }, [job]);
@@ -595,7 +597,11 @@ function EditJobModal({ job, submitting, error, onSubmit, onCancel }) {
                 .split(',')
                 .map((value) => value.trim())
                 .filter(Boolean),
-            applicationForm: { enabled: form.applicationFields.length > 0, fields: form.applicationFields },
+            applicationForm: {
+                enabled: !form.externalApplyLink.trim() && form.applicationFields.length > 0,
+                externalApplyLink: form.externalApplyLink.trim(),
+                fields: form.externalApplyLink.trim() ? [] : form.applicationFields,
+            },
         });
     }
 
@@ -669,6 +675,12 @@ function EditJobModal({ job, submitting, error, onSubmit, onCancel }) {
                             <ApplicationRequirementsBuilder
                                 value={form.applicationFields}
                                 onChange={(applicationFields) => setForm((current) => ({ ...current, applicationFields }))}
+                                externalApplyLink={form.externalApplyLink}
+                                onExternalApplyLinkChange={(externalApplyLink) => setForm((current) => ({
+                                    ...current,
+                                    externalApplyLink,
+                                    applicationFields: externalApplyLink.trim() ? [] : current.applicationFields,
+                                }))}
                             />
 
                             {error && (

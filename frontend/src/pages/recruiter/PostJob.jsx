@@ -124,6 +124,7 @@ const INITIAL_FORM = {
     requiredQualifications: '',
     preferredQualifications: '',
     applicationFields: [],
+    externalApplyLink: '',
 };
 
 function stripHtml(html) {
@@ -770,8 +771,9 @@ export default function PostJob() {
                 descriptionSections.map(([heading, html]) => [heading, html])
             ),
             applicationForm: {
-                enabled: form.applicationFields.length > 0,
-                fields: form.applicationFields,
+                enabled: !form.externalApplyLink.trim() && form.applicationFields.length > 0,
+                externalApplyLink: form.externalApplyLink.trim(),
+                fields: form.externalApplyLink.trim() ? [] : form.applicationFields,
             },
             extraLocations: form.extraLocations,
             remoteOption: form.remoteOption,
@@ -1146,6 +1148,8 @@ export default function PostJob() {
                                 <ApplicationRequirementsBuilder
                                     value={form.applicationFields}
                                     onChange={(applicationFields) => update({ applicationFields })}
+                                    externalApplyLink={form.externalApplyLink}
+                                    onExternalApplyLinkChange={(externalApplyLink) => update({ externalApplyLink, applicationFields: externalApplyLink.trim() ? [] : form.applicationFields })}
                                 />
                             </div>
                         )}

@@ -41,6 +41,15 @@ const APPLICATION_FIELD_TYPES = new Set(['text', 'textarea', 'number', 'radio', 
 
 function normalizeApplicationForm(form) {
   if (!form || typeof form !== 'object') return undefined;
+  const externalApplyLink = String(form.externalApplyLink || '').trim();
+  if (externalApplyLink) {
+    try {
+      const parsed = new URL(externalApplyLink);
+      if (!['http:', 'https:'].includes(parsed.protocol)) return { enabled: false, fields: [] };
+    } catch {
+      return { enabled: false, fields: [] };
+    }
+  }
   const seen = new Set();
   const fields = Array.isArray(form.fields) ? form.fields.map((field) => {
     const fieldId = String(field?.fieldId || '').trim().slice(0, 100);
@@ -56,7 +65,11 @@ function normalizeApplicationForm(form) {
       options: Array.isArray(field.options) ? field.options.map((option) => String(option).trim().slice(0, 120)).filter(Boolean).slice(0, 50) : [],
     };
   }).filter(Boolean) : [];
-  return { enabled: Boolean(form.enabled) && fields.length > 0, fields };
+  return {
+    enabled: !externalApplyLink && Boolean(form.enabled) && fields.length > 0,
+    externalApplyLink: externalApplyLink || undefined,
+    fields: externalApplyLink ? [] : fields,
+  };
 }
 
 const STOP_WORDS = new Set([

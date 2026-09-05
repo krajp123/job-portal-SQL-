@@ -10,6 +10,7 @@ const ICONS = {
     application_status: Briefcase,
     message: MessageCircle,
     job_alert: Megaphone,
+    referral: Briefcase,
     system: Bell,
 };
 
@@ -73,6 +74,11 @@ export default function NotificationCenter({ className = '' }) {
 
     async function openNotification(notification) {
         if (!notification.read) await markOneRead(notification._id);
+        if (notification.type === 'referral') {
+            setOpen(false);
+            navigate('/candidate/jobs/referred');
+            return;
+        }
         if (notification.type !== 'message' || !notification.relatedId) return;
 
         let user = null;

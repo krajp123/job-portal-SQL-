@@ -65,9 +65,9 @@ const ACTIVITY_META = {
 
 const TABS = [
   { key: 'overview', label: 'Overview', icon: User },
+  { key: 'controls', label: 'Controls', icon: ShieldAlert },
   { key: 'applications', label: 'Applications', icon: Briefcase },
   { key: 'activity', label: 'Activity log', icon: History },
-  { key: 'controls', label: 'Controls', icon: ShieldAlert },
   { key: 'notes', label: 'Notes', icon: StickyNote },
 ];
 

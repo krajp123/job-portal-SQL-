@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 
 export const APPLICATION_FIELD_LIBRARY = [
@@ -114,11 +114,16 @@ export function DynamicApplicationForm({ fields = [], initialValues = {}, onSubm
     </form>;
 }
 
-export function ApplicationRequirementsBuilder({ value = [], onChange }) {
+export function ApplicationRequirementsBuilder({ value = [], onChange, externalApplyLink = '', onExternalApplyLinkChange }) {
     const [customOpen, setCustomOpen] = useState(false);
     const [custom, setCustom] = useState({ label: '', fieldType: 'text', options: '', required: false });
     const choiceTypes = ['radio', 'checkbox', 'select'];
     const selectedIds = new Set(value.map((field) => field.fieldId));
+    const hasExternalLink = Boolean(externalApplyLink.trim());
+
+    useEffect(() => {
+        if (hasExternalLink) setCustomOpen(false);
+    }, [hasExternalLink]);
 
     const add = ([fieldId, label, fieldType]) => {
         if (selectedIds.has(fieldId)) return;
@@ -171,7 +176,7 @@ export function ApplicationRequirementsBuilder({ value = [], onChange }) {
                     <div className="flex items-center justify-between gap-3">
                         <div>
                             <h4 className="text-[12px] font-bold uppercase tracking-[0.1em] text-[#54263F]">Suggested fields</h4>
-                            <p className="mt-1 text-[11px] text-[#A77D8D]">Add fields relevant to this role.</p>
+                            <p className="mt-1 text-[11px] text-[#A77D8D]">{hasExternalLink ? 'Disabled while an external application link is provided.' : 'Add fields relevant to this role.'}</p>
                         </div>
                         <span className="text-[11px] font-medium text-[#A77D8D]">Click to add</span>
                     </div>
@@ -183,7 +188,7 @@ export function ApplicationRequirementsBuilder({ value = [], onChange }) {
                                     type="button"
                                     key={field[0]}
                                     onClick={() => add(field)}
-                                    disabled={added}
+                                    disabled={added || hasExternalLink}
                                     className={`flex min-h-10 items-center justify-between gap-2 rounded-[10px] border px-3 py-2 text-left text-[12px] font-semibold transition-colors ${added ? 'border-[#D8E7D9] bg-[#F3FAF3] text-[#5B8A62]' : 'border-[#F0D1BF] bg-white text-[#54263F] hover:border-[#C75560] hover:bg-[#FFF7F2]'}`}
                                 >
                                     <span>{field[1]}</span>
@@ -195,6 +200,19 @@ export function ApplicationRequirementsBuilder({ value = [], onChange }) {
                 </div>
 
                 <div className="my-5 border-t border-[#F2D9CC]" />
+
+                <div className="rounded-[12px] border border-[#EBC2AE] bg-[#FFF9F5] p-4">
+                    <label className="text-[12px] font-bold uppercase tracking-[0.1em] text-[#54263F]">External application link</label>
+                    <p className="mt-1 text-[11px] text-[#A77D8D]">Candidates will be sent to this company link instead of completing questions here.</p>
+                    <input
+                        type="url"
+                        value={externalApplyLink}
+                        onChange={(event) => onExternalApplyLinkChange?.(event.target.value)}
+                        placeholder="https://company.com/careers/apply"
+                        className="mt-3 block w-full rounded-[9px] border border-[#EBC2AE] bg-white px-3 py-2.5 text-[12px] text-[#1D181A] outline-none focus:border-[#C75560]"
+                    />
+                    {hasExternalLink && <p className="mt-2 text-[11px] font-semibold text-[#9A671A]">Custom questions are disabled while this link is present.</p>}
+                </div>
 
                 <div className="flex items-center justify-between gap-3">
                     <div>
@@ -217,13 +235,13 @@ export function ApplicationRequirementsBuilder({ value = [], onChange }) {
                                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#FFF0E8] text-[11px] font-bold text-[#C75560]">{index + 1}</span>
                                     <div className="min-w-0 flex-1">
                                         <div className="flex flex-col gap-2 md:flex-row md:items-center">
-                                            <input value={field.label} onChange={(event) => update(field.fieldId, { label: event.target.value })} aria-label="Field label" className="min-w-0 flex-1 rounded-[8px] border border-[#EBC2AE] bg-[#FFF9F5] px-3 py-2 text-[12px] font-semibold text-[#1D181A] outline-none focus:border-[#C75560]" />
-                                            <select value={field.fieldType} onChange={(event) => update(field.fieldId, { fieldType: event.target.value, options: event.target.value === 'radio' && !field.options?.length ? ['Yes', 'No'] : field.options || [] })} aria-label="Field type" className="rounded-[8px] border border-[#EBC2AE] bg-[#FFF9F5] px-3 py-2 text-[12px] text-[#54263F] outline-none focus:border-[#C75560]">{FIELD_TYPES.map(([type, label]) => <option key={type} value={type}>{label}</option>)}</select>
+                                            <input disabled={hasExternalLink} value={field.label} onChange={(event) => update(field.fieldId, { label: event.target.value })} aria-label="Field label" className="min-w-0 flex-1 rounded-[8px] border border-[#EBC2AE] bg-[#FFF9F5] px-3 py-2 text-[12px] font-semibold text-[#1D181A] outline-none focus:border-[#C75560] disabled:cursor-not-allowed disabled:opacity-50" />
+                                            <select disabled={hasExternalLink} value={field.fieldType} onChange={(event) => update(field.fieldId, { fieldType: event.target.value, options: event.target.value === 'radio' && !field.options?.length ? ['Yes', 'No'] : field.options || [] })} aria-label="Field type" className="rounded-[8px] border border-[#EBC2AE] bg-[#FFF9F5] px-3 py-2 text-[12px] text-[#54263F] outline-none focus:border-[#C75560] disabled:cursor-not-allowed disabled:opacity-50">{FIELD_TYPES.map(([type, label]) => <option key={type} value={type}>{label}</option>)}</select>
                                         </div>
-                                        {choiceTypes.includes(field.fieldType) && <input value={(field.options || []).join(', ')} onChange={(event) => update(field.fieldId, { options: event.target.value.split(',').map((item) => item.trim()).filter(Boolean) })} placeholder="Add options separated by commas" aria-label="Field options" className="mt-2 w-full rounded-[8px] border border-[#EBC2AE] bg-[#FFF9F5] px-3 py-2 text-[11.5px] text-[#54263F] outline-none focus:border-[#C75560]" />}
+                                        {choiceTypes.includes(field.fieldType) && <input disabled={hasExternalLink} value={(field.options || []).join(', ')} onChange={(event) => update(field.fieldId, { options: event.target.value.split(',').map((item) => item.trim()).filter(Boolean) })} placeholder="Add options separated by commas" aria-label="Field options" className="mt-2 w-full rounded-[8px] border border-[#EBC2AE] bg-[#FFF9F5] px-3 py-2 text-[11.5px] text-[#54263F] outline-none focus:border-[#C75560] disabled:cursor-not-allowed disabled:opacity-50" />}
                                         <div className="mt-2 flex items-center justify-between gap-3">
-                                            <label className="flex cursor-pointer items-center gap-2 text-[11.5px] font-semibold text-[#80576A]"><input type="checkbox" checked={field.required} onChange={(event) => update(field.fieldId, { required: event.target.checked })} className="h-3.5 w-3.5 accent-[#C75560]" /> Required field</label>
-                                            <button type="button" aria-label={`Remove ${field.label}`} onClick={() => onChange(value.filter((item) => item.fieldId !== field.fieldId))} className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#B3261E] hover:underline"><Trash2 size={13} /> Remove</button>
+                                            <label className="flex cursor-pointer items-center gap-2 text-[11.5px] font-semibold text-[#80576A]"><input disabled={hasExternalLink} type="checkbox" checked={field.required} onChange={(event) => update(field.fieldId, { required: event.target.checked })} className="h-3.5 w-3.5 accent-[#C75560]" /> Required field</label>
+                                            <button disabled={hasExternalLink} type="button" aria-label={`Remove ${field.label}`} onClick={() => onChange(value.filter((item) => item.fieldId !== field.fieldId))} className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#B3261E] hover:underline disabled:cursor-not-allowed disabled:opacity-50"><Trash2 size={13} /> Remove</button>
                                         </div>
                                     </div>
                                 </div>
@@ -232,9 +250,9 @@ export function ApplicationRequirementsBuilder({ value = [], onChange }) {
                     </div>
                 )}
 
-                <button type="button" onClick={() => setCustomOpen((open) => !open)} className="mt-4 inline-flex items-center gap-2 rounded-[10px] border border-[#1D181A] bg-[#1D181A] px-3.5 py-2.5 text-[12px] font-bold text-white transition-colors hover:bg-[#3A3034]"><Plus size={14} /> {customOpen ? 'Close custom question' : 'Add Custom Question'}</button>
+                <button disabled={hasExternalLink} type="button" onClick={() => setCustomOpen((open) => !open)} className="mt-4 inline-flex items-center gap-2 rounded-[10px] border border-[#1D181A] bg-[#1D181A] px-3.5 py-2.5 text-[12px] font-bold text-white transition-colors hover:bg-[#3A3034] disabled:cursor-not-allowed disabled:opacity-50"><Plus size={14} /> {customOpen ? 'Close custom question' : 'Add Custom Question'}</button>
 
-                {customOpen && (
+                {customOpen && !hasExternalLink && (
                     <div className="mt-3 rounded-[12px] border border-[#EBC2AE] bg-[#FFF7F2] p-4">
                         <div className="mb-3"><h4 className="text-[13px] font-bold text-[#1D181A]">Create a custom question</h4><p className="mt-1 text-[11px] text-[#80576A]">Write the question exactly as the candidate should see it.</p></div>
                         <div className="grid gap-3 md:grid-cols-[1fr_190px]">

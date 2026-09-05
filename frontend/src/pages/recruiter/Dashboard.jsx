@@ -437,7 +437,7 @@ const Pill = ({ children, className = "" }) => (
 // the candidate CareerWorkspacePanel): a clickable avatar+ring summary that
 // expands into the full nav list, and collapses into an icon-only rail.
 
-function SidebarProfileCard({ expanded, onToggle, recruiterProfile }) {
+function SidebarProfileCard({ expanded, onToggle, recruiterProfile, profileLoading }) {
   const navigate = useNavigate();
 
   const handleCardClick = (event) => {
@@ -450,8 +450,8 @@ function SidebarProfileCard({ expanded, onToggle, recruiterProfile }) {
     onToggle();
   };
 
-  const recruiterName = recruiterProfile?.fullName || recruiterProfile?.name || 'Recruiter';
-  const companyName = recruiterProfile?.companyName || 'Your Company';
+  const recruiterName = recruiterProfile?.fullName || recruiterProfile?.name || '';
+  const companyName = recruiterProfile?.companyName || '';
   const companyLogoUrl = recruiterProfile?.companyLogoUrl;
   const profileCompleteness = recruiterProfile?.profileCompleteness || 72;
   const initials = recruiterName
@@ -486,7 +486,9 @@ function SidebarProfileCard({ expanded, onToggle, recruiterProfile }) {
           }}
         >
           <div className="flex h-full w-full items-center justify-center rounded-full bg-white">
-            {companyLogoUrl ? (
+            {profileLoading ? (
+              <div className="h-8 w-8 animate-pulse rounded-full bg-slate-200" aria-label="Loading profile" />
+            ) : companyLogoUrl ? (
               <img
                 src={companyLogoUrl}
                 alt={companyName}
@@ -504,10 +506,19 @@ function SidebarProfileCard({ expanded, onToggle, recruiterProfile }) {
 
       {expanded && (
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-bold">{recruiterName}</p>
-          <p className="truncate text-[11px] text-white/70">
-            {companyName} · Recruiter
-          </p>
+          {profileLoading ? (
+            <>
+              <div className="h-3 w-28 animate-pulse rounded bg-white/30" />
+              <div className="mt-1.5 h-2.5 w-24 animate-pulse rounded bg-white/20" />
+            </>
+          ) : (
+            <>
+              <p className="truncate text-[13px] font-bold">{recruiterName}</p>
+              <p className="truncate text-[11px] text-white/70">
+                {companyName} · Recruiter
+              </p>
+            </>
+          )}
         </div>
       )}
 
@@ -584,6 +595,7 @@ function Sidebar({
   expanded,
   setExpanded,
   recruiterProfile,
+  profileLoading,
 }) {
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -681,6 +693,7 @@ function Sidebar({
       <div className="px-3 pt-4 pb-1">
         <SidebarProfileCard
           recruiterProfile={recruiterProfile}
+          profileLoading={profileLoading}
           expanded={!compact}
           onToggle={() => setExpanded((v) => !v)}
         />
@@ -3135,6 +3148,7 @@ export default function RecruiterDashboard() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [recruiterProfile, setRecruiterProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(true);
   const [recruiterApplications, setRecruiterApplications] = useState([]);
   const [recruiterJobs, setRecruiterJobs] = useState([]);
   const [downloadedResumes, setDownloadedResumes] = useState([]);
@@ -3189,15 +3203,23 @@ export default function RecruiterDashboard() {
   };
 
   useEffect(() => {
+    let active = true;
+
     const fetchRecruiterProfile = async () => {
       try {
         const { data } = await axiosInstance.get('/recruiter/me/profile');
-        setRecruiterProfile(data);
+        if (!active) return;
+        setRecruiterProfile((current) => ({ ...current, ...data }));
       } catch (err) {
         console.error('Failed to load recruiter profile:', err);
+      } finally {
+        if (active) setProfileLoading(false);
       }
     };
     fetchRecruiterProfile();
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -3224,6 +3246,7 @@ export default function RecruiterDashboard() {
           setMobileOpen={setMobileOpen}
           expanded={sidebarExpanded}
           setExpanded={setSidebarExpanded}
+          profileLoading={profileLoading}
         />
 
         <main className="flex-1 min-w-0 space-y-4">

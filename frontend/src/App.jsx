@@ -26,6 +26,7 @@ import CandidateResumeMatch from './pages/candidate/ResumeMatch';
 import RecommendedJobs from './pages/candidate/RecommendedJobs';
 import AppliedJobs from './pages/candidate/AppliedJobs';
 import SavedJobs from './pages/candidate/SavedJobs';
+import ReferredJobs from './pages/candidate/ReferredJobs';
 import CandidateSettings from './pages/candidate/Settings';
 import CandidateCompanies from './pages/candidate/Companies';
 
@@ -153,6 +154,7 @@ function AppRoutes() {
           <Route path="/candidate/jobs/recommended" element={<RecommendedJobs />} />
           <Route path="/candidate/jobs/applied" element={<AppliedJobs />} />
           <Route path="/candidate/jobs/saved" element={<SavedJobs />} />
+          <Route path="/candidate/jobs/referred" element={<ReferredJobs />} />
           <Route path="/candidate/jobs/:id" element={<CandidateJobDetail />} />
           <Route path="/candidate/resume-match" element={<CandidateResumeMatch />} />
           <Route path="/candidate/messages" element={<CandidateMessages />} />

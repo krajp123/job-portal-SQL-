@@ -17,6 +17,7 @@ import {
     ListChecks,
     Loader2,
     MapPin,
+    UserRoundPlus,
     Sparkles,
     Star,
     TrendingUp,
@@ -427,6 +428,7 @@ export default function JobDetail() {
     const [applicationStatus, setApplicationStatus] = useState('');
     const [applyError, setApplyError] = useState('');
     const [applicationFormOpen, setApplicationFormOpen] = useState(false);
+    const [externalApplyOpen, setExternalApplyOpen] = useState(false);
     const [candidateProfile, setCandidateProfile] = useState(null);
     const [reporting, setReporting] = useState(false);
     const [reportOpen, setReportOpen] = useState(false);
@@ -434,6 +436,14 @@ export default function JobDetail() {
     const [reportMessage, setReportMessage] = useState('');
     const [followCompany, setFollowCompany] = useState(false);
     const [now, setNow] = useState(() => Date.now());
+    const [referralOpen, setReferralOpen] = useState(false);
+    const [referralUniqueId, setReferralUniqueId] = useState('');
+    const [referralCandidate, setReferralCandidate] = useState(null);
+    const [selectedReferralCandidate, setSelectedReferralCandidate] = useState(null);
+    const [referralLookupLoading, setReferralLookupLoading] = useState(false);
+    const [referralError, setReferralError] = useState('');
+    const [referralSubmitting, setReferralSubmitting] = useState(false);
+    const [referralSuccess, setReferralSuccess] = useState('');
 
     // Ticks every 30s so "Posted: X seconds/minutes/hours ago" stays live
     // instead of freezing at whatever it showed on page load.
@@ -502,11 +512,22 @@ export default function JobDetail() {
             setApplyError('This job is no longer accepting applications.');
             return;
         }
+        if (job.applicationForm?.externalApplyLink) {
+            setExternalApplyOpen(true);
+            return;
+        }
         if (job.applicationForm?.enabled && job.applicationForm.fields?.length) {
             setApplicationFormOpen(true);
             return;
         }
         await submitApplication([]);
+    }
+
+    function applyViaExternalLink() {
+        const externalLink = job?.applicationForm?.externalApplyLink;
+        if (!externalLink) return;
+        setExternalApplyOpen(false);
+        window.open(externalLink, '_blank', 'noopener,noreferrer');
     }
 
     async function submitApplication(answers) {
@@ -554,6 +575,64 @@ export default function JobDetail() {
             setReportMessage(err.response?.data?.error || 'Could not submit the report. Please try again.');
         } finally {
             setReporting(false);
+        }
+    }
+
+    useEffect(() => {
+        if (!referralOpen) return undefined;
+
+        const uniqueId = referralUniqueId.trim();
+        if (selectedReferralCandidate) return undefined;
+        if (uniqueId.length < 3) {
+            setReferralCandidate(null);
+            setReferralError('');
+            return undefined;
+        }
+
+        const timer = setTimeout(async () => {
+            setReferralLookupLoading(true);
+            setReferralError('');
+            try {
+                const { data } = await axiosInstance.get(`/referral/lookup/${encodeURIComponent(uniqueId)}`);
+                setReferralCandidate(data);
+            } catch (err) {
+                setReferralCandidate(null);
+                setReferralError(err.response?.data?.error || 'No candidate found with this unique ID.');
+            } finally {
+                setReferralLookupLoading(false);
+            }
+        }, 350);
+
+        return () => clearTimeout(timer);
+    }, [referralOpen, referralUniqueId, selectedReferralCandidate]);
+
+    function openReferral() {
+        setReferralUniqueId('');
+        setReferralCandidate(null);
+        setSelectedReferralCandidate(null);
+        setReferralError('');
+        setReferralSuccess('');
+        setReferralOpen(true);
+    }
+
+    async function submitReferral() {
+        const candidate = selectedReferralCandidate || referralCandidate;
+        if (!job?._id || !candidate || referralSubmitting) return;
+        setReferralSubmitting(true);
+        setReferralError('');
+        try {
+            const { data } = await axiosInstance.post('/referral', {
+                jobId: job._id,
+                candidateUniqueId: candidate.uniqueId,
+            });
+            setReferralSuccess(data.message || 'Referral sent successfully.');
+            setReferralUniqueId('');
+            setReferralCandidate(null);
+            setSelectedReferralCandidate(null);
+        } catch (err) {
+            setReferralError(err.response?.data?.error || 'Could not send the referral. Please try again.');
+        } finally {
+            setReferralSubmitting(false);
         }
     }
 
@@ -738,6 +817,15 @@ export default function JobDetail() {
                                             Report
                                         </button>
 
+                                        <button
+                                            type="button"
+                                            onClick={openReferral}
+                                            className="flex items-center justify-center gap-2 rounded-full border border-[#EBC2AE] bg-white px-4 py-2.5 text-[13px] font-semibold text-[#8B1E2F] transition-colors hover:bg-[#FFF5F0]"
+                                        >
+                                            <UserRoundPlus size={14} />
+                                            Refer candidate
+                                        </button>
+
                                         {applied ? (
                                             <>
                                                 <span
@@ -778,7 +866,7 @@ export default function JobDetail() {
                                                 style={{ background: `linear-gradient(135deg, ${ACCENT}, ${MAROON})` }}
                                             >
                                                 {applying && <Loader2 size={14} className="animate-spin" />}
-                                                {job.status !== 'open' ? 'Applications Closed' : applying ? 'Applying…' : applicationFields.length ? ' Apply' : 'Apply'}
+                                                {job.status !== 'open' ? 'Applications Closed' : applying ? 'Applying…' : 'Apply'}
                                             </button>
                                         )}
                                     </div>
@@ -946,7 +1034,6 @@ export default function JobDetail() {
                         <label className="mt-5 block">
                             <span className="mb-1.5 block text-[12px] font-semibold text-stone-700">Reason</span>
                             <textarea
-                                autoFocus
                                 value={reportReason}
                                 onChange={(event) => setReportReason(event.target.value)}
                                 placeholder="Example: This job asks applicants for money."
@@ -959,6 +1046,26 @@ export default function JobDetail() {
                             <button type="button" onClick={reportJob} disabled={reporting || reportReason.trim().length < 3} className="rounded-full bg-[#8B1E2F] px-5 py-2 text-[12.5px] font-semibold text-white hover:bg-[#701525] disabled:cursor-not-allowed disabled:opacity-50">
                                 {reporting ? 'Submitting…' : 'Submit report'}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {externalApplyOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true" aria-labelledby="external-apply-title">
+                    <div className="w-full max-w-md rounded-2xl border border-stone-200 bg-white p-6 shadow-2xl">
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#A51D35]">External application</p>
+                                <h2 id="external-apply-title" className="mt-1 text-[19px] font-bold text-stone-900" style={{ fontFamily: FONT_DISPLAY }}>Apply via company link?</h2>
+                            </div>
+                            <button type="button" onClick={() => setExternalApplyOpen(false)} aria-label="Close external application dialog" className="text-xl leading-none text-stone-400 hover:text-stone-700">×</button>
+                        </div>
+                        <p className="mt-4 text-[13px] leading-6 text-stone-600">
+                            This company collects applications on its own website. Click Apply to continue in a new tab.
+                        </p>
+                        <div className="mt-5 flex justify-end gap-2">
+                            <button type="button" onClick={() => setExternalApplyOpen(false)} className="rounded-full border border-stone-200 px-4 py-2 text-[12.5px] font-semibold text-stone-600 hover:bg-stone-50">Cancel</button>
+                            <button type="button" onClick={applyViaExternalLink} className="rounded-full bg-[#8B1E2F] px-5 py-2 text-[12.5px] font-semibold text-white hover:bg-[#701525]">Apply</button>
                         </div>
                     </div>
                 </div>
@@ -990,6 +1097,62 @@ export default function JobDetail() {
                         </div>
                         <div className="mt-5"><DynamicApplicationForm fields={applicationFields} initialValues={initialApplicationValues} onSubmit={submitApplication} submitting={applying} /></div>
                         <div className="mt-3 flex justify-end"><button type="button" onClick={() => setApplicationFormOpen(false)} disabled={applying} className="rounded-[8px] border border-stone-200 px-4 py-2 text-[12.5px] font-semibold text-stone-600 hover:bg-stone-50">Cancel</button></div>
+                    </div>
+                </div>
+            )}
+            {referralOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true" aria-labelledby="refer-candidate-title">
+                    <div className="w-full max-w-md rounded-[10px] border border-stone-200 bg-white p-5 shadow-2xl">
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#A51D35]">Share an opportunity</p>
+                                <h2 id="refer-candidate-title" className="mt-1 text-[19px] font-bold text-stone-900" style={{ fontFamily: FONT_DISPLAY }}>Refer a candidate</h2>
+                                <p className="mt-1 text-[12.5px] leading-5 text-stone-500">Enter their unique ID to send them this job.</p>
+                            </div>
+                            <button type="button" onClick={() => setReferralOpen(false)} disabled={referralSubmitting} aria-label="Close referral dialog" className="text-xl leading-none text-stone-400 hover:text-stone-700">×</button>
+                        </div>
+
+                        <label className="mt-5 block">
+                            <span className="mb-1.5 block text-[12px] font-semibold text-stone-700">Candidate unique ID</span>
+                            <input
+                                autoFocus
+                                value={referralUniqueId}
+                                onChange={(event) => {
+                                    setSelectedReferralCandidate(null);
+                                    setReferralUniqueId(event.target.value.toUpperCase());
+                                }}
+                                placeholder="Example: JS-2026-000123"
+                                className="w-full rounded-xl border border-stone-200 px-3 py-2.5 text-[13px] uppercase text-stone-800 outline-none focus:border-[#8B1E2F] focus:ring-2 focus:ring-[#8B1E2F]/10"
+                            />
+                        </label>
+
+                        <div className="mt-2 min-h-[42px]">
+                            {referralLookupLoading && <p className="text-[12.5px] text-stone-500">Looking up candidate...</p>}
+                            {referralCandidate && !referralLookupLoading && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setSelectedReferralCandidate(referralCandidate);
+                                        setReferralUniqueId(referralCandidate.name);
+                                        setReferralError('');
+                                    }}
+                                    className="w-full rounded-xl border border-green-200 bg-green-50 px-3 py-2.5 text-left transition-colors hover:border-green-300 hover:bg-green-100"
+                                >
+                                    <p className="text-[13px] font-semibold text-green-900">{referralCandidate.name}</p>
+                                    <p className="mt-0.5 text-[11.5px] text-green-700">{referralCandidate.uniqueId}</p>
+                                </button>
+                            )}
+                            {referralError && <p className="text-[12.5px] font-medium text-red-600">{referralError}</p>}
+                            {referralSuccess && <p className="text-[12.5px] font-medium text-green-700">{referralSuccess}</p>}
+                        </div>
+
+                        <div className="mt-3 flex justify-end gap-2">
+                            <button type="button" onClick={() => setReferralOpen(false)} disabled={referralSubmitting} className="rounded-full border border-stone-200 px-4 py-2 text-[12.5px] font-semibold text-stone-600 hover:bg-stone-50">Close</button>
+                            <button type="button" onClick={submitReferral} disabled={!(selectedReferralCandidate || referralCandidate) || referralSubmitting} className="inline-flex items-center gap-2 rounded-full bg-[#8B1E2F] px-5 py-2 text-[12.5px] font-semibold text-white hover:bg-[#701525] disabled:cursor-not-allowed disabled:opacity-50">
+                                {referralSubmitting && <Loader2 size={13} className="animate-spin" />}
+                                {referralSubmitting ? 'Referring...' : 'Refer'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

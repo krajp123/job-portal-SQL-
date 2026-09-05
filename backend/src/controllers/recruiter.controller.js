@@ -172,6 +172,29 @@ exports.getCompanyMembers = async (req, res) => {
   }
 };
 
+// GET /api/recruiter/me/company-members
+exports.getMyCompanyMembers = async (req, res) => {
+  try {
+    const recruiter = await Recruiter.findById(req.user.id).select('companyName').lean();
+    if (!recruiter?.companyName) return res.json([]);
+
+    const escapedCompanyName = recruiter.companyName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const members = await Recruiter.find({
+      companyName: { $regex: `^${escapedCompanyName}$`, $options: 'i' },
+      accountStatus: 'active',
+      registrationStatus: 'complete',
+    })
+      .select('_id email fullName')
+      .sort({ fullName: 1, createdAt: 1 })
+      .lean();
+
+    res.json(members);
+  } catch (err) {
+    console.error('Error loading recruiter company members:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // GET /api/recruiter/:recruiterId/public-profile
 exports.getPublicProfile = async (req, res) => {
   try {
@@ -1079,7 +1102,7 @@ exports.inviteTeamMember = async (req, res) => {
     if (inviter.registrationStatus !== 'complete') return res.status(403).json({ error: 'Complete your registration before inviting team members' });
     if (inviter.email.toLowerCase() === normalizedEmail) return res.status(400).json({ error: 'You cannot invite yourself' });
 
-    const target = await Recruiter.findOne({ email: normalizedEmail, registrationStatus: 'complete' }).select('companyName email');
+    const target = await Recruiter.findOne({ email: normalizedEmail, registrationStatus: 'complete' }).select('companyName email fullName profilePictureUrl');
     if (!target) {
       return res.status(404).json({ error: 'Recruiter with this email not found. They must register first.' });
     }
@@ -1099,7 +1122,18 @@ exports.inviteTeamMember = async (req, res) => {
     inviter.teamMembers.push(member);
     await inviter.save();
 
-    return res.json({ message: 'Invite successful', member });
+    return res.json({
+      message: 'Invite successful',
+      member: {
+        id: String(member._id || `${normalizedEmail}-${Date.now()}`),
+        email: member.email,
+        role: member.role,
+        status: member.status,
+        invitedAt: member.invitedAt,
+        fullName: target.fullName || '',
+        profilePictureUrl: target.profilePictureUrl || '',
+      },
+    });
   } catch (err) {
     console.error('Invite team member failed:', err);
     res.status(500).json({ error: err.message });

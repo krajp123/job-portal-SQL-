@@ -54,6 +54,7 @@ router.get('/:recruiterId/public-profile', recruiterController.getPublicProfile)
 
 // Authenticated (recruiter only)
 router.get('/me/profile', verifyTokenAndStatus, requireRole('recruiter'), requireRecruiterWorkspaceRole('read'), recruiterController.getMyProfile);
+router.get('/me/company-members', verifyTokenAndStatus, requireRole('recruiter'), requireRecruiterWorkspaceRole('read'), recruiterController.getMyCompanyMembers);
 router.get('/dashboard/overview', verifyTokenAndStatus, requireRole('recruiter'), requireRecruiterWorkspaceRole('read'), recruiterController.getDashboardOverview);
 router.put('/me/profile', verifyTokenAndStatus, requireRole('recruiter'), requireRecruiterWorkspaceRole('write'), recruiterController.updateMyProfile);
 router.post('/me/upload-company-image', verifyTokenAndStatus, requireRole('recruiter'), requireRecruiterWorkspaceRole('write'), uploadProfilePicture.single('companyImage'), recruiterController.uploadCompanyImage);

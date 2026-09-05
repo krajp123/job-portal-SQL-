@@ -59,20 +59,28 @@ function isTokenExpired() {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(getStoredUser);
 
+  async function refreshUser() {
+    if (localStorage.getItem('token') === null) return null;
+
+    try {
+      const { data } = await axiosInstance.get('/recruiter/me/profile');
+      if (!data?.workspaceAccess) return null;
+
+      setUser((current) => {
+        if (!current) return current;
+        const updated = { ...current, workspaceAccess: data.workspaceAccess };
+        localStorage.setItem('user', JSON.stringify(updated));
+        return updated;
+      });
+      return data;
+    } catch {
+      return null;
+    }
+  }
+
   useEffect(() => {
     if (user?.role !== 'recruiter') return;
-    let active = true;
-    axiosInstance.get('/recruiter/me/profile')
-      .then(({ data }) => {
-        if (!active || !data?.workspaceAccess) return;
-        setUser((current) => {
-          const updated = { ...current, workspaceAccess: data.workspaceAccess };
-          localStorage.setItem('user', JSON.stringify(updated));
-          return updated;
-        });
-      })
-      .catch(() => {});
-    return () => { active = false; };
+    refreshUser().catch(() => {});
   }, [user?.role]);
 
   // Reconnect the socket automatically on a page refresh if a token is
@@ -149,7 +157,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

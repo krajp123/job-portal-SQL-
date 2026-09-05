@@ -515,7 +515,9 @@ export default function RecruiterSettings() {
   /* ---- team ---- */
   const [teamMembers, setTeamMembers] = useState([]);
   const [inviteEmail, setInviteEmail] = useState('');
+  const [selectedInviteEmail, setSelectedInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('recruiter');
+  const [companyRecruiters, setCompanyRecruiters] = useState([]);
   const [updatingRole, setUpdatingRole] = useState('');
 
   /* ---- danger zone ---- */
@@ -567,6 +569,23 @@ export default function RecruiterSettings() {
     const t = setTimeout(() => setToast(''), 2500);
     return () => clearTimeout(t);
   }, [toast]);
+
+  useEffect(() => {
+    if (!account.companyName) return undefined;
+
+    let active = true;
+    axiosInstance.get('/recruiter/me/company-members')
+      .then(({ data }) => {
+        if (active) setCompanyRecruiters(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {
+        if (active) setCompanyRecruiters([]);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [account.companyName]);
 
   function notify(msg) {
     setError('');
@@ -850,8 +869,21 @@ export default function RecruiterSettings() {
     }
   }
 
+  const inviteSuggestions = useMemo(() => {
+    const query = inviteEmail.trim().toLowerCase();
+    if (query.length < 2) return [];
+
+    return companyRecruiters
+      .filter((recruiter) => recruiter.email?.toLowerCase() !== account.email?.toLowerCase())
+      .filter((recruiter) => (
+        recruiter.email?.toLowerCase().includes(query)
+        || recruiter.fullName?.toLowerCase().includes(query)
+      ))
+      .slice(0, 6);
+  }, [account.email, companyRecruiters, inviteEmail]);
+
   function addTeamMember() {
-    const email = inviteEmail.trim().toLowerCase();
+    const email = (selectedInviteEmail || inviteEmail).trim().toLowerCase();
     if (!email) {
       setError('Enter a colleague email address.');
       return;
@@ -867,6 +899,7 @@ export default function RecruiterSettings() {
         const { data } = await axiosInstance.post('/recruiter/me/team/invite', { email, role: inviteRole });
         setTeamMembers((prev) => [...prev, data.member]);
         setInviteEmail('');
+        setSelectedInviteEmail('');
         notify('Invite sent.');
       } catch (err) {
         setError(err.response?.data?.error || 'Failed to send invite.');
@@ -1717,13 +1750,38 @@ export default function RecruiterSettings() {
                       addTeamMember();
                     }}
                   >
-                    <input
-                      type="email"
-                      className={`${inputClass} sm:flex-1`}
-                      placeholder="colleague@company.com"
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                    />
+                    <div className="relative sm:flex-1">
+                      <input
+                        type="text"
+                        className={`${inputClass} w-full`}
+                        placeholder="colleague@company.com"
+                        value={inviteEmail}
+                        onChange={(e) => {
+                          setInviteEmail(e.target.value);
+                          setSelectedInviteEmail('');
+                        }}
+                      />
+                      {!selectedInviteEmail && inviteSuggestions.length > 0 && (
+                        <div className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+                          {inviteSuggestions.map((recruiter) => (
+                            <button
+                              key={recruiter._id || recruiter.email}
+                              type="button"
+                              className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left transition hover:bg-[#FFF1EB]"
+                              onClick={() => {
+                                setInviteEmail(recruiter.fullName || recruiter.email);
+                                setSelectedInviteEmail(recruiter.email);
+                              }}
+                            >
+                              <span className="min-w-0 truncate text-sm font-semibold text-[#1D181A]">
+                                {recruiter.fullName || recruiter.email}
+                              </span>
+                              <span className="min-w-0 truncate text-xs text-slate-500">{recruiter.email}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     <select
                       className={`${inputClass} sm:w-44`}
                       value={inviteRole}

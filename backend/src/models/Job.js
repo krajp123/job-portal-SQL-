@@ -19,6 +19,7 @@ const jobSchema = new mongoose.Schema(
 
     applicationForm: {
       enabled: { type: Boolean, default: false },
+      externalApplyLink: { type: String, trim: true, maxlength: 2000 },
       fields: [
         {
           fieldId: { type: String, required: true },
