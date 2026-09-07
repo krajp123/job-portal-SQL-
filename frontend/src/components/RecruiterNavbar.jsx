@@ -7,6 +7,7 @@ import axiosInstance from '../api/axiosInstance';
 import { fetchPlatformBranding, getCachedPlatformBranding } from '../api/platformBranding';
 import { connectSocket } from '../socket';
 import { useAuth } from '../context/AuthContext';
+import NotificationCenter from './NotificationCenter';
 
 const links = [
     { to: '/recruiter/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -125,6 +126,8 @@ export default function RecruiterNavbar() {
                         <span className="relative"><MessageCircle size={15} className="text-[#C75560]" />{unreadMessages > 0 && <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#C75560] px-1 text-[9px] font-bold text-white">{unreadMessages > 9 ? '9+' : unreadMessages}</span>}</span>
                         <span className="hidden sm:inline">Message</span>
                     </button>
+
+                    <NotificationCenter className="flex h-10 w-10 items-center justify-center rounded-lg text-[#80576A] hover:bg-[#FFF0E8] hover:text-[#1D181A]" />
 
                     <button
                         type="button"

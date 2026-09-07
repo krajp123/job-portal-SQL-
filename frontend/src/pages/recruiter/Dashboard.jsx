@@ -89,6 +89,7 @@ import {
   CORAL_HOVER,
   AMBER,
 } from "../../theme";
+import ReferredCandidates from "../../components/recruiter/ReferredCandidates";
 /* ============================== TOKENS ============================== */
 // Palette: canvas ivory, coral accent (#C75560), amber highlights (#F7C56B), violet details.
 // Warm signal color for "match" and goal progress, with coral-led accent gradients.
@@ -3272,6 +3273,7 @@ export default function RecruiterDashboard() {
 
           <div id="section-candidates" className="scroll-mt-36">
             <PipelineKanban applications={recruiterApplications} />
+            <div className="mt-4"><ReferredCandidates /></div>
           </div>
         </main>
 

@@ -116,9 +116,11 @@ function groupByDay(messages) {
 }
 
 export default function RecruiterMessagesPreview() {
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const candidateIdFromUrl = searchParams.get('candidateId');
     const candidateNameFromUrl = searchParams.get('candidateName');
+    const candidateEmailFromUrl = searchParams.get('candidateEmail');
+    const candidatePictureFromUrl = searchParams.get('candidatePicture');
     const [conversations, setConversations] = useState([]);
     const [activeId, setActiveId] = useState(null);
     const [thread, setThread] = useState([]);
@@ -147,7 +149,25 @@ export default function RecruiterMessagesPreview() {
     async function loadConversations() {
         try {
             const { data } = await axiosInstance.get('/messages/mine');
-            setConversations(data || []);
+            const loadedConversations = data || [];
+            if (candidateIdFromUrl && !loadedConversations.some((conversation) => String(conversation._id) === String(candidateIdFromUrl))) {
+                setConversations([
+                    {
+                        _id: candidateIdFromUrl,
+                        otherUser: {
+                            name: candidateNameFromUrl || 'Candidate',
+                            email: candidateEmailFromUrl || '',
+                            profilePictureUrl: candidatePictureFromUrl || '',
+                        },
+                        isDraft: true,
+                        lastMessage: null,
+                        unreadCount: 0,
+                    },
+                    ...loadedConversations,
+                ]);
+            } else {
+                setConversations(loadedConversations);
+            }
         } catch (requestError) {
             setError(requestError.response?.data?.error || 'Could not load messages.');
         } finally {
@@ -157,6 +177,10 @@ export default function RecruiterMessagesPreview() {
 
     async function openThread(candidateId) {
         const requestId = ++threadRequestRef.current;
+        setSearchParams((params) => {
+            params.set('candidateId', candidateId);
+            return params;
+        });
         setShowConversationList(false);
         setError('');
         setMenuOpen(false);
@@ -169,11 +193,6 @@ export default function RecruiterMessagesPreview() {
                 axiosInstance.patch(`/messages/${candidateId}/read`),
             ]);
             if (requestId !== threadRequestRef.current) return;
-            if (!data?.length && !conversations.some((conversation) => String(conversation._id) === String(candidateId))) {
-                setActiveId(null);
-                setThread([]);
-                return;
-            }
             setActiveId(candidateId);
             setThread(data || []);
             setCandidateRepliesEnabled(preference.candidateRepliesEnabled !== false);
@@ -185,6 +204,17 @@ export default function RecruiterMessagesPreview() {
         } finally {
             inputRef.current?.focus();
         }
+    }
+
+    function handleBackToConversationList() {
+        setShowConversationList(true);
+        setSearchParams((params) => {
+            params.delete('candidateId');
+            params.delete('candidateName');
+            params.delete('candidateEmail');
+            params.delete('candidatePicture');
+            return params;
+        });
     }
 
     useEffect(() => {
@@ -249,7 +279,8 @@ export default function RecruiterMessagesPreview() {
         [conversations, activeId]
     );
     const activeName = activeConversation?.otherUser?.name || activeConversation?.otherUser?.fullName || candidateNameFromUrl || 'Candidate';
-    const activeEmail = activeConversation?.otherUser?.email || 'Email not available';
+    const activeEmail = activeConversation?.otherUser?.email || candidateEmailFromUrl || 'Email not available';
+    const activePicture = activeConversation?.otherUser?.profile?.profilePictureUrl || activeConversation?.otherUser?.profilePictureUrl || candidatePictureFromUrl || '';
 
     const filteredConversations = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
@@ -306,7 +337,7 @@ export default function RecruiterMessagesPreview() {
         setSending(true);
         setDraft('');
         try {
-            const endpoint = activeConversation || thread.length ? '/messages/reply' : '/messages/start';
+            const endpoint = activeConversation && !activeConversation.isDraft || thread.length ? '/messages/reply' : '/messages/start';
             const { data } = await axiosInstance.post(endpoint, { candidateId: activeId, text });
             setThread((previous) => previous.some((item) => item._id === data._id) ? previous : [...previous, data]);
             setCandidateRepliesEnabled(true);
@@ -349,7 +380,7 @@ export default function RecruiterMessagesPreview() {
             </div>
 
             <section className="relative mx-auto mb-4 flex h-[calc(100dvh-190px)] w-[calc(100%-2rem)] min-h-[420px] max-w-6xl flex-none overflow-hidden rounded-none border border-[#EBC2AE] bg-white shadow-sm sm:mb-6 sm:w-[calc(100%-3rem)] md:max-h-[560px]">
-                <aside className={`absolute inset-0 z-10 flex min-h-0 w-full shrink-0 flex-col border-r border-[#F0D1BF] bg-[#FFFBF8] transition-[transform,opacity] duration-300 ease-out will-change-transform md:static md:z-auto md:flex md:w-[300px] md:translate-x-0 md:opacity-100 ${activeId && !showConversationList ? 'pointer-events-none -translate-x-full opacity-0' : 'translate-x-0 opacity-100'}`}>
+                <aside className={`absolute inset-0 z-10 flex min-h-0 w-full shrink-0 flex-col border-r border-[#F0D1BF] bg-[#FFFBF8] transition-[transform,opacity] duration-300 ease-out will-change-transform md:static md:z-auto md:flex md:w-[300px] md:translate-x-0 md:opacity-100 md:pointer-events-auto ${activeId && !showConversationList ? 'pointer-events-none -translate-x-full opacity-0 md:pointer-events-auto' : 'translate-x-0 opacity-100'}`}>
                     <div className="border-b border-[#F0D1BF] px-4 py-4">
                         <p className="text-sm font-bold text-[#1D181A]">Chats</p>
                         <div className="relative mt-3">
@@ -381,7 +412,7 @@ export default function RecruiterMessagesPreview() {
                                     onClick={() => openThread(conversation._id)}
                                     className={`mx-2 my-1 flex w-[calc(100%-1rem)] items-center gap-3 rounded-full border border-[#F7E9E2] px-4 py-2 text-left transition-colors hover:bg-[#FFF0E8] ${isActive ? 'bg-[#FFF0E8]' : 'bg-white'}`}
                                 >
-                                    <Avatar src={conversation.otherUser?.profile?.profilePictureUrl} name={candidateName} size={36} />
+                                    <Avatar src={conversation.otherUser?.profile?.profilePictureUrl || conversation.otherUser?.profilePictureUrl} name={candidateName} size={36} />
                                     <span className="min-w-0 flex-1">
                                         <span className="flex items-center justify-between gap-2">
                                             <span className={`truncate text-[13px] ${conversation.unreadCount > 0 ? 'font-bold text-[#1D181A]' : 'font-semibold text-[#1D181A]'}`}>
@@ -414,21 +445,21 @@ export default function RecruiterMessagesPreview() {
                             <MessageCircle size={30} className="text-[#D5A99B]" />
                             <p className="text-sm font-semibold text-[#1D181A]">Select a candidate</p>
                             <p className="text-xs">Messages from candidates will appear here.</p>
-                            <button type="button" onClick={() => setShowConversationList(true)} className="mt-3 rounded-lg bg-[#C75560] px-4 py-2 text-xs font-bold text-white md:hidden">View candidate messages</button>
+                            <button type="button" onClick={handleBackToConversationList} className="mt-3 rounded-lg bg-[#C75560] px-4 py-2 text-xs font-bold text-white md:hidden">View candidate messages</button>
                         </div>
                     ) : (
                         <>
                     <div data-chat-tools className="flex items-center gap-3 border-b border-[#F0D1BF] px-5 py-3.5">
                         <button
                             type="button"
-                            onClick={() => setShowConversationList(true)}
+                            onClick={handleBackToConversationList}
                             aria-label="Back to conversations"
                             title="Back to conversations"
                             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#80576A] transition-colors hover:bg-[#FFF0E8] hover:text-[#C75560] md:hidden"
                         >
                             <ArrowLeft size={16} />
                         </button>
-                        <Avatar src={activeConversation?.otherUser?.profile?.profilePictureUrl} name={activeName} size={36} />
+                        <Avatar src={activePicture} name={activeName} size={36} />
                         <div className="min-w-0">
                             <p className="truncate text-sm font-bold text-[#1D181A]">{activeName}</p>
                             <p className="mt-0.5 truncate text-xs text-[#80576A]">{activeEmail}</p>

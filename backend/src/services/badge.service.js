@@ -8,6 +8,7 @@ async function confirmHiredBadge({ applicationId, signedAcceptanceUrl }) {
   if (!application) throw new Error('Application not found');
 
   application.status = 'hired';
+  application.hiredAt = new Date();
   await application.save();
 
   const candidate = await Candidate.findByIdAndUpdate(

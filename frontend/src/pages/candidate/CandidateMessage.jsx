@@ -57,7 +57,7 @@ function groupByDay(messages) {
 }
 
 export default function Messages() {
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const recruiterIdFromUrl = searchParams.get('recruiterId');
     const [conversations, setConversations] = useState([]);
     const [loadingConvos, setLoadingConvos] = useState(true);
@@ -98,6 +98,10 @@ export default function Messages() {
 
     async function openThread(recruiterId) {
         const requestId = ++threadRequestRef.current;
+        setSearchParams((params) => {
+            params.set('recruiterId', recruiterId);
+            return params;
+        });
         setShowConversationList(false);
         setMenuOpen(false);
         setSearchChat('');
@@ -118,6 +122,14 @@ export default function Messages() {
         } catch (requestError) {
             console.error('Could not load candidate conversation:', requestError);
         }
+    }
+
+    function handleBackToConversationList() {
+        setShowConversationList(true);
+        setSearchParams((params) => {
+            params.delete('recruiterId');
+            return params;
+        });
     }
 
     useEffect(() => {
@@ -295,13 +307,13 @@ export default function Messages() {
 
                 <div className={`${showConversationList ? 'hidden' : 'flex'} min-h-0 min-w-0 flex-1 flex-col bg-[#FFFDFB] md:flex`}>
                     {!activeId ? (
-                        <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center text-[#80576A]">
-                            <MessageCircle size={30} className="text-[#D5A99B]" /><p className="text-sm font-semibold text-[#1D181A]">Select a recruiter</p><p className="text-xs">Messages from recruiters will appear here.</p><button type="button" onClick={() => setShowConversationList(true)} className="mt-3 rounded-lg bg-[#C75560] px-4 py-2 text-xs font-bold text-white md:hidden">View recruiter messages</button>
+                            <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center text-[#80576A]">
+                            <MessageCircle size={30} className="text-[#D5A99B]" /><p className="text-sm font-semibold text-[#1D181A]">Select a recruiter</p><p className="text-xs">Messages from recruiters will appear here.</p><button type="button" onClick={handleBackToConversationList} className="mt-3 rounded-lg bg-[#C75560] px-4 py-2 text-xs font-bold text-white md:hidden">View recruiter messages</button>
                         </div>
                     ) : (
                         <>
                             <div data-chat-tools className="flex items-center gap-3 border-b border-[#F0D1BF] px-5 py-3.5">
-                                <button type="button" onClick={() => setShowConversationList(true)} aria-label="Back to recruiter messages" title="Back to recruiter messages" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#80576A] hover:bg-[#FFF0E8] md:hidden"><ArrowLeft size={16} /></button>
+                                <button type="button" onClick={handleBackToConversationList} aria-label="Back to recruiter messages" title="Back to recruiter messages" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#80576A] hover:bg-[#FFF0E8] md:hidden"><ArrowLeft size={16} /></button>
                                 <Avatar src={activeConvo?.otherUser?.profilePictureUrl} name={activeName} size={36} />
                                 <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-[#1D181A]">{activeName}</p><p className="mt-0.5 text-xs text-[#80576A]">{activeCompany}</p></div>
                                 <div className="relative ml-auto">

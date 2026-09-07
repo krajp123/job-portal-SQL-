@@ -11,9 +11,11 @@ const Wallet = require('../models/Wallet');
 const OfferLetter = require('../models/OfferLetter');
 const Payment = require('../models/Payment');
 const CandidatePerformanceEvent = require('../models/CandidatePerformanceEvent');
+const Referral = require('../models/Referral');
 const { hashPassword, comparePassword } = require('../utils/hashPassword');
 const { isValidEmail, isValidPhone, isStrongEnoughPassword } = require('../utils/validators');
 const walletController = require('./wallet.controller');
+const { getIO } = require('../config/socket');
 
 function sanitizeFileName(name = '') {
   return String(name)
@@ -838,6 +840,27 @@ exports.downloadCandidateResume = async (req, res) => {
       recruiter: req.user.id,
       type: 'resume_download',
     });
+
+    // A successful recruiter resume download means the candidate profile was
+    // viewed. Keep applications and referral-only records in sync so the
+    // candidate's Applied Jobs timeline advances to Viewed.
+    const recruiterId = req.workspaceOwnerId || req.user.id;
+    await Promise.all([
+      Application.updateMany(
+        { candidate: candidate._id, recruiter: recruiterId, status: 'applied' },
+        { $set: { status: 'viewed', viewedAt: new Date(), resumeViewedAt: new Date() }, $inc: { viewsCount: 1, applicationsViewed: 1 } },
+      ),
+      Referral.updateMany(
+        { referredCandidate: candidate._id, job: { $in: await Job.find({ postedBy: recruiterId }).distinct('_id') }, status: 'referred' },
+        { $set: { status: 'viewed', viewedAt: new Date(), resumeViewedAt: new Date() } },
+      ),
+    ]);
+    try {
+      const io = getIO();
+      if (io) io.to(`user:${candidate._id}`).emit('applicationUpdated', { type: 'resume_viewed', candidateId: candidate._id });
+    } catch (socketError) {
+      console.error('Unable to notify candidate about resume view:', socketError.message);
+    }
 
     const fileName = resolveResumeFileName(candidate);
 

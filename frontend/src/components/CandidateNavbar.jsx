@@ -12,6 +12,32 @@ import Avatar from './Avatar';
 import { connectSocket } from '../socket';
 
 const NAV_FRAME = 'max-w-[960px]';
+const CANDIDATE_PROFILE_CACHE_PREFIX = 'candidate-navbar-profile:';
+
+function getCachedCandidateProfile(user) {
+    if (typeof window === 'undefined' || !user?.uniqueId) return null;
+    try {
+        const cached = window.localStorage.getItem(`${CANDIDATE_PROFILE_CACHE_PREFIX}${user.uniqueId}`);
+        return cached ? JSON.parse(cached) : null;
+    } catch {
+        return null;
+    }
+}
+
+function cacheCandidateProfile(user, profile) {
+    if (typeof window === 'undefined' || !user?.uniqueId || !profile) return;
+    try {
+        window.localStorage.setItem(
+            `${CANDIDATE_PROFILE_CACHE_PREFIX}${user.uniqueId}`,
+            JSON.stringify({
+                name: profile.name || user.name || '',
+                profile: { profilePictureUrl: profile.profile?.profilePictureUrl || '' },
+            }),
+        );
+    } catch {
+        // Profile caching is non-critical when storage is unavailable.
+    }
+}
 
 const panelVariants = {
     open: { x: 0, transition: { type: 'tween', duration: 0.25 } },
@@ -37,7 +63,7 @@ export default function CandidateNavbar({ profile, onOpenAccountMenu, hideMobile
     const accountMenuRef = useRef(null);
     const jobsDropdownRef = useRef(null);
 
-    const [resolvedProfile, setResolvedProfile] = useState(profile || null);
+    const [resolvedProfile, setResolvedProfile] = useState(() => profile || getCachedCandidateProfile(user));
     const [platformBranding, setPlatformBranding] = useState(getCachedPlatformBranding);
     const profileFetchAttempted = useRef(false);
 
@@ -79,8 +105,9 @@ export default function CandidateNavbar({ profile, onOpenAccountMenu, hideMobile
     useEffect(() => {
         if (profile) {
             setResolvedProfile(profile);
+            cacheCandidateProfile(user, profile);
         }
-    }, [profile]);
+    }, [profile, user]);
 
     const candidateName = resolvedProfile?.name || user?.name || 'Candidate';
     const profilePictureUrl = resolvedProfile?.profile?.profilePictureUrl;
@@ -110,6 +137,7 @@ export default function CandidateNavbar({ profile, onOpenAccountMenu, hideMobile
                 const { data } = await axiosInstance.get('/candidate/me/profile');
                 if (data) {
                     setResolvedProfile(data);
+                    cacheCandidateProfile(user, data);
                 }
             } catch (err) {
                 // Ignore if profile fetch fails; avatar fallback handles missing photo.
@@ -117,7 +145,7 @@ export default function CandidateNavbar({ profile, onOpenAccountMenu, hideMobile
         }
 
         fetchProfilePicture();
-    }, [profile]);
+    }, [profile, user]);
 
     useEffect(() => {
         let mounted = true;

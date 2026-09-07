@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Bell, MessageCircle, Briefcase, Megaphone, CheckCheck, Trash2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axiosInstance from '../api/axiosInstance';
 import { connectSocket } from '../socket';
 import { FONT_DISPLAY, MAROON, MAROON_DARK } from '../theme';
@@ -26,16 +26,30 @@ function timeAgo(dateStr) {
 
 export default function NotificationCenter({ className = '' }) {
     const navigate = useNavigate();
+    const location = useLocation();
     const [open, setOpen] = useState(false);
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const ref = useRef(null);
 
+    function isMessageChatOpen(notification) {
+        if (notification?.type !== 'message' || !notification.relatedId) return false;
+        const isCandidateChat = location.pathname === '/candidate/messages';
+        const isRecruiterChat = location.pathname === '/recruiter/messages';
+        if (!isCandidateChat && !isRecruiterChat) return false;
+        const openUserId = new URLSearchParams(location.search).get(isCandidateChat ? 'recruiterId' : 'candidateId');
+        return Boolean(openUserId && String(openUserId) === String(notification.relatedId));
+    }
+
     async function load() {
         try {
             const { data } = await axiosInstance.get('/notifications/mine');
-            setNotifications(data.notifications || []);
-            setUnreadCount(data.unreadCount || 0);
+            const activeChatNotifications = (data.notifications || []).filter(isMessageChatOpen);
+            setNotifications((data.notifications || []).filter((notification) => !isMessageChatOpen(notification)));
+            setUnreadCount(Math.max(0, (data.unreadCount || 0) - activeChatNotifications.filter((notification) => !notification.read).length));
+            await Promise.all(activeChatNotifications.filter((notification) => !notification.read).map((notification) => (
+                axiosInstance.patch(`/notifications/${notification._id}/read`).catch(() => {})
+            )));
         } catch {
             // Non-fatal — bell just shows stale/no data until next load.
         }
@@ -46,6 +60,12 @@ export default function NotificationCenter({ className = '' }) {
 
         const socket = connectSocket();
         function handleNew(notification) {
+            if (isMessageChatOpen(notification)) {
+                if (!notification.read) {
+                    axiosInstance.patch(`/notifications/${notification._id}/read`).catch(() => {});
+                }
+                return;
+            }
             setNotifications((prev) => [notification, ...prev]);
             setUnreadCount((prev) => prev + 1);
         }
@@ -60,7 +80,7 @@ export default function NotificationCenter({ className = '' }) {
             socket.off('notification', handleNew);
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, []);
+    }, [location.pathname, location.search]);
 
     async function markOneRead(id) {
         setNotifications((prev) => prev.map((n) => (n._id === id ? { ...n, read: true } : n)));
@@ -75,8 +95,20 @@ export default function NotificationCenter({ className = '' }) {
     async function openNotification(notification) {
         if (!notification.read) await markOneRead(notification._id);
         if (notification.type === 'referral') {
+            let user = null;
+            try {
+                user = JSON.parse(localStorage.getItem('user') || 'null');
+            } catch {
+                user = null;
+            }
             setOpen(false);
-            navigate('/candidate/jobs/referred');
+            if (user?.role === 'recruiter' && notification.relatedId) {
+                navigate(`/recruiter/applicants?jobId=${notification.relatedId}`);
+            } else if (notification.relatedId) {
+                navigate(`/candidate/jobs/${notification.relatedId}`);
+            } else {
+                navigate('/candidate/jobs/referred');
+            }
             return;
         }
         if (notification.type !== 'message' || !notification.relatedId) return;

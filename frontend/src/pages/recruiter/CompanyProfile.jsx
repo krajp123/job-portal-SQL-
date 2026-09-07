@@ -82,6 +82,14 @@ async function getCroppedImage(imageUrl, pixelCrop) {
   });
 }
 
+/* Cover banner is always this exact width:height ratio — on the edit view,
+   the read-only view, and the crop dialog — so whatever the recruiter frames
+   in the cropper is precisely what candidates see. Never derive this from a
+   live DOM measurement (ref.getBoundingClientRect()); that value changes with
+   viewport width/breakpoint, which is what caused cover photos to look
+   cropped differently (and get cut off) after upload. */
+const COVER_ASPECT = 18 / 5; // 3.6 : 1
+
 const TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'why-join-us', label: 'Why Join Us' },
@@ -159,8 +167,6 @@ export default function RecruiterCompanyProfile({ readOnly = false }) {
   const [cropPosition, setCropPosition] = useState({ x: 0, y: 0 });
   const [cropZoom, setCropZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
-  const [coverAspect, setCoverAspect] = useState(4.35);
-  const coverRef = useRef(null);
   const [industry, setIndustry] = useState('');
   const [companySize, setCompanySize] = useState('');
   const [companyType, setCompanyType] = useState('');
@@ -231,6 +237,14 @@ export default function RecruiterCompanyProfile({ readOnly = false }) {
     setError('');
     setStatusMessage('');
     try {
+      const pendingTag = tagDraft.trim();
+      const nextTags = pendingTag && !tags.some((tag) => tag.toLowerCase() === pendingTag.toLowerCase())
+        ? [...tags, pendingTag]
+        : tags;
+      if (pendingTag) {
+        setTags(nextTags);
+        setTagDraft('');
+      }
       let nextLogoUrl = companyLogoUrl.trim();
       let nextCoverUrl = coverImageUrl.trim();
       for (const image of [
@@ -262,7 +276,7 @@ export default function RecruiterCompanyProfile({ readOnly = false }) {
         companySize: companySize.trim(),
         companyType: companyType.trim(),
         location: location.trim(),
-        tags,
+        tags: nextTags,
         whyJoinUs,
         diversityHighlights,
       };
@@ -324,10 +338,6 @@ export default function RecruiterCompanyProfile({ readOnly = false }) {
   function openCropper(type, imageUrl, file = null) {
     setEditMode(true);
     setImageMenu(null);
-    if (type === 'cover' && coverRef.current) {
-      const { width, height } = coverRef.current.getBoundingClientRect();
-      if (width && height) setCoverAspect(width / height);
-    }
     setCropTarget({ type, file });
     setCropPreview(imageUrl);
     setCropPosition({ x: 0, y: 0 });
@@ -468,20 +478,33 @@ export default function RecruiterCompanyProfile({ readOnly = false }) {
 
       {cropTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6">
-          <div className="w-full max-w-lg rounded-3xl bg-white p-5 shadow-2xl">
+          <div className={`w-full rounded-3xl bg-white p-5 shadow-2xl ${cropTarget.type === 'cover' ? 'max-w-2xl' : 'max-w-lg'}`}>
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-[#1D181A]">Adjust photo</h2>
+              <h2 className="text-lg font-bold text-[#1D181A]">
+                {cropTarget.type === 'cover' ? 'Adjust cover photo' : 'Adjust photo'}
+              </h2>
               <button type="button" onClick={closeCropper} title="Close" aria-label="Close" className="rounded-full p-2 text-slate-500 hover:bg-slate-100">
                 <X size={18} />
               </button>
             </div>
-            <div className={`relative mt-4 h-72 w-full overflow-hidden rounded-2xl bg-slate-100 ${cropTarget.type === 'logo' ? 'sm:h-80' : ''}`}>
+            <p className="mt-1 text-xs text-slate-500">
+              Drag to reposition, use the slider to zoom. The frame below is exactly the shape candidates will see.
+            </p>
+            <div
+              className={`relative mt-4 w-full overflow-hidden rounded-2xl bg-slate-100 ${
+                cropTarget.type === 'logo' ? 'h-72 sm:h-80' : ''
+              }`}
+              style={cropTarget.type === 'cover' ? { aspectRatio: COVER_ASPECT } : undefined}
+            >
               <Cropper
                 image={cropPreview}
                 crop={cropPosition}
                 zoom={cropZoom}
-                aspect={cropTarget.type === 'logo' ? 1 : coverAspect}
+                minZoom={1}
+                maxZoom={3}
+                aspect={cropTarget.type === 'logo' ? 1 : COVER_ASPECT}
                 cropShape={cropTarget.type === 'logo' ? 'round' : 'rect'}
+                restrictPosition={true}
                 onCropChange={setCropPosition}
                 onZoomChange={setCropZoom}
                 onCropComplete={onCropComplete}
@@ -489,11 +512,11 @@ export default function RecruiterCompanyProfile({ readOnly = false }) {
             </div>
             <label className="mt-4 block text-xs font-semibold text-slate-600">
               Zoom
-              <input type="range" min="1" max="3" step="0.01" value={cropZoom} onChange={(event) => setCropZoom(Number(event.target.value))} className="mt-2 w-full" />
+              <input type="range" min="1" max="3" step="0.01" value={cropZoom} onChange={(event) => setCropZoom(Number(event.target.value))} className="mt-2 w-full accent-[#C75560]" />
             </label>
             <div className="mt-5 flex justify-end gap-2">
               <button type="button" onClick={closeCropper} className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
-              <button type="button" onClick={applyCrop} className="rounded-full bg-[#C75560] px-4 py-2 text-xs font-semibold text-white hover:bg-[#B44852]">Apply</button>
+              <button type="button" onClick={applyCrop} disabled={!croppedAreaPixels} className="rounded-full bg-[#C75560] px-4 py-2 text-xs font-semibold text-white hover:bg-[#B44852] disabled:cursor-not-allowed disabled:opacity-50">Apply</button>
             </div>
           </div>
         </div>
@@ -513,9 +536,12 @@ export default function RecruiterCompanyProfile({ readOnly = false }) {
         {/* ---------------------------- BANNER + TABS ---------------------------- */}
         <section className="overflow-hidden rounded-lg border border-[#F3E4DC] bg-white shadow-sm shadow-slate-200/40">
           {/* Cover */}
-          <div ref={coverRef} className="relative h-32 w-full overflow-hidden bg-gradient-to-br from-[#1D181A] via-[#3A2A2E] to-[#C75560] sm:h-40">
+          <div
+            className="relative w-full overflow-hidden bg-gradient-to-br from-[#1D181A] via-[#3A2A2E] to-[#C75560]"
+            style={{ aspectRatio: COVER_ASPECT }}
+          >
             {coverImageUrl && (
-              <img src={coverImageUrl} alt="Company cover" className="absolute inset-0 h-full w-full object-cover" />
+              <img src={coverImageUrl} alt="Company cover" className="absolute inset-0 h-full w-full object-cover object-center" />
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent" />
 

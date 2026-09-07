@@ -84,6 +84,12 @@ const STATUS_CONFIG = {
     bgColor: "#E1F6EC",
     step: 5,
   },
+  hired: {
+    label: "Hired",
+    color: "#0F8A5F",
+    bgColor: "#E1F6EC",
+    step: 6,
+  },
   rejected: {
     label: "Not Selected",
     color: "#B3261E",
@@ -92,7 +98,7 @@ const STATUS_CONFIG = {
   },
 };
 
-// The road itself — six mile-markers a candidate travels through.
+// The road itself — seven mile-markers a candidate travels through.
 const STAGE_FLOW = [
   { key: "applied", label: "Applied", dateKey: "appliedAt", icon: Send },
   { key: "viewed", label: "Viewed", dateKey: "viewedAt", icon: Eye },
@@ -115,6 +121,7 @@ const STAGE_FLOW = [
     dateKey: "acceptedAt",
     icon: CheckCheck,
   },
+  { key: "hired", label: "Hired", dateKey: "hiredAt", icon: Award },
 ];
 
 const FILTER_TABS = [
@@ -412,11 +419,11 @@ export default function AppliedJobs() {
               className="mb-2 text-xl font-bold"
               style={{ fontFamily: FONT_DISPLAY, color: MAROON_DARK }}
             >
-              Your route starts here
+              No applications yet
             </h2>
             <p className="mb-5 text-[13.5px]" style={{ color: DUSTY_ROSE }}>
-              Apply to jobs and track every step of your application, from sent
-              to hired, right here.
+              You haven't applied to any jobs yet. Find an opening that matches
+              your skills and start your application journey.
             </p>
             <button
               onClick={() => navigate("/candidate/jobs")}
@@ -898,7 +905,9 @@ function RouteTimeline({ application }) {
             }}
             initial={{ width: 0 }}
             animate={{
-              width: `calc(${progressPct}% - ${progressPct > 0 ? 16 : 0}px)`,
+              // The road starts at the first marker's center, so add half a
+              // marker to reach the center of the active marker exactly.
+              width: progressPct > 0 ? `calc(${progressPct}% + 8px)` : 0,
             }}
             transition={{ duration: 0.6, ease: "easeOut" }}
           />

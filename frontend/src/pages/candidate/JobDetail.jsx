@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
     ArrowLeft,
@@ -415,8 +415,18 @@ function timeAgo(dateStr, now = Date.now()) {
     return `${months} mo${months === 1 ? '' : 's'} ago`;
 }
 
+function normalizeCompanyName(value) {
+    return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function getCurrentCompanyName(candidate) {
+    return (candidate?.profile?.experience || []).find((item) => item?.current && item.company)?.company?.trim() || '';
+}
+
 export default function JobDetail() {
     const { id } = useParams();
+    const [searchParams] = useSearchParams();
+    const isReferredJob = searchParams.get('referral') === '1';
     const navigate = useNavigate();
     const [job, setJob] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -444,6 +454,7 @@ export default function JobDetail() {
     const [referralError, setReferralError] = useState('');
     const [referralSubmitting, setReferralSubmitting] = useState(false);
     const [referralSuccess, setReferralSuccess] = useState('');
+    const [receivedReferral, setReceivedReferral] = useState(null);
 
     // Ticks every 30s so "Posted: X seconds/minutes/hours ago" stays live
     // instead of freezing at whatever it showed on page load.
@@ -457,11 +468,12 @@ export default function JobDetail() {
             setLoading(true);
             setError('');
             try {
-                const [{ data: jobData }, { data: savedData }, { data: appliedData }, { data: profileData }] = await Promise.all([
+                const [{ data: jobData }, { data: savedData }, { data: appliedData }, { data: profileData }, { data: receivedReferrals }] = await Promise.all([
                     axiosInstance.get(`/jobs/${id}`),
                     axiosInstance.get('/candidate/me/saved-jobs').catch(() => ({ data: [] })),
                     axiosInstance.get('/applications/mine').catch(() => ({ data: [] })),
                     axiosInstance.get('/candidate/me/profile').catch(() => ({ data: null })),
+                    isReferredJob ? axiosInstance.get('/referral/mine').catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
                 ]);
 
                 setJob(jobData);
@@ -472,6 +484,7 @@ export default function JobDetail() {
                 setApplied(!!jobApplication);
                 setApplicationStatus(jobApplication?.status || '');
                 setCandidateProfile(profileData);
+                setReceivedReferral((receivedReferrals || []).find((referral) => (referral.job?._id || referral.job) === jobData._id) || null);
             } catch (err) {
                 setError(err.response?.data?.error || 'Could not load this job.');
             } finally {
@@ -480,7 +493,7 @@ export default function JobDetail() {
         }
 
         loadJob();
-    }, [id]);
+    }, [id, isReferredJob]);
 
     async function toggleSave() {
         if (!job?._id) return;
@@ -508,6 +521,7 @@ export default function JobDetail() {
 
     async function apply() {
         if (!job?._id) return;
+        if (isReferredJob) return;
         if (job.status !== 'open') {
             setApplyError('This job is no longer accepting applications.');
             return;
@@ -639,6 +653,13 @@ export default function JobDetail() {
     const isSaved = job ? savedIds.has(job._id) : false;
     const applicationFields = job?.applicationForm?.enabled ? job.applicationForm.fields || [] : [];
     const profile = candidateProfile?.profile || {};
+    const currentCompanyName = getCurrentCompanyName(candidateProfile);
+    const jobCompanyName = job?.postedBy?.companyName?.trim() || '';
+    const canReferForJob = Boolean(
+        currentCompanyName &&
+        jobCompanyName &&
+        normalizeCompanyName(currentCompanyName) === normalizeCompanyName(jobCompanyName),
+    );
     const initialApplicationValues = {
         current_location: profile.location,
         linkedin_url: candidateProfile?.socialLinks?.linkedin,
@@ -734,6 +755,11 @@ export default function JobDetail() {
                                                 </>
                                             )}
                                         </div>
+                                        {isReferredJob && receivedReferral?.referrer?.name && (
+                                            <p className="mt-2 text-[12.5px] font-semibold text-[#9A671A]">
+                                                Referred by {receivedReferral.referrer.name}
+                                            </p>
+                                        )}
 
                                         <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[12.5px] text-stone-600">
                                             {job.experienceLevel && (
@@ -817,16 +843,20 @@ export default function JobDetail() {
                                             Report
                                         </button>
 
-                                        <button
+                                        {!isReferredJob && <button
                                             type="button"
                                             onClick={openReferral}
-                                            className="flex items-center justify-center gap-2 rounded-full border border-[#EBC2AE] bg-white px-4 py-2.5 text-[13px] font-semibold text-[#8B1E2F] transition-colors hover:bg-[#FFF5F0]"
+                                            disabled={!canReferForJob}
+                                            title={canReferForJob ? `Refer for ${jobCompanyName}` : 'Referrals are available only for jobs posted by your current company.'}
+                                            className="flex items-center justify-center gap-2 rounded-full border border-[#EBC2AE] bg-white px-4 py-2.5 text-[13px] font-semibold text-[#8B1E2F] transition-colors hover:bg-[#FFF5F0] disabled:cursor-not-allowed disabled:border-stone-200 disabled:text-stone-400 disabled:hover:bg-white"
                                         >
                                             <UserRoundPlus size={14} />
                                             Refer candidate
-                                        </button>
+                                        </button>}
 
-                                        {applied ? (
+                                        {isReferredJob ? (
+                                            <span className="inline-flex items-center justify-center rounded-full border border-[#EBC2AE] bg-[#FFF0E8] px-5 py-2.5 text-[13px] font-bold text-[#9A671A]">Referred</span>
+                                        ) : applied ? (
                                             <>
                                                 <span
                                                     className="flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-[13px] font-semibold text-white"
@@ -1107,7 +1137,7 @@ export default function JobDetail() {
                             <div>
                                 <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#A51D35]">Share an opportunity</p>
                                 <h2 id="refer-candidate-title" className="mt-1 text-[19px] font-bold text-stone-900" style={{ fontFamily: FONT_DISPLAY }}>Refer a candidate</h2>
-                                <p className="mt-1 text-[12.5px] leading-5 text-stone-500">Enter their unique ID to send them this job.</p>
+                                <p className="mt-1 text-[12.5px] leading-5 text-stone-500">Enter their unique ID to send them this job for {jobCompanyName || 'your company'}.</p>
                             </div>
                             <button type="button" onClick={() => setReferralOpen(false)} disabled={referralSubmitting} aria-label="Close referral dialog" className="text-xl leading-none text-stone-400 hover:text-stone-700">×</button>
                         </div>
@@ -1121,7 +1151,7 @@ export default function JobDetail() {
                                     setSelectedReferralCandidate(null);
                                     setReferralUniqueId(event.target.value.toUpperCase());
                                 }}
-                                placeholder="Example: JS-2026-000123"
+                                placeholder="Example: CH23DF437DB"
                                 className="w-full rounded-xl border border-stone-200 px-3 py-2.5 text-[13px] uppercase text-stone-800 outline-none focus:border-[#8B1E2F] focus:ring-2 focus:ring-[#8B1E2F]/10"
                             />
                         </label>

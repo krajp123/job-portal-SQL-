@@ -636,9 +636,17 @@ exports.updateProfileSocial = async (req, res) => {
 
 function updateSubarrayField(req, res, bodyKey, schemaPath) {
   try {
-    const items = req.body[bodyKey];
+    let items = req.body[bodyKey];
     if (!Array.isArray(items)) {
       return res.status(400).json({ error: `${bodyKey} must be an array` });
+    }
+
+    if (bodyKey === 'experience') {
+      const lastCurrentIndex = items.reduce(
+        (lastIndex, item, index) => (item?.current ? index : lastIndex),
+        -1,
+      );
+      items = items.map((item, index) => ({ ...item, current: index === lastCurrentIndex }));
     }
 
     return Candidate.findByIdAndUpdate(

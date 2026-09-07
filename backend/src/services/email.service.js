@@ -18,110 +18,162 @@ if (EMAIL_USER && EMAIL_APP_PASSWORD) {
   console.warn('   EMAIL_APP_PASSWORD:', EMAIL_APP_PASSWORD ? '***set***' : '***NOT SET***');
 }
 
-// Formal business letter style for professional corporate correspondence
-function baseStyles() {
+// ---------------------------------------------------------------------------
+// BRAND / DESIGN SYSTEM
+// Table-based layout + inline CSS on purpose — Outlook, Gmail app, and most
+// corporate mail clients strip <style> blocks and ignore flexbox/grid, so
+// inline styles + <table> are what actually render consistently everywhere.
+// ---------------------------------------------------------------------------
+const BRAND = {
+  name: 'Career Route Portal',
+  tagline: 'Professional Recruitment Solutions',
+  navy: '#132A4C',       // header / headings
+  blue: '#2E5FE0',       // accent / links / buttons
+  blueDark: '#234ABD',   // button hover-equivalent (borders)
+  bg: '#F3F5F9',         // page background
+  card: '#FFFFFF',
+  border: '#E3E7EF',
+  text: '#1E2430',
+  textMuted: '#5B6270',
+  success: '#1E8E5A',
+  successBg: '#E9F7EF',
+  danger: '#B3261E',
+  dangerBg: '#FBEAEA',
+  amberBg: '#FFF6E5',
+  amberBorder: '#F3C969',
+};
+
+function todayLong() {
+  return new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+/**
+ * Shared HTML shell used by every email in this file.
+ * @param {Object} opts
+ * @param {string} opts.preheader - hidden inbox preview text
+ * @param {string} opts.eyebrow - small label above the title (e.g. "APPLICATION UPDATE")
+ * @param {string} opts.title - main heading
+ * @param {string} opts.contentHtml - inner body HTML (paragraphs, detail cards, etc.)
+ * @param {string} [opts.ctaText] - optional button text
+ * @param {string} [opts.ctaUrl] - optional button link
+ * @param {string} [opts.accentColor] - header accent bar color (defaults to brand blue)
+ */
+function renderLayout({ preheader = '', eyebrow = '', title = '', contentHtml = '', ctaText = '', ctaUrl = '', accentColor = BRAND.blue }) {
+  const year = new Date().getFullYear();
+
+  const ctaBlock = ctaText && ctaUrl ? `
+    <tr>
+      <td align="center" style="padding: 8px 40px 4px 40px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+          <tr>
+            <td align="center" bgcolor="${BRAND.blue}" style="border-radius: 8px;">
+              <a href="${ctaUrl}" target="_blank"
+                style="display:inline-block; padding:14px 30px; font-family:Arial,Helvetica,sans-serif;
+                       font-size:15px; font-weight:bold; color:#FFFFFF; text-decoration:none; border-radius:8px;">
+                ${ctaText}
+              </a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>` : '';
+
   return `
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: 'Calibri', 'Arial', sans-serif;
-      color: #000000;
-      line-height: 1.5;
-    }
-    .wrapper {
-      max-width: 680px;
-      margin: 0 auto;
-      padding: 40px 30px;
-      background: #ffffff;
-    }
-    .letterhead {
-      border-bottom: 2px solid #1b1b1b;
-      padding-bottom: 20px;
-      margin-bottom: 20px;
-    }
-    .company-name {
-      font-size: 20px;
-      font-weight: bold;
-      color: #000000;
-      margin: 0 0 4px 0;
-    }
-    .company-info {
-      font-size: 12px;
-      color: #333333;
-      margin: 2px 0;
-    }
-    .date {
-      font-size: 13px;
-      color: #000000;
-      margin: 20px 0 24px 0;
-    }
-    .recipient {
-      font-size: 13px;
-      color: #000000;
-      margin: 0 0 24px 0;
-    }
-    .recipient p {
-      margin: 2px 0;
-    }
-    .subject {
-      font-weight: bold;
-      font-size: 13px;
-      margin: 20px 0 16px 0;
-      color: #000000;
-    }
-    .salutation {
-      font-size: 13px;
-      color: #000000;
-      margin: 0 0 16px 0;
-    }
-    .body-text {
-      font-size: 13px;
-      color: #000000;
-      margin: 0 0 12px 0;
-      text-align: justify;
-    }
-    .cta-box {
-      background: #f5f5f5;
-      border-left: 3px solid #1b1b1b;
-      padding: 14px 16px;
-      margin: 18px 0;
-      font-size: 13px;
-      color: #000000;
-    }
-    .button {
-      display: inline-block;
-      background: #1b1b1b;
-      color: #ffffff !important;
-      text-decoration: none;
-      font-size: 13px;
-      font-weight: bold;
-      padding: 10px 20px;
-      border-radius: 3px;
-      margin: 12px 0;
-    }
-    .closing {
-      font-size: 13px;
-      color: #000000;
-      margin: 28px 0 8px 0;
-    }
-    .signature {
-      font-size: 13px;
-      color: #000000;
-      margin: 0;
-      font-weight: bold;
-    }
-    .disclaimer {
-      font-size: 11px;
-      color: #666666;
-      margin-top: 20px;
-      border-top: 1px solid #cccccc;
-      padding-top: 12px;
-    }
-    a {
-      color: #0066cc;
-      text-decoration: underline;
-    }
-  `;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="light" />
+<title>${title}</title>
+</head>
+<body style="margin:0; padding:0; background-color:${BRAND.bg}; font-family: Arial, Helvetica, sans-serif;">
+  <div style="display:none; max-height:0; overflow:hidden; opacity:0; mso-hide:all;">${preheader}</div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${BRAND.bg};">
+    <tr>
+      <td align="center" style="padding: 40px 16px;">
+
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"
+          style="max-width:600px; width:100%; background-color:${BRAND.card}; border-radius:12px; overflow:hidden; border:1px solid ${BRAND.border};">
+
+          <!-- Accent bar -->
+          <tr><td height="4" bgcolor="${accentColor}" style="line-height:4px; font-size:4px;">&nbsp;</td></tr>
+
+          <!-- Header / brand -->
+          <tr>
+            <td style="padding: 28px 40px 20px 40px;">
+              <p style="margin:0; font-size:18px; font-weight:bold; color:${BRAND.navy}; letter-spacing:0.2px;">${BRAND.name}</p>
+              <p style="margin:2px 0 0 0; font-size:12px; color:${BRAND.textMuted};">${BRAND.tagline}</p>
+            </td>
+          </tr>
+
+          <tr><td style="padding:0 40px;"><hr style="border:none; border-top:1px solid ${BRAND.border}; margin:0;" /></td></tr>
+
+          <!-- Eyebrow + Title -->
+          <tr>
+            <td style="padding: 24px 40px 0 40px;">
+              ${eyebrow ? `<p style="margin:0 0 8px 0; font-size:11px; font-weight:bold; letter-spacing:1px; color:${accentColor}; text-transform:uppercase;">${eyebrow}</p>` : ''}
+              <h1 style="margin:0; font-size:21px; line-height:1.35; color:${BRAND.navy};">${title}</h1>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding: 14px 40px 0 40px; font-size:14.5px; line-height:1.7; color:${BRAND.text};">
+              ${contentHtml}
+            </td>
+          </tr>
+
+          ${ctaBlock}
+
+          <tr><td style="padding:28px 40px 0 40px;"><hr style="border:none; border-top:1px solid ${BRAND.border}; margin:0;" /></td></tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 18px 40px 32px 40px; font-size:12px; line-height:1.6; color:${BRAND.textMuted}; text-align:center;">
+              This is an automated message from ${BRAND.name}. Please do not reply directly to this email.<br/>
+              &copy; ${year} ${BRAND.name}. All rights reserved.
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`.trim();
+}
+
+/**
+ * Renders a clean two-column "detail card" (Position, Company, Date, etc.)
+ * @param {Array<[string, string]>} rows
+ */
+function detailCard(rows) {
+  const rowsHtml = rows
+    .filter(([, value]) => value !== undefined && value !== null && value !== '')
+    .map(([label, value]) => `
+      <tr>
+        <td style="padding:8px 0; font-size:13px; color:${BRAND.textMuted}; width:130px; vertical-align:top;">${label}</td>
+        <td style="padding:8px 0; font-size:14px; color:${BRAND.text}; font-weight:bold; vertical-align:top;">${value}</td>
+      </tr>`).join('');
+
+  return `
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0"
+      style="width:100%; margin:18px 0; background-color:${BRAND.bg}; border:1px solid ${BRAND.border}; border-radius:8px; padding:6px 18px;">
+      ${rowsHtml}
+    </table>`;
+}
+
+function calloutBox(html, { bg = BRAND.amberBg, border = BRAND.amberBorder } = {}) {
+  return `
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%; margin:18px 0;">
+      <tr>
+        <td style="background-color:${bg}; border:1px solid ${border}; border-radius:8px; padding:14px 18px; font-size:13.5px; color:${BRAND.text};">
+          ${html}
+        </td>
+      </tr>
+    </table>`;
 }
 
 async function sendEmail({ to, subject, body, html }) {
@@ -131,7 +183,7 @@ async function sendEmail({ to, subject, body, html }) {
   }
 
   const mailOptions = {
-    from: `"Career Route Portal" <${EMAIL_USER}>`,
+    from: `"${BRAND.name}" <${EMAIL_USER}>`,
     to,
     subject,
   };
@@ -164,53 +216,34 @@ async function sendOtpEmail(candidateEmail, otp, type = 'email') {
       return { sent: false, error: 'Email service not configured' };
     }
 
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <style>${baseStyles()}</style>
-      </head>
-      <body>
-        <div class="wrapper">
-          <div class="letterhead">
-            <p class="company-name">Career Route Portal</p>
-            <p class="company-info">Professional Recruitment Solutions</p>
-          </div>
-
-          <p class="date">${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-
-          <p class="subject">Subject: ${type} Verification Code</p>
-
-          <p class="salutation">Hello,</p>
-
-          <p class="body-text">Thank you for registering with Career Route Portal. To complete your ${type} verification, please use the verification code provided below:</p>
-
-          <div class="cta-box" style="text-align: center; font-size: 14px;">
-            <p style="margin: 0 0 8px 0; color: #666666;">Your Verification Code:</p>
-            <p style="margin: 0; font-size: 28px; font-weight: bold; color: #000000; letter-spacing: 3px; font-family: 'Courier New', monospace;">${otp}</p>
-          </div>
-
-          <p class="body-text">This code is valid for 5 minutes. Please do not share this code with anyone.</p>
-
-          <p class="body-text">If you did not request this verification, please ignore this email.</p>
-
-          <p class="closing">Yours sincerely,</p>
-
-          <p class="signature">Career Route Portal<br>Registration Team</p>
-
-          <p class="disclaimer">This is a system-generated email for your account verification. Please do not reply to this message.</p>
-        </div>
-      </body>
-      </html>
+    const contentHtml = `
+      <p style="margin:0 0 14px 0;">Hello,</p>
+      <p style="margin:0 0 4px 0;">Thank you for registering with ${BRAND.name}. To complete your ${type} verification, please use the code below:</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:22px 0;">
+        <tr>
+          <td align="center" style="background-color:${BRAND.bg}; border:1px dashed ${BRAND.blue}; border-radius:10px; padding:20px;">
+            <p style="margin:0 0 6px 0; font-size:12px; color:${BRAND.textMuted}; text-transform:uppercase; letter-spacing:1px;">Verification Code</p>
+            <p style="margin:0; font-size:32px; font-weight:bold; letter-spacing:6px; color:${BRAND.navy}; font-family:'Courier New', monospace;">${otp}</p>
+          </td>
+        </tr>
+      </table>
+      ${calloutBox(`This code expires in <strong>5 minutes</strong>. Never share it with anyone, including ${BRAND.name} staff.`)}
+      <p style="margin:14px 0 0 0; color:${BRAND.textMuted}; font-size:13.5px;">If you did not request this, you can safely ignore this email.</p>
     `;
 
+    const htmlContent = renderLayout({
+      preheader: `Your ${type} verification code is ${otp}`,
+      eyebrow: 'Account Verification',
+      title: `Verify your ${type}`,
+      contentHtml,
+    });
+
     await transporter.sendMail({
-      from: `"Career Route Portal" <${EMAIL_USER}>`,
+      from: `"${BRAND.name}" <${EMAIL_USER}>`,
       to: candidateEmail,
-      subject: `${type} Verification Code - Career Route Portal`,
+      subject: `${otp} is your ${BRAND.name} verification code`,
       html: htmlContent,
-      text: `Career Route Portal - ${type} Verification Code\n\nHello,\n\nThank you for registering with Career Route Portal. Your verification code is: ${otp}\n\nThis code is valid for 5 minutes. Do not share this code with anyone. If you did not request this verification, please ignore this email.\n\nYours sincerely,\nCareer Route Portal Registration Team`,
+      text: `${BRAND.name} - ${type} Verification\n\nHello,\n\nThank you for registering with ${BRAND.name}. Your verification code is: ${otp}\n\nThis code is valid for 5 minutes. Do not share this code with anyone. If you did not request this verification, please ignore this email.\n\n${BRAND.name} Registration Team`,
     });
 
     // OTP email sent
@@ -241,59 +274,31 @@ async function sendPasswordResetLinkEmail(candidateEmail, resetToken, candidateN
       return { sent: false, error: 'Email service not configured' };
     }
 
-    const today = new Date();
-    const dateStr = today.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <style>${baseStyles()}</style>
-      </head>
-      <body>
-        <div class="wrapper">
-          <div class="letterhead">
-            <p class="company-name">Career Route Portal</p>
-            <p class="company-info">Professional Recruitment Solutions</p>
-          </div>
-
-          <p class="date">${dateStr}</p>
-
-          <div class="recipient">
-            <p>[${candidateName}]</p>
-          </div>
-
-          <p class="subject">Subject: Password Reset Request</p>
-
-          <p class="salutation">Dear ${candidateName},</p>
-
-          <p class="body-text">We have received a request to reset the password for your Career Route Portal account. To proceed with resetting your password, please click the button below. This link is valid for 15 minutes from the time this email was sent.</p>
-
-          <div style="text-align: center;">
-            <a href="${resetUrl}" class="button">Reset My Password</a>
-          </div>
-
-          <p class="body-text" style="font-size: 12px; color: #555555;">If the button above does not work, copy and paste the following link into your browser:<br><a href="${resetUrl}">${resetUrl}</a></p>
-
-          <p class="body-text">If you did not request a password reset, please disregard this email. Your account will remain secure, and no changes will be made without your authorization.</p>
-
-          <p class="closing">Yours sincerely,</p>
-
-          <p class="signature">Career Route Portal<br>Recruitment Team</p>
-
-          <p class="disclaimer">This is a system-generated email. Please do not reply to this message. For support, please visit our website or contact our support team.</p>
-        </div>
-      </body>
-      </html>
+    const contentHtml = `
+      <p style="margin:0 0 14px 0;">Dear ${candidateName},</p>
+      <p style="margin:0;">We received a request to reset the password for your ${BRAND.name} account. Click the button below to choose a new password. This link is valid for <strong>15 minutes</strong>.</p>
+      <p style="margin:20px 0 0 0; font-size:12.5px; color:${BRAND.textMuted}; word-break:break-all;">
+        If the button doesn't work, copy and paste this link into your browser:<br/>
+        <a href="${resetUrl}" style="color:${BRAND.blue};">${resetUrl}</a>
+      </p>
+      ${calloutBox(`If you didn't request this, no action is needed — your password will remain unchanged.`)}
     `;
 
+    const htmlContent = renderLayout({
+      preheader: 'Reset your Career Route Portal password',
+      eyebrow: 'Security',
+      title: 'Reset your password',
+      contentHtml,
+      ctaText: 'Reset My Password',
+      ctaUrl: resetUrl,
+    });
+
     await transporter.sendMail({
-      from: `"Career Route Portal" <${EMAIL_USER}>`,
+      from: `"${BRAND.name}" <${EMAIL_USER}>`,
       to: candidateEmail,
-      subject: 'Password Reset Request - Career Route Portal',
+      subject: `Reset your ${BRAND.name} password`,
       html: htmlContent,
-      text: `Career Route Portal - Password Reset Request\n\nDear ${candidateName},\n\nWe have received a request to reset the password for your Career Route Portal account. Please use this link to reset your password: ${resetUrl}\n\nThis link is valid for 15 minutes. If you did not request this reset, please ignore this email.\n\nYours sincerely,\nCareer Route Portal Recruitment Team`,
+      text: `${BRAND.name} - Password Reset Request\n\nDear ${candidateName},\n\nWe received a request to reset the password for your ${BRAND.name} account. Use this link to reset your password: ${resetUrl}\n\nThis link is valid for 15 minutes. If you did not request this reset, please ignore this email.\n\n${BRAND.name} Team`,
     });
 
     // Password reset email sent
@@ -316,100 +321,44 @@ async function sendCandidateAccountStatusEmail(candidateEmail, candidateName, st
       return { sent: false, error: 'Email service not configured' };
     }
 
-    const today = new Date();
-    const dateStr = today.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-
+    const name = candidateName || 'Candidate';
     let htmlContent, emailSubject, textContent;
 
     if (status === 'active') {
-      // Activation email - positive message
-      htmlContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8">
-          <style>${baseStyles()}</style>
-        </head>
-        <body>
-          <div class="wrapper">
-            <div class="letterhead">
-              <p class="company-name">Career Route Portal</p>
-              <p class="company-info">Professional Recruitment Solutions</p>
-            </div>
-
-            <p class="date">${dateStr}</p>
-
-            <div class="recipient">
-              <p>[${candidateName || 'Valued Candidate'}]</p>
-            </div>
-
-            <p class="subject">Subject: Account Reactivation Notice</p>
-
-            <p class="salutation">Dear ${candidateName || 'Candidate'},</p>
-
-            <p class="body-text">We are pleased to inform you that your Career Route Portal account has been <strong>reactivated</strong> and is now fully accessible. You can now log in and resume your job search activities.</p>
-
-            <p class="body-text">If you have any questions or need any assistance, please feel free to contact our support team. We are here to help you succeed in your career journey.</p>
-
-            <p class="closing">Yours sincerely,</p>
-
-            <p class="signature">Career Route Portal<br>Support Team</p>
-
-            <p class="disclaimer">This is a system-generated notification regarding your account status. Please do not reply to this message. For support inquiries, contact us through the Career Route Portal website.</p>
-          </div>
-        </body>
-        </html>
+      const contentHtml = `
+        <p style="margin:0 0 14px 0;">Dear ${name},</p>
+        <p style="margin:0;">We're pleased to let you know that your ${BRAND.name} account has been <strong>reactivated</strong> and is now fully accessible. You can log back in and continue your job search right away.</p>
+        <p style="margin:16px 0 0 0; color:${BRAND.textMuted}; font-size:13.5px;">Need help getting started again? Just reach out to our support team.</p>
       `;
-      emailSubject = 'Account Reactivation Notice - Career Route Portal';
-      textContent = `Career Route Portal - Account Reactivation Notice\n\nDear ${candidateName || 'Candidate'},\n\nWe are pleased to inform you that your Career Route Portal account has been reactivated and is now fully accessible.\n\nYou can now log in and resume your job search activities.\n\nYours sincerely,\nCareer Route Portal Support Team`;
+      htmlContent = renderLayout({
+        preheader: 'Your account has been reactivated',
+        eyebrow: 'Account Update',
+        title: 'Your account is active again',
+        contentHtml,
+        accentColor: BRAND.success,
+      });
+      emailSubject = `Your ${BRAND.name} account has been reactivated`;
+      textContent = `${BRAND.name} - Account Reactivated\n\nDear ${name},\n\nWe're pleased to let you know that your ${BRAND.name} account has been reactivated and is now fully accessible. You can log in and resume your job search.\n\n${BRAND.name} Support Team`;
     } else {
-      // Suspension/Ban email - neutral message without reason
       const cleanStatus = status === 'banned' ? 'Banned' : 'Suspended';
-      htmlContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8">
-          <style>${baseStyles()}</style>
-        </head>
-        <body>
-          <div class="wrapper">
-            <div class="letterhead">
-              <p class="company-name">Career Route Portal</p>
-              <p class="company-info">Professional Recruitment Solutions</p>
-            </div>
-
-            <p class="date">${dateStr}</p>
-
-            <div class="recipient">
-              <p>[${candidateName || 'Valued Candidate'}]</p>
-            </div>
-
-            <p class="subject">Subject: Account ${cleanStatus} Notice</p>
-
-            <p class="salutation">Dear ${candidateName || 'Candidate'},</p>
-
-            <p class="body-text">We are writing to inform you that your Career Route Portal account has been <strong>${cleanStatus.toLowerCase()}</strong> effective immediately. This action has been taken in accordance with our Terms of Service and Community Guidelines.</p>
-
-            <p class="body-text">To restore your account or address this matter, please review our Terms of Service and contact our support team for further assistance. We will be happy to review your case and discuss options for reactivation once the concern has been resolved.</p>
-
-            <p class="body-text">If you believe this action has been taken in error, please reach out to our support team immediately for a prompt review.</p>
-
-            <p class="closing">Yours sincerely,</p>
-
-            <p class="signature">Career Route Portal<br>Compliance & Support Team</p>
-
-            <p class="disclaimer">This is a system-generated notification regarding your account status. Please do not reply to this message. For support inquiries, contact us through the Career Route Portal website.</p>
-          </div>
-        </body>
-        </html>
+      const contentHtml = `
+        <p style="margin:0 0 14px 0;">Dear ${name},</p>
+        <p style="margin:0;">We're writing to inform you that your ${BRAND.name} account has been <strong>${cleanStatus.toLowerCase()}</strong>, effective immediately, in accordance with our Terms of Service and Community Guidelines.</p>
+        <p style="margin:14px 0 0 0;">If you believe this was a mistake, please contact our support team — we're happy to review your case.</p>
       `;
-      emailSubject = `Account ${cleanStatus} Notice - Career Route Portal`;
-      textContent = `Career Route Portal - Account ${cleanStatus} Notice\n\nDear ${candidateName || 'Candidate'},\n\nWe are writing to inform you that your Career Route Portal account has been ${cleanStatus.toLowerCase()}.\n\nTo restore your account or address this matter, please contact our support team.\n\nYours sincerely,\nCareer Route Portal Compliance & Support Team`;
+      htmlContent = renderLayout({
+        preheader: `Your account has been ${cleanStatus.toLowerCase()}`,
+        eyebrow: 'Account Update',
+        title: `Account ${cleanStatus}`,
+        contentHtml,
+        accentColor: BRAND.danger,
+      });
+      emailSubject = `Your ${BRAND.name} account has been ${cleanStatus.toLowerCase()}`;
+      textContent = `${BRAND.name} - Account ${cleanStatus}\n\nDear ${name},\n\nWe're writing to inform you that your ${BRAND.name} account has been ${cleanStatus.toLowerCase()}.\n\nIf you believe this was a mistake, please contact our support team.\n\n${BRAND.name} Compliance & Support Team`;
     }
 
     await transporter.sendMail({
-      from: `"Career Route Portal" <${EMAIL_USER}>`,
+      from: `"${BRAND.name}" <${EMAIL_USER}>`,
       to: candidateEmail,
       subject: emailSubject,
       html: htmlContent,
@@ -426,7 +375,6 @@ async function sendCandidateAccountStatusEmail(candidateEmail, candidateName, st
 
 async function sendShortlistEmail(candidateEmail, candidateName, jobTitle, recruiterName, companyName) {
   try {
-    // Validate required parameters
     if (!candidateEmail) {
       console.error('❌ Shortlist email - Missing candidateEmail');
       return { sent: false, error: 'Missing candidate email' };
@@ -441,59 +389,31 @@ async function sendShortlistEmail(candidateEmail, candidateName, jobTitle, recru
       return { sent: false, error: 'Email service not configured' };
     }
 
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <style>${baseStyles()}</style>
-      </head>
-      <body>
-        <div class="wrapper">
-          <div class="letterhead">
-            <p class="company-name">${companyName}</p>
-            <p class="company-info">Human Resources Department</p>
-          </div>
-
-          <p class="date">${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-
-          <div class="recipient">
-            <p>[${candidateName}]</p>
-          </div>
-
-          <p class="subject">Subject: Shortlist Notification - ${jobTitle}</p>
-
-          <p class="salutation">Dear ${candidateName},</p>
-
-          <p class="body-text">Greetings from ${companyName}. Thank you for applying for the position of <strong>${jobTitle}</strong> with us. We are pleased to inform you that your profile has been selected for the next stage of our recruitment process.</p>
-
-          <div class="cta-box">
-            <strong>Application Details:</strong><br><br>
-            Position: ${jobTitle}<br>
-            Company: ${companyName}<br>
-            Recruiter: ${recruiterName}
-          </div>
-
-          <p class="body-text">Our recruitment team will contact you shortly with further details regarding the next steps. We request you to keep checking your email and phone for updates.</p>
-
-          <p class="body-text">Should you have any queries or require any further information, please feel free to reach out to us.</p>
-
-          <p class="closing">Yours sincerely,</p>
-
-          <p class="signature">${recruiterName}<br>Human Resources<br>${companyName}</p>
-
-          <p class="disclaimer">This is a system-generated email regarding your job application. Please do not reply to this message.</p>
-        </div>
-      </body>
-      </html>
+    const contentHtml = `
+      <p style="margin:0 0 14px 0;">Dear ${candidateName},</p>
+      <p style="margin:0;">Great news — your application for the <strong>${jobTitle}</strong> position at <strong>${companyName}</strong> has been shortlisted for the next stage of the hiring process.</p>
+      ${detailCard([
+        ['Position', jobTitle],
+        ['Company', companyName],
+        ['Recruiter', recruiterName],
+      ])}
+      <p style="margin:0;">The hiring team will be in touch shortly with next steps. Keep an eye on your email and phone for updates.</p>
     `;
+
+    const htmlContent = renderLayout({
+      preheader: `You've been shortlisted for ${jobTitle} at ${companyName}`,
+      eyebrow: 'Application Update',
+      title: "You've been shortlisted 🎉",
+      contentHtml,
+      accentColor: BRAND.success,
+    });
 
     await transporter.sendMail({
       from: `"${companyName} Recruitment" <${EMAIL_USER}>`,
       to: candidateEmail,
-      subject: `Shortlist Notification - ${jobTitle} at ${companyName}`,
+      subject: `You've been shortlisted for ${jobTitle} at ${companyName}`,
       html: htmlContent,
-      text: `Dear ${candidateName},\n\nGreetings from ${companyName}.\n\nThank you for applying for the position of ${jobTitle} with us. We are pleased to inform you that your profile has been selected for the next stage of our recruitment process.\n\nPosition: ${jobTitle}\nCompany: ${companyName}\nRecruiter: ${recruiterName}\n\nOur recruitment team will contact you shortly with further details regarding the next steps.\n\nYours sincerely,\n${recruiterName}\nHuman Resources\n${companyName}`,
+      text: `Dear ${candidateName},\n\nGreat news — your application for the ${jobTitle} position at ${companyName} has been shortlisted for the next stage of the hiring process.\n\nPosition: ${jobTitle}\nCompany: ${companyName}\nRecruiter: ${recruiterName}\n\nThe hiring team will be in touch shortly with next steps.\n\nRegards,\n${recruiterName}\nHuman Resources\n${companyName}`,
     });
 
     // Shortlist email sent
@@ -507,9 +427,8 @@ async function sendShortlistEmail(candidateEmail, candidateName, jobTitle, recru
 /**
  * Send interview scheduling email to candidate
  */
-async function sendInterviewScheduleEmail(candidateEmail, candidateName, jobTitle, recruiterName, companyName, interviewDate, interviewTime) {
+async function sendInterviewScheduleEmail(candidateEmail, candidateName, jobTitle, recruiterName, companyName, interviewDate, interviewTime, interviewMode = 'online', interviewLink = '', interviewAddress = '') {
   try {
-    // Validate required parameters
     if (!candidateEmail) {
       console.error('❌ Interview email - Missing candidateEmail');
       return { sent: false, error: 'Missing candidate email' };
@@ -529,58 +448,37 @@ async function sendInterviewScheduleEmail(candidateEmail, candidateName, jobTitl
       return new Date(date).toLocaleDateString('en-US', options);
     };
 
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <style>${baseStyles()}</style>
-      </head>
-      <body>
-        <div class="wrapper">
-          <p>Dear ${candidateName},</p>
-
-          <p>Greetings from ${companyName}.</p>
-
-          <p>This is to inform you that your interview for the position of <strong>${jobTitle}</strong> has been scheduled. Please find the details below.</p>
-
-          <table class="details">
-            <tr><td class="label">Position</td><td>: ${jobTitle}</td></tr>
-            <tr><td class="label">Company</td><td>: ${companyName}</td></tr>
-            <tr><td class="label">Interviewer</td><td>: ${recruiterName}</td></tr>
-            <tr><td class="label">Date</td><td>: ${formatDate(interviewDate)}</td></tr>
-            <tr><td class="label">Time</td><td>: ${interviewTime}</td></tr>
-          </table>
-
-          <p>Kindly join the interview a few minutes in advance. In case you wish to reschedule, please inform us at least 24 hours prior to the scheduled time.</p>
-
-          <p>We advise you to be prepared to discuss your work experience, technical skills, and interest in this role. Please keep a valid photo ID and a copy of your resume handy.</p>
-
-          <p>For any queries, please feel free to contact us.</p>
-
-          <hr class="rule">
-
-          <div class="signature">
-            <p>
-              Regards,<br>
-              ${recruiterName}<br>
-              Human Resources<br>
-              ${companyName}
-            </p>
-          </div>
-
-          <p class="disclaimer">This is a system-generated email regarding your job application with ${companyName}. Please do not reply to this email.</p>
-        </div>
-      </body>
-      </html>
+    const contentHtml = `
+      <p style="margin:0 0 14px 0;">Dear ${candidateName},</p>
+      <p style="margin:0;">Your interview for the <strong>${jobTitle}</strong> position at <strong>${companyName}</strong> has been scheduled. Details below:</p>
+      ${detailCard([
+        ['Position', jobTitle],
+        ['Company', companyName],
+        ['Interviewer', recruiterName],
+        ['Date', formatDate(interviewDate)],
+        ['Time', interviewTime],
+        ['Format', interviewMode === 'offline' ? 'Offline' : 'Online'],
+        ...(interviewMode === 'offline'
+          ? [['Address', interviewAddress]]
+          : [['Meeting link', `<a href="${interviewLink}">${interviewLink}</a>`]]),
+      ])}
+      ${calloutBox(interviewMode === 'offline' ? 'Please arrive a few minutes early and carry a valid photo ID.' : 'Please join a few minutes early using the meeting link above. To reschedule, let us know at least 24 hours in advance.')}
+      <p style="margin:0;">Come prepared to discuss your experience, technical skills, and interest in the role. Please keep a valid photo ID and a copy of your resume handy.</p>
     `;
+
+    const htmlContent = renderLayout({
+      preheader: `Interview scheduled for ${jobTitle} at ${companyName}`,
+      eyebrow: 'Interview Scheduled',
+      title: 'Your interview is confirmed',
+      contentHtml,
+    });
 
     await transporter.sendMail({
       from: `"${companyName} Recruitment" <${EMAIL_USER}>`,
       to: candidateEmail,
-      subject: `Interview Scheduled - ${jobTitle} - ${companyName}`,
+      subject: `Interview Scheduled — ${jobTitle} at ${companyName}`,
       html: htmlContent,
-      text: `Dear ${candidateName},\n\nGreetings from ${companyName}.\n\nThis is to inform you that your interview for the position of ${jobTitle} has been scheduled.\n\nPosition: ${jobTitle}\nCompany: ${companyName}\nInterviewer: ${recruiterName}\nDate: ${formatDate(interviewDate)}\nTime: ${interviewTime}\n\nKindly join a few minutes in advance. If you wish to reschedule, please inform us at least 24 hours prior.\n\nRegards,\n${recruiterName}\nHuman Resources\n${companyName}`,
+      text: `Dear ${candidateName},\n\nYour interview for the ${jobTitle} position at ${companyName} has been scheduled.\n\nPosition: ${jobTitle}\nCompany: ${companyName}\nInterviewer: ${recruiterName}\nDate: ${formatDate(interviewDate)}\nTime: ${interviewTime}\nFormat: ${interviewMode === 'offline' ? 'Offline' : 'Online'}\n${interviewMode === 'offline' ? `Address: ${interviewAddress}` : `Meeting link: ${interviewLink}`}\n\n${interviewMode === 'offline' ? 'Please arrive a few minutes early and carry a valid photo ID.' : 'Please join a few minutes early using the meeting link above.'} To reschedule, please inform us at least 24 hours prior.\n\nRegards,\n${recruiterName}\nHuman Resources\n${companyName}`,
     });
 
     // Interview schedule email sent
@@ -600,48 +498,26 @@ async function sendOfferEmail(candidateEmail, candidateName, jobTitle, recruiter
       throw new Error('No offer letter file provided');
     }
 
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <style>${baseStyles()}</style>
-      </head>
-      <body>
-        <div class="wrapper">
-          <p>Dear ${candidateName},</p>
-
-          <p>Greetings from ${companyName}.</p>
-
-          <p>Congratulations. Further to your interview(s) with us, we are pleased to extend an offer of employment for the position of <strong>${jobTitle}</strong> at ${companyName}.</p>
-
-          <table class="details">
-            <tr><td class="label">Position</td><td>: ${jobTitle}</td></tr>
-            <tr><td class="label">Company</td><td>: ${companyName}</td></tr>
-            <tr><td class="label">Recruiter</td><td>: ${recruiterName}</td></tr>
-            <tr><td class="label">Attachment</td><td>: ${file.originalname}</td></tr>
-          </table>
-
-          <p>Your formal offer letter, containing the detailed terms and conditions of employment, is attached to this email. We request you to go through it carefully and revert with your acceptance or any queries at the earliest.</p>
-
-          <p>We look forward to welcoming you to ${companyName}.</p>
-
-          <hr class="rule">
-
-          <div class="signature">
-            <p>
-              Regards,<br>
-              ${recruiterName}<br>
-              Human Resources<br>
-              ${companyName}
-            </p>
-          </div>
-
-          <p class="disclaimer">This is a system-generated email regarding your job application with ${companyName}. Please do not reply to this email.</p>
-        </div>
-      </body>
-      </html>
+    const contentHtml = `
+      <p style="margin:0 0 14px 0;">Dear ${candidateName},</p>
+      <p style="margin:0;">Congratulations! Following your interview(s) with us, we're delighted to extend an offer of employment for the <strong>${jobTitle}</strong> position at <strong>${companyName}</strong>.</p>
+      ${detailCard([
+        ['Position', jobTitle],
+        ['Company', companyName],
+        ['Recruiter', recruiterName],
+        ['Attachment', file.originalname],
+      ])}
+      <p style="margin:0;">Your formal offer letter, with complete terms and conditions, is attached to this email. Please review it carefully and share your acceptance or any questions at your earliest convenience.</p>
+      <p style="margin:16px 0 0 0;">We look forward to welcoming you to ${companyName}.</p>
     `;
+
+    const htmlContent = renderLayout({
+      preheader: `You have an offer from ${companyName} for ${jobTitle}`,
+      eyebrow: 'Offer of Employment',
+      title: "Congratulations — you've got an offer! 🎊",
+      contentHtml,
+      accentColor: BRAND.success,
+    });
 
     if (!transporter) {
       console.warn(`⚠️ Transporter not initialized. Would send offer letter email to ${candidateEmail} with attachment ${file.originalname}`);
@@ -651,9 +527,9 @@ async function sendOfferEmail(candidateEmail, candidateName, jobTitle, recruiter
     await transporter.sendMail({
       from: `"${companyName} Recruitment" <${EMAIL_USER}>`,
       to: candidateEmail,
-      subject: `Offer of Employment - ${jobTitle} - ${companyName}`,
+      subject: `Offer of Employment — ${jobTitle} at ${companyName}`,
       html: htmlContent,
-      text: `Dear ${candidateName},\n\nGreetings from ${companyName}.\n\nCongratulations. Further to your interview(s) with us, we are pleased to extend an offer of employment for the position of ${jobTitle} at ${companyName}. Your formal offer letter is attached to this email.\n\nRegards,\n${recruiterName}\nHuman Resources\n${companyName}`,
+      text: `Dear ${candidateName},\n\nCongratulations! Following your interview(s) with us, we're delighted to extend an offer of employment for the ${jobTitle} position at ${companyName}. Your formal offer letter is attached to this email.\n\nRegards,\n${recruiterName}\nHuman Resources\n${companyName}`,
       attachments: [
         {
           filename: file.originalname,
@@ -676,7 +552,6 @@ async function sendOfferEmail(candidateEmail, candidateName, jobTitle, recruiter
  */
 async function sendRejectionEmail(candidateEmail, candidateName, jobTitle, recruiterName, companyName) {
   try {
-    // Validate required parameters
     if (!candidateEmail) {
       console.error('❌ Rejection email - Missing candidateEmail');
       return { sent: false, error: 'Missing candidate email' };
@@ -691,55 +566,31 @@ async function sendRejectionEmail(candidateEmail, candidateName, jobTitle, recru
       return { sent: false, error: 'Email service not configured' };
     }
 
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <style>${baseStyles()}</style>
-      </head>
-      <body>
-        <div class="wrapper">
-          <p>Dear ${candidateName},</p>
-
-          <p>Greetings from ${companyName}.</p>
-
-          <p>Thank you for applying for the position of <strong>${jobTitle}</strong> at ${companyName}, and for the time you invested in our selection process.</p>
-
-          <table class="details">
-            <tr><td class="label">Position</td><td>: ${jobTitle}</td></tr>
-            <tr><td class="label">Company</td><td>: ${companyName}</td></tr>
-          </table>
-
-          <p>After careful consideration, we regret to inform you that we will not be moving forward with your application for this particular role. This decision was made after evaluating a number of qualified candidates and does not reflect on your abilities or potential.</p>
-
-          <p>We will retain your profile in our database and encourage you to apply for other suitable openings with us in the future.</p>
-
-          <p>We wish you the very best in your career ahead.</p>
-
-          <hr class="rule">
-
-          <div class="signature">
-            <p>
-              Regards,<br>
-              ${recruiterName}<br>
-              Human Resources<br>
-              ${companyName}
-            </p>
-          </div>
-
-          <p class="disclaimer">This is a system-generated email regarding your job application with ${companyName}. Please do not reply to this email.</p>
-        </div>
-      </body>
-      </html>
+    const contentHtml = `
+      <p style="margin:0 0 14px 0;">Dear ${candidateName},</p>
+      <p style="margin:0;">Thank you for applying for the <strong>${jobTitle}</strong> position at <strong>${companyName}</strong>, and for the time you invested in our selection process.</p>
+      ${detailCard([
+        ['Position', jobTitle],
+        ['Company', companyName],
+      ])}
+      <p style="margin:0;">After careful consideration, we've decided to move forward with other candidates for this particular role. This decision reflects the strength of the candidate pool and not your skills or potential.</p>
+      <p style="margin:14px 0 0 0;">We'll keep your profile on file and encourage you to apply for future openings that match your experience. We wish you the very best in your career ahead.</p>
     `;
+
+    const htmlContent = renderLayout({
+      preheader: `Update on your application for ${jobTitle} at ${companyName}`,
+      eyebrow: 'Application Update',
+      title: 'Application status update',
+      contentHtml,
+      accentColor: BRAND.textMuted,
+    });
 
     await transporter.sendMail({
       from: `"${companyName} Recruitment" <${EMAIL_USER}>`,
       to: candidateEmail,
-      subject: `Application Status - ${jobTitle} - ${companyName}`,
+      subject: `Application Update — ${jobTitle} at ${companyName}`,
       html: htmlContent,
-      text: `Dear ${candidateName},\n\nGreetings from ${companyName}.\n\nThank you for applying for the position of ${jobTitle} at ${companyName}. After careful consideration, we regret to inform you that we will not be moving forward with your application for this role. We will retain your profile and encourage you to apply for future openings.\n\nRegards,\n${recruiterName}\nHuman Resources\n${companyName}`,
+      text: `Dear ${candidateName},\n\nThank you for applying for the ${jobTitle} position at ${companyName}. After careful consideration, we've decided to move forward with other candidates for this role. We'll keep your profile on file and encourage you to apply for future openings.\n\nRegards,\n${recruiterName}\nHuman Resources\n${companyName}`,
     });
 
     // Rejection email sent

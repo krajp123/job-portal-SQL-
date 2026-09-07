@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import axiosInstance from '../../api/axiosInstance';
 import CandidateNavbar from '../../components/CandidateNavbar';
-import { AMBER_DARK, GOLD, GOLD_DARK, NEAR_BLACK } from '../../theme';
+import { AMBER_DARK, GOLD, GOLD_DARK, MAROON_DARK, NEAR_BLACK } from '../../theme';
 
 const CORAL = '#C75560';
 const RUST = '#D9654A';
@@ -200,7 +200,7 @@ export default function CandidateCompanies() {
                   role="button"
                   tabIndex={0}
                   className="group relative cursor-pointer overflow-hidden rounded-lg p-3 transition-transform hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                  style={{ backgroundColor: NEAR_BLACK, ringColor: CORAL }}
+                  style={{ background: `linear-gradient(135deg, ${MAROON_DARK} 0%, ${CORAL} 100%)`, ringColor: CORAL }}
                 >
                   <span
                     className="pointer-events-none absolute -bottom-3 -right-1 select-none text-6xl font-black leading-none opacity-10"
@@ -225,12 +225,12 @@ export default function CandidateCompanies() {
                     </div>
                     <div className="min-w-0">
                       <h3 className="truncate text-sm font-bold text-white">{company.name || 'Company'}</h3>
-                      <p className="text-[11px] font-medium" style={{ color: GOLD }}>
+                      <p className="text-[11px] font-medium text-[#FFE8B5]">
                         {company.companyType || company.industry || 'Company profile'}
                       </p>
                     </div>
                   </div>
-                  <div className="relative mt-2 flex items-center gap-1 text-[10px] font-semibold text-white/70 transition-colors group-hover:text-white">
+                  <div className="relative mt-2 flex items-center gap-1 text-[10px] font-semibold text-white/80 transition-colors group-hover:text-white">
                     View <ArrowRight size={11} className="transition-transform group-hover:translate-x-0.5" />
                   </div>
                 </div>

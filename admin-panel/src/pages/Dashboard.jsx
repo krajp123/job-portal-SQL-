@@ -253,6 +253,7 @@ export default function Dashboard() {
   const recentCandidates = recentActivity.candidates || [];
   const recentJobs = recentActivity.jobs || [];
   const recentApplications = recentActivity.applications || [];
+  const dashboardRole = admin?.role === 'superadmin' ? 'Superadmin' : 'Admin';
 
   return (
     <div className="w-full max-w-7xl px-4 py-2 sm:px-5 md:px-6 lg:px-8">
@@ -260,7 +261,7 @@ export default function Dashboard() {
         <header className="shrink-0 rounded-lg border border-[#EBC2AE] bg-white px-4 py-2.5 shadow-sm">
           <div className="flex flex-col gap-1.5 xl:flex-row xl:items-center xl:justify-between">
             <div className="max-w-2xl">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-[#C75560]">Admin dashboard</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-[#C75560]">{dashboardRole} dashboard</p>
               <h1 className="mt-1 text-lg font-semibold leading-tight text-[#1D181A] sm:text-xl">
                 Welcome back, {admin?.name?.split(' ')[0] || 'Admin'}
               </h1>

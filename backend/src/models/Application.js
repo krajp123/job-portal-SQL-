@@ -21,10 +21,14 @@ const applicationSchema = new mongoose.Schema(
     interviewScheduledAt: { type: Date }, // when interview was scheduled
     offeredAt: { type: Date }, // when offer was made
     acceptedAt: { type: Date }, // when candidate accepted offer
+    hiredAt: { type: Date }, // when the recruiter confirmed the signed offer
     
     // Interview details
     interviewDate: { type: Date }, // scheduled interview date
     interviewTime: { type: String }, // scheduled interview time (HH:MM format)
+    interviewMode: { type: String, enum: ['online', 'offline'] },
+    interviewLink: { type: String, trim: true, maxlength: 2000 },
+    interviewAddress: { type: String, trim: true, maxlength: 1000 },
 
     // Activity tracking
     viewsCount: { type: Number, default: 0 }, // total views by recruiters

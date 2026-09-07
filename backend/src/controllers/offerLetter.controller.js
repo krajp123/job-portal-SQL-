@@ -45,6 +45,9 @@ exports.uploadOfferLetter = async (req, res) => {
       .populate({ path: 'candidate', select: 'name email' })
       .populate({ path: 'job', select: 'title' });
     if (!application) return res.status(404).json({ error: 'Application not found' });
+    if (application.status !== 'interview_scheduled') {
+      return res.status(400).json({ error: 'Schedule the interview before sending an offer.' });
+    }
 
     const offerLetterUrl = await uploadToCloudinary(req.file, 'offer-letters');
 

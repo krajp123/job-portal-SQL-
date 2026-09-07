@@ -97,6 +97,7 @@ function ApplicationAnswerValue({ answer }) {
 
 const STATUS_META = {
   new: { label: 'New Applicant', dot: 'bg-[#B9AAB0]', bg: '#F1ECEE', text: '#6B5A63', border: '#DDD0D4' },
+  referred: { label: 'Referred', dot: 'bg-[#D08A2E]', bg: '#FFF0E8', text: '#9A671A', border: '#EBC2AE' },
   reviewed: { label: 'Under Review', dot: 'bg-[#E8B33A]', bg: '#FFF5D9', text: '#9A671A', border: '#F7C56B' },
   shortlisted: { label: 'Shortlisted', dot: 'bg-[#3E9B5D]', bg: '#E7F5EA', text: '#1E7E34', border: '#A8DAB5' },
   interview: { label: 'Interview Scheduled', dot: 'bg-[#3B72E0]', bg: '#E8F0FE', text: '#1A56DB', border: '#A9C6FA' },
@@ -106,9 +107,10 @@ const STATUS_META = {
 
 const RESUME_DOWNLOAD_FEE = 9;
 
-const KPI_ORDER = ['new', 'reviewed', 'shortlisted', 'interview', 'selected', 'rejected'];
+const KPI_ORDER = ['new', 'referred', 'reviewed', 'shortlisted', 'interview', 'selected', 'rejected'];
 const KPI_LABELS = {
   new: 'New Applicants',
+  referred: 'Referrals',
   reviewed: 'Reviewed',
   shortlisted: 'Shortlisted',
   interview: 'Interview',
@@ -149,7 +151,9 @@ const TIMELINE_STEPS = [
 ];
 
 function normalizeStatus(raw) {
-  const s = (raw || '').toLowerCase();
+  const s = (typeof raw === 'string' ? raw : raw?.status || '').toLowerCase();
+  if (raw?.isReferral && s === 'referred') return 'new';
+  if (s.includes('refer')) return 'referred';
   if (s.includes('reject')) return 'rejected';
   if (s.includes('select') || s.includes('hire') || s.includes('offer')) return 'selected';
   if (s.includes('interview')) return 'interview';
@@ -430,6 +434,9 @@ export default function Applicants() {
   const [interviewDate, setInterviewDate] = useState('');
   const [interviewTime, setInterviewTime] = useState('');
   const [interviewError, setInterviewError] = useState('');
+  const [interviewMode, setInterviewMode] = useState('online');
+  const [interviewLink, setInterviewLink] = useState('');
+  const [interviewAddress, setInterviewAddress] = useState('');
   const [offerModalOpen, setOfferModalOpen] = useState(false);
   const [offerCandidate, setOfferCandidate] = useState(null);
   const [offerFile, setOfferFile] = useState(null);
@@ -445,6 +452,7 @@ export default function Applicants() {
   const [emailError, setEmailError] = useState('');
   const [emailSending, setEmailSending] = useState(false);
   const [downloadLoadingId, setDownloadLoadingId] = useState('');
+  const [resumeDownloadedIds, setResumeDownloadedIds] = useState(() => new Set());
   const [resumePaymentModalOpen, setResumePaymentModalOpen] = useState(false);
   const [resumePaymentCandidate, setResumePaymentCandidate] = useState(null);
   const [resumePaymentDetails, setResumePaymentDetails] = useState({
@@ -472,7 +480,7 @@ export default function Applicants() {
   useEffect(() => {
     const socket = connectSocket();
     const handleApplicationUpdate = () => {
-      dedupeRequest('recruiter-applications', () => axiosInstance.get('/applications/recruiter'))
+      dedupeRequest('recruiter-applications', () => axiosInstance.get('/applications/recruiter?includeReferrals=true'))
         .then(({ data }) => setApplicants(data || []))
         .catch(() => {});
     };
@@ -493,13 +501,14 @@ export default function Applicants() {
 
       try {
         setLoadingApplicants(true);
-        const { data } = await dedupeRequest('recruiter-applications', () => axiosInstance.get('/applications/recruiter'));
+        const { data } = await dedupeRequest('recruiter-applications', () => axiosInstance.get('/applications/recruiter?includeReferrals=true'));
         setApplicants(data || []);
       } catch (requestError) {
         setError((currentError) => currentError || requestError.response?.data?.error || 'Could not load applicants.');
       } finally {
         setLoadingApplicants(false);
       }
+
     }
 
     loadRecruiterData();
@@ -621,7 +630,7 @@ export default function Applicants() {
           .toLowerCase();
         if (!haystack.includes(term)) return false;
       }
-      if (statusFilter && normalizeStatus(app.status) !== statusFilter) return false;
+      if (statusFilter && (app.isReferral ? 'referred' : normalizeStatus(app)) !== statusFilter) return false;
       const experienceYears = getCandidateExperienceYears(c);
       if (experienceFilter && experienceYears != null && Number(experienceYears) < Number(experienceFilter)) return false;
       if (locationFilter && location && location !== locationFilter) return false;
@@ -640,9 +649,9 @@ export default function Applicants() {
   }, [jobFilteredApplicants, searchTerm, statusFilter, experienceFilter, locationFilter, educationFilter, skillFilter, salaryFilter, availabilityFilter]);
 
   const kpiCounts = useMemo(() => {
-    const counts = { new: 0, reviewed: 0, shortlisted: 0, interview: 0, selected: 0, rejected: 0 };
+    const counts = { new: 0, referred: 0, reviewed: 0, shortlisted: 0, interview: 0, selected: 0, rejected: 0 };
     jobFilteredApplicants.forEach((app) => {
-      counts[normalizeStatus(app.status)] += 1;
+      counts[app.isReferral ? 'referred' : normalizeStatus(app)] += 1;
     });
     return counts;
   }, [jobFilteredApplicants]);
@@ -654,6 +663,14 @@ export default function Applicants() {
   }, [visibleApplicants, selectedApplicantId]);
 
   const selectedApplicant = visibleApplicants.find((app) => app._id === selectedApplicantId) || null;
+  const selectedApplicantResumeDownloaded = Boolean(
+    selectedApplicant && (
+      resumeDownloadedIds.has(String(selectedApplicant.candidate?._id || selectedApplicant._id)) ||
+      selectedApplicant.resumeViewedAt ||
+      selectedApplicant.referral?.resumeViewedAt ||
+      (selectedApplicant.isReferral && ['viewed', 'shortlisted', 'interview_scheduled', 'offered', 'accepted', 'hired'].includes(selectedApplicant.status))
+    ),
+  );
 
   // Once the deep-linked candidate's card exists in the (now unfiltered)
   // list, scroll it into view so it's visible without manual searching
@@ -771,6 +788,7 @@ export default function Applicants() {
 
       setResumePaymentModalOpen(false);
       setResumePaymentCandidate(null);
+      setResumeDownloadedIds((previous) => new Set(previous).add(String(candidateId)));
       setResumePaymentDetails({ recruiterName: '', companyName: '', email: '', walletBalance: 0, amount: RESUME_DOWNLOAD_FEE, baseAmount: RESUME_DOWNLOAD_FEE, gstAmount: 0, gstRate: 0 });
       showToast('Resume downloaded successfully. Wallet charged successfully.');
     } catch (err) {
@@ -879,6 +897,9 @@ export default function Applicants() {
     setInterviewDate('');
     setInterviewTime('');
     setInterviewError('');
+    setInterviewMode('online');
+    setInterviewLink('');
+    setInterviewAddress('');
     setInterviewModalOpen(true);
   }
 
@@ -1002,11 +1023,23 @@ export default function Applicants() {
       setInterviewError('Please select both date and time.');
       return;
     }
+    if (interviewMode === 'online' && !interviewLink.trim()) {
+      setInterviewError('Please add the online meeting link.');
+      return;
+    }
+    if (interviewMode === 'offline' && !interviewAddress.trim()) {
+      setInterviewError('Please add the interview address.');
+      return;
+    }
 
     setInterviewError('');
     const success = await updateApplicationStatus(interviewCandidate._id, STATUS_VALUE_FOR_KEY.interview, {
       interviewDate,
       interviewTime,
+      interviewMode,
+      ...(interviewMode === 'online'
+        ? { interviewLink: interviewLink.trim() }
+        : { interviewAddress: interviewAddress.trim() }),
     });
 
     if (success) {
@@ -1184,7 +1217,7 @@ export default function Applicants() {
                 visibleApplicants.map((app) => {
                   const c = app.candidate || {};
                   const profile = c.profile || {};
-                  const statusKey = normalizeStatus(app.status);
+                  const statusKey = app.isReferral ? 'referred' : normalizeStatus(app);
                   const active = app._id === selectedApplicantId;
                   const isHighlighted = app._id === highlightedApplicantId;
                   const name = c.name || profile.name || 'Candidate';
@@ -1222,6 +1255,7 @@ export default function Applicants() {
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex min-w-0 items-center gap-2">
                             <h3 className="truncate text-[14px] font-bold text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>{name}</h3>
+                            {app.isReferral && <span className="shrink-0 rounded-full bg-[#FFF0E8] px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-[#9A671A]">Referred</span>}
                             {hiredBadgeActive && <span className="hired-status-badge shrink-0 px-2.5 py-1 text-[11px]"><Award size={13} /> Hired</span>}
                           </div>
                           {matchScore != null && (
@@ -1237,7 +1271,7 @@ export default function Applicants() {
                         </p>
                         <div className="mt-2.5 flex items-center justify-between gap-2">
                           <span className="text-[11px] font-medium text-[#B9A2AC]">
-                            {timeAgo(app.appliedAt) ? `Applied ${timeAgo(app.appliedAt)}` : 'ID: ' + (c.uniqueId || '—')}
+                            {timeAgo(app.appliedAt) ? `${app.isReferral ? 'Referred' : 'Applied'} ${timeAgo(app.appliedAt)}` : 'ID: ' + (c.uniqueId || '—')}
                           </span>
                           <StatusChip statusKey={statusKey} />
                         </div>
@@ -1277,6 +1311,7 @@ export default function Applicants() {
                       setMobileDetailOpen(false);
                     }}
                     isUpdatingStatus={statusUpdatingId === selectedApplicant._id}
+                    resumeDownloaded={selectedApplicantResumeDownloaded}
                     statusUpdateError={statusUpdateError}
                   />
                 ) : (
@@ -1362,6 +1397,33 @@ export default function Applicants() {
             </label>
           </div>
 
+          <div className="mt-4">
+            <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[#80576A]">Interview format</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {[
+                ['online', 'Online interview'],
+                ['offline', 'Offline interview'],
+              ].map(([value, label]) => (
+                <label key={value} className={`flex cursor-pointer items-center gap-2 rounded-[10px] border px-3 py-2.5 text-sm font-semibold transition ${interviewMode === value ? 'border-[#C75560] bg-[#FFF0E8] text-[#54263F]' : 'border-[#EBC2AE] bg-[#FFFDFB] text-[#80576A]'}`}>
+                  <input type="radio" name="interviewMode" value={value} checked={interviewMode === value} onChange={() => setInterviewMode(value)} className="h-4 w-4 accent-[#C75560]" />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {interviewMode === 'online' ? (
+            <label className="mt-4 flex flex-col gap-2 text-[12px] font-semibold uppercase tracking-wide text-[#80576A]">
+              Meeting link
+              <input type="url" value={interviewLink} onChange={(e) => setInterviewLink(e.target.value)} placeholder="https://meet.google.com/..." className="w-full rounded-[10px] border border-[#EBC2AE] bg-[#FFFDFB] px-3 py-2.5 text-sm font-medium normal-case text-[#1D181A] outline-none focus:border-[#C75560] focus:ring-2 focus:ring-[#C75560]/15" />
+            </label>
+          ) : (
+            <label className="mt-4 flex flex-col gap-2 text-[12px] font-semibold uppercase tracking-wide text-[#80576A]">
+              Interview address
+              <textarea value={interviewAddress} onChange={(e) => setInterviewAddress(e.target.value)} placeholder="Office address, building, floor or room" rows={2} className="w-full resize-none rounded-[10px] border border-[#EBC2AE] bg-[#FFFDFB] px-3 py-2.5 text-sm font-medium normal-case text-[#1D181A] outline-none focus:border-[#C75560] focus:ring-2 focus:ring-[#C75560]/15" />
+            </label>
+          )}
+
           {interviewDate && interviewTime && (
             <div className="mt-4 flex items-center gap-2 rounded-[10px] bg-[#FFF4EF] px-3 py-2 text-[12px] font-medium text-[#54263F]">
               <CalendarClock size={14} className="text-[#C75560]" />
@@ -1399,7 +1461,7 @@ export default function Applicants() {
         <button
           type="button"
           onClick={submitInterviewSchedule}
-          disabled={isSchedulingInterview || !interviewDate || !interviewTime}
+          disabled={isSchedulingInterview || !interviewDate || !interviewTime || (interviewMode === 'online' ? !interviewLink.trim() : !interviewAddress.trim())}
           className="rounded-full bg-[#C75560] px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#A0182C] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSchedulingInterview ? 'Sending…' : 'Send interview invite'}
@@ -1863,6 +1925,7 @@ function CandidateDetail({
   onReject,
   onReopen,
   isUpdatingStatus,
+  resumeDownloaded,
   statusUpdateError,
 }) {
   const navigate = useNavigate();
@@ -1871,10 +1934,16 @@ function CandidateDetail({
   if (!application) return null;
   const c = application.candidate || {};
   const profile = c.profile || {};
-  const statusKey = normalizeStatus(application.status);
-  const currentStepIndex = { new: 0, reviewed: 1, shortlisted: 2, interview: 3, selected: 4, rejected: 1 }[statusKey];
+  const statusKey = normalizeStatus(application);
+  const isReferral = Boolean(application.isReferral);
+  const currentStepIndex = isReferral && resumeDownloaded
+    ? 2
+    : { new: 0, reviewed: 1, shortlisted: 2, interview: 3, selected: 4, rejected: 1 }[statusKey];
   const nextStageKey = getNextStageKey(statusKey);
-  const isShortlistUnlocked = ['shortlisted', 'interview', 'selected', 'rejected'].includes(statusKey);
+  const isShortlistUnlocked = isReferral
+    ? resumeDownloaded
+    : ['shortlisted', 'interview', 'selected', 'rejected'].includes(statusKey);
+  const isInterviewCompleted = ['interview', 'selected'].includes(statusKey);
   const skills = getCandidateArray(c, 'skills');
   const education = getCandidateArray(c, 'education');
   const experienceEntries = getCandidateArray(c, 'experience');
@@ -1937,6 +2006,7 @@ function CandidateDetail({
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-[19px] font-bold text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>{c.name || 'Candidate'}</h2>
+                  {application.isReferral && <span className="rounded-full bg-[#FFF0E8] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#9A671A]">Referred</span>}
                   {hiredBadgeActive && <span className="hired-status-badge px-3 py-1.5 text-[13px]"><Award size={15} /> Hired</span>}
                 </div>
                 <div className="mt-1 space-y-1 text-[13px] text-[#80576A]">
@@ -1947,7 +2017,7 @@ function CandidateDetail({
               <div className="flex flex-col items-end gap-2">
                 {application.job?.title && (
                   <p className="text-right text-[12px] font-semibold text-[#C75560]">
-                    Applied for<br />{application.job.title}
+                    {application.isReferral ? 'Referred for' : 'Applied for'}<br />{application.job.title}
                   </p>
                 )}
                 <MatchRing score={c.matchScore ?? null} />
@@ -1955,6 +2025,9 @@ function CandidateDetail({
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <StatusChip statusKey={statusKey} />
+              {application.isReferral && application.referral?.referrer?.name && (
+                <span className="text-[11px] font-semibold text-[#80576A]">Referred by {application.referral.referrer.name}</span>
+              )}
             </div>
           </div>
         </div>
@@ -1967,7 +2040,7 @@ function CandidateDetail({
           <IconAction
             icon={MessageCircle}
             label="Message"
-            onClick={() => navigate(`/recruiter/messages?candidateId=${encodeURIComponent(c._id)}&candidateName=${encodeURIComponent(c.name || 'Candidate')}`)}
+            onClick={() => navigate(`/recruiter/messages?candidateId=${encodeURIComponent(c._id)}&candidateName=${encodeURIComponent(c.name || 'Candidate')}&candidateEmail=${encodeURIComponent(c.email || profile.email || '')}&candidatePicture=${encodeURIComponent(c.avatarUrl || profile.avatarUrl || profile.pictureUrl || c.pictureUrl || profile.profilePictureUrl || c.profilePictureUrl || '')}`)}
           />
         </div>
       </div>
@@ -2088,26 +2161,28 @@ function CandidateDetail({
                 disabled={statusKey === 'selected'}
                 title={statusKey === 'selected' ? 'Offer already sent — this candidate\'s pipeline is closed' : undefined}
               />
-              <ActionRow
-                icon={Bookmark}
-                label="Shortlist Candidate"
-                onClick={onShortlist}
-                disabled={isUpdatingStatus || statusKey === 'rejected' || statusKey === 'shortlisted' || statusKey === 'interview' || statusKey === 'selected'}
-              />
+              {!isReferral && (
+                <ActionRow
+                  icon={Bookmark}
+                  label="Shortlist Candidate"
+                  onClick={onShortlist}
+                  disabled={isUpdatingStatus || statusKey === 'rejected' || statusKey === 'shortlisted' || statusKey === 'interview' || statusKey === 'selected'}
+                />
+              )}
               <ActionRow icon={Mail} label="Email Candidate" onClick={onEmailCandidate} disabled={!email} title={!email ? 'Candidate email is not available' : undefined} />
               <ActionRow
                 icon={Calendar}
                 label="Schedule Interview"
                 onClick={onScheduleInterview}
                 disabled={isUpdatingStatus || statusKey === 'rejected' || statusKey === 'selected' || !isShortlistUnlocked}
-                title={!isShortlistUnlocked ? 'Shortlist the candidate before scheduling an interview' : undefined}
+                title={!isShortlistUnlocked ? (isReferral ? 'Download the resume before scheduling an interview' : 'Shortlist the candidate before scheduling an interview') : undefined}
               />
               <ActionRow
                 icon={Send}
                 label="Send Offer"
                 onClick={onSendOffer}
-                disabled={isUpdatingStatus || statusKey === 'rejected' || statusKey === 'selected' || !isShortlistUnlocked}
-                title={!isShortlistUnlocked ? 'Shortlist the candidate before sending an offer' : undefined}
+                disabled={isUpdatingStatus || statusKey === 'rejected' || statusKey === 'selected' || !isInterviewCompleted}
+                title={!isInterviewCompleted ? 'Schedule the interview before sending an offer' : undefined}
               />
               <ActionRow
                 icon={Upload}

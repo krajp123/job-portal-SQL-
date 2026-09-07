@@ -1,4 +1,5 @@
 const Application = require('../models/Application');
+const Referral = require('../models/Referral');
 const Job = require('../models/Job');
 const Recruiter = require('../models/Recruiter');
 const Candidate = require('../models/Candidate');
@@ -103,6 +104,10 @@ exports.apply = async (req, res) => {
       Candidate.findById(req.user.id),
       getPlatformSettings(),
     ]);
+    const referredJob = await Referral.findOne({ referredCandidate: req.user.id, job: jobId }).select('_id').lean();
+    if (referredJob) {
+      return res.status(403).json({ error: 'This job was referred to you. Applications are not required for referred jobs.', code: 'REFERRED_JOB_APPLICATION_BLOCKED' });
+    }
     if (settings.emailVerificationRequired && !candidate?.emailVerified) {
       return res.status(403).json({ error: 'Please verify your email before applying to jobs.', code: 'EMAIL_VERIFICATION_REQUIRED' });
     }
@@ -203,15 +208,49 @@ exports.applicantsForRecruiter = async (req, res) => {
       .sort({ appliedAt: -1 });
 
     const validApplications = applications.filter((application) => application.job);
+    const referrals = req.query.includeReferrals === 'true'
+      ? await Referral.find({ job: { $in: (await Job.find({ postedBy: workspaceRecruiterId(req) }).select('_id').lean()).map((job) => job._id) } })
+        .populate({ path: 'referredCandidate', select: '-passwordHash -phone' })
+        .populate('referrer', 'name uniqueId')
+        .populate('job', 'title description location salary experienceLevel skillsRequired postedBy')
+        .sort({ createdAt: -1 })
+        .lean()
+      : [];
+    const applicationByCandidateAndJob = new Map(
+      validApplications.map((application) => [`${application.job._id}:${application.candidate?._id}`, application]),
+    );
+    const referralByApplication = new Map();
+    referrals.forEach((referral) => {
+      const key = `${referral.job?._id}:${referral.referredCandidate?._id}`;
+      const application = applicationByCandidateAndJob.get(key);
+      if (application) {
+        application.referral = referral;
+        application.isReferral = true;
+        referralByApplication.set(String(application._id), referral);
+      } else if (referral.job && referral.referredCandidate) {
+        validApplications.push({
+          _id: referral._id,
+          candidate: referral.referredCandidate,
+          job: referral.job,
+          recruiter: workspaceRecruiterId(req),
+          status: referral.status || 'referred',
+          appliedAt: referral.createdAt,
+          updatedAt: referral.updatedAt || referral.createdAt,
+          isReferral: true,
+          referral,
+          answers: [],
+        });
+      }
+    });
     const hiredCandidateIds = new Set(
       (await Application.distinct('candidate', { status: 'hired' })).map((id) => String(id))
     );
-    const offerLetters = await OfferLetter.find({ application: { $in: validApplications.map((application) => application._id) } })
+    const offerLetters = await OfferLetter.find({ application: { $in: applications.map((application) => application._id) } })
       .select('_id application signedAcceptanceUrl signedUploadedAt')
       .lean();
     const offerLetterByApplication = new Map(offerLetters.map((offerLetter) => [String(offerLetter.application), offerLetter]));
     res.json(validApplications.map((application) => ({
-      ...application.toObject(),
+      ...(application.toObject ? application.toObject() : application),
       candidate: candidateForRecruiter(application.candidate, hiredCandidateIds),
       offerLetter: offerLetterByApplication.get(String(application._id)) || null,
     })));
@@ -287,7 +326,20 @@ exports.withdraw = async (req, res) => {
       job: req.params.jobId,
     });
 
-    if (!application) return res.status(404).json({ error: 'Application not found' });
+    if (!application) {
+      const recruiterJobIds = await Job.find({ postedBy: workspaceRecruiterId(req) }).distinct('_id');
+      const referral = await Referral.findOne({ _id: req.params.id, job: { $in: recruiterJobIds } });
+      if (!referral) return res.status(404).json({ error: 'Application or referral not found' });
+      const updatedReferral = await Referral.findByIdAndUpdate(referral._id, updateObj, { new: true }).lean();
+      try {
+        const { getIO } = require('../config/socket');
+        const io = getIO();
+        if (io) io.to(`user:${referral.referredCandidate}`).emit('applicationUpdated', { type: 'referralUpdated', referralId: referral._id });
+      } catch (socketError) {
+        console.error('Unable to notify referred candidate:', socketError.message);
+      }
+      return res.json({ ...updatedReferral, _id: referral._id, isReferral: true, status: updatedReferral.status });
+    }
 
     emitToUser(application.recruiter, 'applicationUpdated', {
       type: 'withdrawn',
@@ -303,7 +355,7 @@ exports.withdraw = async (req, res) => {
 // PATCH /api/applications/:id/status (recruiter only)
 exports.updateStatus = async (req, res) => {
   try {
-    let { status, interviewDate, interviewTime } = req.body; // interviewDate and interviewTime are optional for interview scheduling
+    let { status, interviewDate, interviewTime, interviewMode, interviewLink, interviewAddress } = req.body; // interviewDate and interviewTime are optional for interview scheduling
 
     if (status === 'interview') {
       status = 'interview_scheduled';
@@ -320,15 +372,38 @@ exports.updateStatus = async (req, res) => {
         updateObj.resumeViewedAt = new Date();
         break;
       case 'interview_scheduled':
+        if (!['online', 'offline'].includes(interviewMode)) {
+          return res.status(400).json({ error: 'Choose whether the interview is online or offline.' });
+        }
+        if (interviewMode === 'online' && !String(interviewLink || '').trim()) {
+          return res.status(400).json({ error: 'Meeting link is required for an online interview.' });
+        }
+        if (interviewMode === 'online') {
+          try {
+            const parsedLink = new URL(String(interviewLink).trim());
+            if (!['http:', 'https:'].includes(parsedLink.protocol)) throw new Error('Invalid protocol');
+          } catch {
+            return res.status(400).json({ error: 'Enter a valid online meeting link.' });
+          }
+        }
+        if (interviewMode === 'offline' && !String(interviewAddress || '').trim()) {
+          return res.status(400).json({ error: 'Interview address is required for an offline interview.' });
+        }
         updateObj.interviewScheduledAt = new Date();
         if (interviewDate) updateObj.interviewDate = interviewDate;
         if (interviewTime) updateObj.interviewTime = interviewTime;
+        updateObj.interviewMode = interviewMode;
+        updateObj.interviewLink = interviewMode === 'online' ? String(interviewLink).trim() : undefined;
+        updateObj.interviewAddress = interviewMode === 'offline' ? String(interviewAddress).trim() : undefined;
         break;
       case 'offered':
         updateObj.offeredAt = new Date();
         break;
       case 'accepted':
         updateObj.acceptedAt = new Date();
+        break;
+      case 'hired':
+        updateObj.hiredAt = new Date();
         break;
     }
 
@@ -339,12 +414,29 @@ exports.updateStatus = async (req, res) => {
       .populate({ path: 'candidate', select: 'name email' })
       .populate({ path: 'job', select: 'title' });
 
-    if (!application) return res.status(404).json({ error: 'Application not found' });
+    const recruiterId = workspaceRecruiterId(req);
+    const referralJobIds = await Job.find({ postedBy: recruiterId }).distinct('_id');
+    const referral = await Referral.findOne({
+      _id: req.params.id,
+      job: { $in: referralJobIds },
+    });
 
-    const recruiter = await Recruiter.findById(workspaceRecruiterId(req)).select('name companyName');
+    if (!application && !referral) return res.status(404).json({ error: 'Application or referral not found' });
+
+    if (!application && referral) {
+      const updatedReferral = await Referral.findByIdAndUpdate(referral._id, updateObj, { new: true }).lean();
+      emitToUser(referral.referredCandidate, 'applicationUpdated', { type: 'referralUpdated', referralId: referral._id });
+      return res.json({ ...updatedReferral, _id: referral._id, isReferral: true });
+    }
+
+    if (referral) {
+      await Referral.findByIdAndUpdate(referral._id, updateObj, { new: true });
+    }
+
+    const recruiter = await Recruiter.findById(recruiterId).select('name companyName');
 
     const updatedApplication = await Application.findOneAndUpdate(
-      { _id: req.params.id, recruiter: workspaceRecruiterId(req) },
+      { _id: req.params.id, recruiter: recruiterId },
       updateObj,
       { new: true }
     ).populate({ path: 'candidate', select: 'name email' }).populate({ path: 'job', select: 'title' });
@@ -407,7 +499,10 @@ exports.updateStatus = async (req, res) => {
             recruiter?.name || 'Hiring Team',
             recruiter?.companyName || 'Our Company',
             interviewDate,
-            interviewTime
+            interviewTime,
+            interviewMode,
+            interviewLink,
+            interviewAddress
           );
           emailStatus.interviewScheduled = result?.sent ?? false;
           // Email status logged
