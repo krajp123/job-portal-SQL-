@@ -5,6 +5,7 @@ const jobSchema = new mongoose.Schema(
     title: { type: String, required: true },
     role: { type: String, trim: true },
     category: { type: String, trim: true },
+    department: { type: String, trim: true },
     industry: { type: String, trim: true },
     description: { type: String, required: true },
     // Rich HTML per section (e.g. "About the company", "Roles & responsibilities"),

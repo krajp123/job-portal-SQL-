@@ -1,4 +1,5 @@
 const Candidate = require('../models/Candidate');
+const Recruiter = require('../models/Recruiter');
 const Application = require('../models/Application');
 const CandidatePerformanceEvent = require('../models/CandidatePerformanceEvent');
 const Notification = require('../models/Notification');
@@ -772,6 +773,74 @@ exports.unsaveJob = async (req, res) => {
       { new: true }
     ).select('savedJobs');
     res.json({ savedJobs: candidate.savedJobs });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// GET /api/candidate/me/following/:recruiterId
+exports.getRecruiterFollowStatus = async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.recruiterId)) {
+      return res.status(400).json({ error: 'Invalid recruiter ID' });
+    }
+    const [candidate, recruiter] = await Promise.all([
+      Candidate.findById(req.user.id).select('followedRecruiters').lean(),
+      Recruiter.findById(req.params.recruiterId).select('followerCount').lean(),
+    ]);
+    if (!recruiter) return res.status(404).json({ error: 'Recruiter not found' });
+    res.json({
+      following: (candidate?.followedRecruiters || []).some((id) => String(id) === req.params.recruiterId),
+      followerCount: recruiter.followerCount || 0,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// POST /api/candidate/me/following/:recruiterId
+exports.followRecruiter = async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.recruiterId)) {
+      return res.status(400).json({ error: 'Invalid recruiter ID' });
+    }
+    const recruiter = await Recruiter.findById(req.params.recruiterId).select('_id').lean();
+    if (!recruiter) return res.status(404).json({ error: 'Recruiter not found' });
+    const updatedCandidate = await Candidate.findOneAndUpdate(
+      { _id: req.user.id, followedRecruiters: { $ne: recruiter._id } },
+      { $addToSet: { followedRecruiters: recruiter._id } },
+      { new: true },
+    ).select('followedRecruiters');
+    if (updatedCandidate) {
+      await Recruiter.findByIdAndUpdate(recruiter._id, { $inc: { followerCount: 1 } });
+    }
+    const current = await Recruiter.findById(recruiter._id).select('followerCount').lean();
+    res.json({ following: true, followerCount: current?.followerCount || 0 });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// DELETE /api/candidate/me/following/:recruiterId
+exports.unfollowRecruiter = async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.recruiterId)) {
+      return res.status(400).json({ error: 'Invalid recruiter ID' });
+    }
+    const updatedCandidate = await Candidate.findOneAndUpdate(
+      { _id: req.user.id, followedRecruiters: req.params.recruiterId },
+      { $pull: { followedRecruiters: req.params.recruiterId } },
+      { new: true },
+    ).select('followedRecruiters');
+    if (updatedCandidate) {
+      await Recruiter.findOneAndUpdate(
+        { _id: req.params.recruiterId, followerCount: { $gt: 0 } },
+        { $inc: { followerCount: -1 } },
+      );
+    }
+    const recruiter = await Recruiter.findById(req.params.recruiterId).select('followerCount').lean();
+    if (!recruiter) return res.status(404).json({ error: 'Recruiter not found' });
+    res.json({ following: false, followerCount: recruiter.followerCount || 0 });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

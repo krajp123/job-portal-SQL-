@@ -63,6 +63,9 @@ router.post(
 router.get('/me/saved-jobs', verifyTokenAndStatus, requireRole('candidate'), candidateController.getSavedJobs);
 router.post('/me/saved-jobs/:jobId', verifyTokenAndStatus, requireRole('candidate'), candidateController.saveJob);
 router.delete('/me/saved-jobs/:jobId', verifyTokenAndStatus, requireRole('candidate'), candidateController.unsaveJob);
+router.get('/me/following/:recruiterId', verifyTokenAndStatus, requireRole('candidate'), candidateController.getRecruiterFollowStatus);
+router.post('/me/following/:recruiterId', verifyTokenAndStatus, requireRole('candidate'), candidateController.followRecruiter);
+router.delete('/me/following/:recruiterId', verifyTokenAndStatus, requireRole('candidate'), candidateController.unfollowRecruiter);
 
 // Wildcard — must stay LAST among GET routes on this router
 router.get('/:uniqueId', optionalVerifyToken, candidateController.getByUniqueId);

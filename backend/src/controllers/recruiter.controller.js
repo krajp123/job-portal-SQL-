@@ -17,6 +17,19 @@ const { isValidEmail, isValidPhone, isStrongEnoughPassword } = require('../utils
 const walletController = require('./wallet.controller');
 const { getIO } = require('../config/socket');
 
+function workspaceRecruiterId(req) {
+  return req.workspaceOwnerId || req.user.id;
+}
+
+async function getDepartmentOpenings(recruiterId) {
+  return Job.aggregate([
+    { $match: { postedBy: recruiterId, status: { $in: ['open', 'active'] }, department: { $type: 'string', $ne: '' } } },
+    { $group: { _id: '$department', openings: { $sum: 1 } } },
+    { $project: { _id: 0, name: '$_id', openings: 1 } },
+    { $sort: { openings: -1, name: 1 } },
+  ]);
+}
+
 function sanitizeFileName(name = '') {
   return String(name)
     .replace(/[\\/:*?"<>|]/g, '_')
@@ -133,13 +146,28 @@ exports.getMyProfile = async (req, res) => {
     const workspaceOwner = await Recruiter.findById(req.recruiterAccess?.ownerId || recruiter._id)
       .select('teamMembers')
       .lean();
+    const ownerId = req.recruiterAccess?.ownerId || recruiter._id;
+    const [departmentOpenings, jobs] = await Promise.all([
+      getDepartmentOpenings(ownerId),
+      Job.find({ postedBy: ownerId, status: { $in: ['open', 'active'] } })
+        .sort({ createdAt: -1 })
+        .limit(200)
+        .lean(),
+    ]);
+    const applicantCounts = await Application.aggregate([
+      { $match: { job: { $in: jobs.map((job) => job._id) } } },
+      { $group: { _id: '$job', count: { $sum: 1 } } },
+    ]);
+    const applicantCountByJob = new Map(applicantCounts.map((item) => [String(item._id), item.count]));
     const payload = recruiter.toObject();
     payload.workspaceAccess = {
       role: req.recruiterAccess?.role || 'admin',
       isOwner: req.recruiterAccess?.isOwner ?? true,
-      ownerId: String(req.recruiterAccess?.ownerId || recruiter._id),
+      ownerId: String(ownerId),
     };
     payload.teamMembers = workspaceOwner?.teamMembers || [];
+    payload.departmentOpenings = departmentOpenings;
+    payload.jobs = jobs.map((job) => normalizeRecruiterJob(job, applicantCountByJob.get(String(job._id)) || 0));
 
     // Debug: getMyProfile languages from DB
 
@@ -202,11 +230,12 @@ exports.getPublicProfile = async (req, res) => {
   try {
     const recruiter = await Recruiter.findById(req.params.recruiterId).select('-passwordHash');
 
-    if (!recruiter) {
+    if (!recruiter || recruiter.accountStatus !== 'active' || recruiter.registrationStatus !== 'complete') {
       return res.status(404).json({ error: 'Recruiter not found' });
     }
 
     const publicJobs = req.query.allJobs === 'true';
+    const departmentOpenings = await getDepartmentOpenings(recruiter._id);
     const jobsQuery = Job.find({ postedBy: recruiter._id, status: { $in: ['open', 'active'] } })
         .sort({ createdAt: -1 })
         .limit(publicJobs ? 200 : 4)
@@ -234,12 +263,12 @@ exports.getPublicProfile = async (req, res) => {
         .lean(),
     ]);
 
-    const jobsWithCounts = await Promise.all(
-      jobs.map(async (job) => {
-        const applicants = await Application.countDocuments({ job: job._id });
-        return normalizeRecruiterJob(job, applicants);
-      })
-    );
+    const applicantCounts = await Application.aggregate([
+      { $match: { job: { $in: jobs.map((job) => job._id) } } },
+      { $group: { _id: '$job', count: { $sum: 1 } } },
+    ]);
+    const applicantCountByJob = new Map(applicantCounts.map((item) => [String(item._id), item.count]));
+    const jobsWithCounts = jobs.map((job) => normalizeRecruiterJob(job, applicantCountByJob.get(String(job._id)) || 0));
 
     const activityEntries = [];
     let activityId = 0; // Counter for unique activity IDs
@@ -382,20 +411,24 @@ exports.getPublicProfile = async (req, res) => {
       _id: recruiter._id,
       name: recruiter.fullName || recruiter.companyName || 'Recruiter',
       title: recruiter.designation || 'Recruitment Lead',
-      email: recruiter.email || '',
-      phone: recruiter.phone || '',
       companyName: recruiter.companyName || '',
       companyWebsite: recruiter.companyWebsite || '',
-      companyEmail: recruiter.companyEmail || '',
-      companyGst: recruiter.companyGst || '',
-      companyCin: recruiter.companyCin || '',
       companyDescription: recruiter.companyDetails || recruiter.bio || '',
       companyLogoUrl: recruiter.companyLogoUrl || '',
       coverImageUrl: recruiter.coverImageUrl || '',
       industry: recruiter.industry || '',
       companySize: recruiter.companySize || '',
       companyType: recruiter.companyType || '',
+      founded: recruiter.founded || '',
+      departments: recruiter.departments || [],
+      departmentOpenings,
       tags: recruiter.tags || [],
+      companyGallery: recruiter.companyGallery || [],
+      companyBenefits: recruiter.companyBenefits || [],
+      salaryInsights: recruiter.salaryInsights || [],
+      ratingBreakdown: recruiter.ratingBreakdown || {},
+      reviewProfiles: recruiter.reviewProfiles || [],
+      followerCount: recruiter.followerCount || 0,
       whyJoinUs: recruiter.whyJoinUs || [],
       diversityHighlights: recruiter.diversityHighlights || [],
       profilePictureUrl: recruiter.profilePictureUrl || '',
@@ -413,8 +446,10 @@ exports.getPublicProfile = async (req, res) => {
       joinedDate: recruiter.createdAt || recruiter.registeredAt || new Date().toISOString(),
       languages: recruiter.languages || [],
       hiringLocations: recruiter.location ? [recruiter.location] : ['Remote'],
-      rating: 4.8,
-      reviews: 24,
+      rating: recruiter.rating || 0,
+      reviews: recruiter.reviewCount || 0,
+      ratingBreakdown: recruiter.ratingBreakdown || {},
+      reviewProfiles: recruiter.reviewProfiles || [],
       verificationStatus: recruiter.verificationStatus || 'pending',
       verified: recruiter.verificationStatus === 'verified',
       jobs: jobsWithCounts,
@@ -503,7 +538,17 @@ exports.updateMyProfile = async (req, res) => {
       companyDetails,
       companyLogoUrl,
       coverImageUrl,
+      departments,
+      departmentOpenings,
       tags,
+      companyGallery,
+      companyBenefits,
+      salaryInsights,
+      rating,
+      reviewCount,
+      ratingBreakdown,
+      reviewProfiles,
+      followerCount,
       whyJoinUs,
       diversityHighlights,
       profilePictureUrl,
@@ -511,6 +556,7 @@ exports.updateMyProfile = async (req, res) => {
       industry,
       companySize,
       companyType,
+      founded,
       bio,
       experienceYears,
       expertiseTags,
@@ -520,6 +566,7 @@ exports.updateMyProfile = async (req, res) => {
 
     // Debug: Backend received in updateMyProfile
 
+    const targetRecruiterId = workspaceRecruiterId(req);
     const currentRecruiter = await Recruiter.findById(req.user.id).select('email phone');
     if (!currentRecruiter) {
       return res.status(404).json({ error: 'Recruiter account not found' });
@@ -549,8 +596,55 @@ exports.updateMyProfile = async (req, res) => {
     if (coverImageUrl !== undefined && typeof coverImageUrl !== 'string') {
       return res.status(400).json({ error: 'Invalid cover image URL' });
     }
+    if (departments !== undefined && !Array.isArray(departments)) {
+      return res.status(400).json({ error: 'Departments must be an array' });
+    }
+    if (departmentOpenings !== undefined && !Array.isArray(departmentOpenings)) {
+      return res.status(400).json({ error: 'Department openings must be an array' });
+    }
     if (tags !== undefined && !Array.isArray(tags)) {
       return res.status(400).json({ error: 'Tags must be an array' });
+    }
+    if (companyGallery !== undefined && !Array.isArray(companyGallery)) {
+      return res.status(400).json({ error: 'Company gallery must be an array' });
+    }
+    if (companyBenefits !== undefined && !Array.isArray(companyBenefits)) {
+      return res.status(400).json({ error: 'Company benefits must be an array' });
+    }
+    if (salaryInsights !== undefined && !Array.isArray(salaryInsights)) {
+      return res.status(400).json({ error: 'Salary insights must be an array' });
+    }
+    if (rating !== undefined && (!Number.isFinite(Number(rating)) || Number(rating) < 0 || Number(rating) > 5)) {
+      return res.status(400).json({ error: 'Rating must be between 0 and 5' });
+    }
+    if (reviewCount !== undefined && (!Number.isInteger(Number(reviewCount)) || Number(reviewCount) < 0)) {
+      return res.status(400).json({ error: 'Review count must be a non-negative integer' });
+    }
+    if (ratingBreakdown !== undefined || reviewProfiles !== undefined) {
+      if (ratingBreakdown !== undefined && (typeof ratingBreakdown !== 'object' || Array.isArray(ratingBreakdown))) {
+        return res.status(400).json({ error: 'Rating breakdown must be an object' });
+      }
+      if (reviewProfiles !== undefined && !Array.isArray(reviewProfiles)) {
+        return res.status(400).json({ error: 'Review profiles must be an array' });
+      }
+    }
+    if (ratingBreakdown !== undefined && Object.values(ratingBreakdown).some((value) => !Number.isFinite(Number(value)) || Number(value) < 0 || Number(value) > 5)) {
+      return res.status(400).json({ error: 'Each rating breakdown value must be between 0 and 5' });
+    }
+    if (reviewProfiles !== undefined && reviewProfiles.some((item) => !item || typeof item !== 'object' || !String(item.role || '').trim() || !Number.isFinite(Number(item.score)) || Number(item.score) < 0 || Number(item.score) > 5 || !Number.isInteger(Number(item.count)) || Number(item.count) < 0)) {
+      return res.status(400).json({ error: 'Review profiles contain invalid values' });
+    }
+    if (departmentOpenings !== undefined && departmentOpenings.some((item) => !item || typeof item !== 'object' || (item.name !== undefined && typeof item.name !== 'string') || !Number.isFinite(Number(item.openings ?? 0)) || Number(item.openings ?? 0) < 0)) {
+      return res.status(400).json({ error: 'Department openings contain invalid values' });
+    }
+    if (companyBenefits !== undefined && companyBenefits.some((item) => !item || typeof item !== 'object' || (item.label !== undefined && typeof item.label !== 'string') || !Number.isFinite(Number(item.count ?? 0)) || Number(item.count ?? 0) < 0)) {
+      return res.status(400).json({ error: 'Company benefits contain invalid values' });
+    }
+    if (salaryInsights !== undefined && salaryInsights.some((item) => !item || typeof item !== 'object' || !String(item.role || '').trim() || !['avg', 'min', 'max', 'count'].every((key) => Number.isFinite(Number(item[key] ?? 0)) && Number(item[key] ?? 0) >= 0) || Number(item.max ?? 0) < Number(item.min ?? 0))) {
+      return res.status(400).json({ error: 'Salary insights contain invalid values' });
+    }
+    if (followerCount !== undefined && (!Number.isFinite(Number(followerCount)) || Number(followerCount) < 0)) {
+      return res.status(400).json({ error: 'Invalid follower count' });
     }
     if (whyJoinUs !== undefined && !Array.isArray(whyJoinUs)) {
       return res.status(400).json({ error: 'Why join us highlights must be an array' });
@@ -566,6 +660,9 @@ exports.updateMyProfile = async (req, res) => {
     }
     if (companyType !== undefined && typeof companyType !== 'string') {
       return res.status(400).json({ error: 'Invalid company type' });
+    }
+    if (founded !== undefined && typeof founded !== 'string') {
+      return res.status(400).json({ error: 'Invalid founded value' });
     }
     if (profilePictureUrl !== undefined && typeof profilePictureUrl !== 'string') {
       return res.status(400).json({ error: 'Invalid profile picture URL' });
@@ -631,12 +728,53 @@ exports.updateMyProfile = async (req, res) => {
     if (companyDetails !== undefined) update.companyDetails = companyDetails;
     if (companyLogoUrl !== undefined) update.companyLogoUrl = companyLogoUrl;
     if (coverImageUrl !== undefined) update.coverImageUrl = coverImageUrl;
+    if (departments !== undefined) update.departments = departments.map((item) => String(item).trim()).filter(Boolean);
+    if (departmentOpenings !== undefined) {
+      update.departmentOpenings = departmentOpenings
+        .map((item) => ({ name: String(item?.name || '').trim(), openings: Math.max(0, Number(item?.openings || 0)) }))
+        .filter((item) => item.name);
+    }
     if (tags !== undefined) update.tags = tags.map((tag) => String(tag).trim()).filter(Boolean);
+    if (companyGallery !== undefined) {
+      update.companyGallery = companyGallery
+        .map((item) => ({ url: String(item?.url || '').trim(), alt: String(item?.alt || '').trim() }))
+        .filter((item) => item.url);
+    }
+    if (companyBenefits !== undefined) {
+      update.companyBenefits = companyBenefits
+        .map((item) => ({ label: String(item?.label || '').trim(), count: Math.max(0, Number(item?.count || 0)), icon: String(item?.icon || '').trim() }))
+        .filter((item) => item.label);
+    }
+    if (salaryInsights !== undefined) {
+      update.salaryInsights = salaryInsights
+        .map((item) => ({
+          role: String(item?.role || '').trim(),
+          department: String(item?.department || '').trim(),
+          exp: String(item?.exp || '').trim(),
+          avg: Math.max(0, Number(item?.avg || 0)),
+          min: Math.max(0, Number(item?.min || 0)),
+          max: Math.max(0, Number(item?.max || 0)),
+          count: Math.max(0, Number(item?.count || 0)),
+        }))
+        .filter((item) => item.role);
+    }
+    if (rating !== undefined) update.rating = Number(rating);
+    if (reviewCount !== undefined) update.reviewCount = Number(reviewCount);
+    if (ratingBreakdown !== undefined) update.ratingBreakdown = Object.fromEntries(Object.entries(ratingBreakdown).map(([key, value]) => [key, Number(value)]));
+    if (reviewProfiles !== undefined) {
+      update.reviewProfiles = reviewProfiles.map((item) => ({
+        role: String(item.role || '').trim(),
+        score: Number(item.score || 0),
+        count: Number(item.count || 0),
+      }));
+    }
+    if (followerCount !== undefined) update.followerCount = Number(followerCount);
     if (whyJoinUs !== undefined) update.whyJoinUs = whyJoinUs;
     if (diversityHighlights !== undefined) update.diversityHighlights = diversityHighlights;
     if (industry !== undefined) update.industry = industry.trim();
     if (companySize !== undefined) update.companySize = companySize.trim();
     if (companyType !== undefined) update.companyType = companyType.trim();
+    if (founded !== undefined) update.founded = founded.trim();
     if (profilePictureUrl !== undefined) update.profilePictureUrl = profilePictureUrl || '';
     if (location !== undefined) update.location = location.trim();
     if (bio !== undefined) update.bio = bio.trim();
@@ -668,7 +806,7 @@ exports.updateMyProfile = async (req, res) => {
       })).filter((exp) => exp.company || exp.role || exp.duration || exp.achievements.length);
     }
 
-    const recruiter = await Recruiter.findByIdAndUpdate(req.user.id, { $set: update }, { new: true }).select('-passwordHash');
+    const recruiter = await Recruiter.findByIdAndUpdate(targetRecruiterId, { $set: update }, { new: true, runValidators: true }).select('-passwordHash');
     if (!recruiter) {
       return res.status(404).json({ error: 'Recruiter not found' });
     }
@@ -687,11 +825,12 @@ exports.uploadCompanyImage = async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
 
     const imageType = req.body.imageType;
-    if (!['logo', 'cover'].includes(imageType)) {
-      return res.status(400).json({ error: 'Image type must be logo or cover' });
+    if (!['logo', 'cover', 'gallery'].includes(imageType)) {
+      return res.status(400).json({ error: 'Image type must be logo, cover, or gallery' });
     }
 
-    const recruiter = await Recruiter.findById(req.user.id);
+    const targetRecruiterId = workspaceRecruiterId(req);
+    const recruiter = await Recruiter.findById(targetRecruiterId);
     if (!recruiter) return res.status(404).json({ error: 'Recruiter not found' });
 
     const uploadResult = await new Promise((resolve, reject) => {
@@ -707,9 +846,12 @@ exports.uploadCompanyImage = async (req, res) => {
       uploadStream.end(req.file.buffer);
     });
 
-    const field = imageType === 'logo' ? 'companyLogoUrl' : 'coverImageUrl';
-    await Recruiter.findByIdAndUpdate(req.user.id, { $set: { [field]: uploadResult.secure_url } });
-    res.json({ message: 'Company image uploaded successfully', [field]: uploadResult.secure_url });
+    const field = imageType === 'logo' ? 'companyLogoUrl' : imageType === 'cover' ? 'coverImageUrl' : null;
+    if (field) {
+      await Recruiter.findByIdAndUpdate(targetRecruiterId, { $set: { [field]: uploadResult.secure_url } }, { runValidators: true });
+      return res.json({ message: 'Company image uploaded successfully', [field]: uploadResult.secure_url });
+    }
+    res.json({ message: 'Gallery image uploaded successfully', companyGalleryUrl: uploadResult.secure_url });
   } catch (err) {
     console.error('Company image upload failed:', err);
     res.status(500).json({ error: err.message || 'Failed to upload company image' });

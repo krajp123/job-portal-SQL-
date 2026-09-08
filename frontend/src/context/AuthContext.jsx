@@ -56,11 +56,25 @@ function isTokenExpired() {
   }
 }
 
+function getTokenRole() {
+  const token = localStorage.getItem('token');
+  try {
+    const payload = token?.split('.')[1];
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    return JSON.parse(atob(padded)).role || null;
+  } catch {
+    return null;
+  }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(getStoredUser);
 
   async function refreshUser() {
     if (localStorage.getItem('token') === null) return null;
+    if (getTokenRole() !== 'recruiter') return null;
 
     try {
       const { data } = await axiosInstance.get('/recruiter/me/profile');
@@ -79,7 +93,7 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
-    if (user?.role !== 'recruiter') return;
+    if (getTokenRole() !== 'recruiter') return;
     refreshUser().catch(() => {});
   }, [user?.role]);
 

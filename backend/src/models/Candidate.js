@@ -127,6 +127,7 @@ const candidateSchema = new mongoose.Schema(
     },
 
     savedJobs: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Job' }],
+    followedRecruiters: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Recruiter' }],
 
     visibility: { type: String, enum: ['public', 'private', 'applied', 'hidden'], default: 'public' },
     searchable: { type: Boolean, default: true },

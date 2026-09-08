@@ -168,7 +168,7 @@ function findModerationMatches(job, flaggedKeywords = []) {
 // POST /api/jobs (recruiter only)
 exports.create = async (req, res) => {
   try {
-    const { title, role, category, description, location, salary, skillsRequired, experienceLevel, descriptionSections } = req.body;
+    const { title, role, category, department, description, location, salary, skillsRequired, experienceLevel, descriptionSections } = req.body;
     const recruiter = await Recruiter.findById(workspaceRecruiterId(req)).select('industry');
     const settings = await getPlatformSettings();
     const moderationMatches = findModerationMatches(
@@ -181,6 +181,7 @@ exports.create = async (req, res) => {
       title,
       role,
       category,
+      department: String(department || '').trim(),
       industry: recruiter?.industry || req.body.industry,
       description,
       descriptionSections: sanitizeDescriptionSections(descriptionSections),
@@ -441,14 +442,17 @@ exports.topCompanies = async (req, res) => {
 // GET /api/jobs/mine (recruiter only)
 exports.myJobs = async (req, res) => {
   try {
-    const jobs = await Job.find({ postedBy: workspaceRecruiterId(req) }).sort({ createdAt: -1 }).lean();
+    const jobs = await Job.find({ postedBy: workspaceRecruiterId(req), status: { $in: ['open', 'active'] } }).sort({ createdAt: -1 }).lean();
 
-    const jobsWithCounts = await Promise.all(
-      jobs.map(async (job) => ({
-        ...job,
-        applicantsCount: await Application.countDocuments({ job: job._id }),
-      }))
-    );
+    const applicantCounts = await Application.aggregate([
+      { $match: { job: { $in: jobs.map((job) => job._id) } } },
+      { $group: { _id: '$job', count: { $sum: 1 } } },
+    ]);
+    const applicantCountByJob = new Map(applicantCounts.map((item) => [String(item._id), item.count]));
+    const jobsWithCounts = jobs.map((job) => ({
+      ...job,
+      applicantsCount: applicantCountByJob.get(String(job._id)) || 0,
+    }));
 
     res.json(jobsWithCounts);
   } catch (err) {
@@ -459,7 +463,7 @@ exports.myJobs = async (req, res) => {
 // PATCH /api/jobs/:id (recruiter only)
 exports.update = async (req, res) => {
   try {
-    const allowedFields = ['title', 'role', 'category', 'industry', 'description', 'descriptionSections', 'location', 'salary', 'skillsRequired', 'experienceLevel', 'applicationForm'];
+    const allowedFields = ['title', 'role', 'category', 'department', 'industry', 'description', 'descriptionSections', 'location', 'salary', 'skillsRequired', 'experienceLevel', 'applicationForm'];
     const updates = {};
 
     for (const field of allowedFields) {

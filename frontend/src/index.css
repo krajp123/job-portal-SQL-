@@ -10,6 +10,10 @@ button:disabled {
     cursor: not-allowed;
 }
 
+section:has(.upload-box) > .edit-group {
+    display: none;
+}
+
 @keyframes invoice-overlay-in {
     from { opacity: 0; }
     to { opacity: 1; }

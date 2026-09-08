@@ -39,6 +39,7 @@ const recruiterSchema = new mongoose.Schema(
     industry: { type: String, trim: true },
     companySize: { type: String, trim: true },
     companyType: { type: String, trim: true },
+    founded: { type: String, trim: true },
     companyLogoUrl: { type: String },
     coverImageUrl: { type: String },
     companyDetails: { type: String },
@@ -46,7 +47,56 @@ const recruiterSchema = new mongoose.Schema(
     monthlyHiringGoal: { type: Number, min: 0, default: 5 },
     hiringFor: [{ type: String, trim: true }], // Full-time, Part-time, Internship, Contract, Remote
     departments: [{ type: String, trim: true }], // List of departments they hire for
+    departmentOpenings: [
+      {
+        name: { type: String, trim: true },
+        openings: { type: Number, min: 0, default: 0 },
+      },
+    ],
     tags: [{ type: String, trim: true }],
+    companyGallery: [
+      {
+        url: { type: String, trim: true },
+        alt: { type: String, trim: true },
+      },
+    ],
+    companyBenefits: [
+      {
+        label: { type: String, trim: true },
+        count: { type: Number, min: 0, default: 0 },
+        icon: { type: String, trim: true },
+      },
+    ],
+    salaryInsights: [
+      {
+        role: { type: String, trim: true },
+        department: { type: String, trim: true },
+        exp: { type: String, trim: true },
+        avg: { type: Number, min: 0 },
+        min: { type: Number, min: 0 },
+        max: { type: Number, min: 0 },
+        count: { type: Number, min: 0, default: 0 },
+      },
+    ],
+    ratingBreakdown: {
+      salaryBenefits: { type: Number, min: 0, max: 5, default: 0 },
+      culture: { type: Number, min: 0, max: 5, default: 0 },
+      workLife: { type: Number, min: 0, max: 5, default: 0 },
+      skillDev: { type: Number, min: 0, max: 5, default: 0 },
+      satisfaction: { type: Number, min: 0, max: 5, default: 0 },
+      jobSecurity: { type: Number, min: 0, max: 5, default: 0 },
+      careerGrowth: { type: Number, min: 0, max: 5, default: 0 },
+    },
+    reviewProfiles: [
+      {
+        role: { type: String, trim: true },
+        score: { type: Number, min: 0, max: 5, default: 0 },
+        count: { type: Number, min: 0, default: 0 },
+      },
+    ],
+    rating: { type: Number, min: 0, max: 5, default: 0 },
+    reviewCount: { type: Number, min: 0, default: 0 },
+    followerCount: { type: Number, min: 0, default: 0 },
     whyJoinUs: [
       {
         title: { type: String, trim: true },
