@@ -38,20 +38,28 @@ exports.createReport = async (req, res) => {
       return res.status(400).json({ error: 'One or more fields exceed the allowed length.' });
     }
 
-    let account;
-    if (req.user?.role === 'candidate') account = await Candidate.findById(req.user.id).select('name email phone uniqueId').lean();
-    if (req.user?.role === 'recruiter') account = await Recruiter.findById(req.user.id).select('fullName email phone companyName companyEmail').lean();
+    const [candidateAccount, recruiterAccount] = await Promise.all([
+      Candidate.findOne({ email: normalizedEmail }).select('name email phone uniqueId').lean(),
+      Recruiter.findOne({ $or: [{ email: normalizedEmail }, { companyEmail: normalizedEmail }] })
+        .select('fullName email phone companyName companyEmail')
+        .lean(),
+    ]);
+    const account = candidateAccount || recruiterAccount;
 
-    const isAccountSubmission = Boolean(account);
+    if (!account) {
+      return res.status(400).json({ error: 'User not registered. Please use your registered email address.' });
+    }
+
+    const isCandidateAccount = Boolean(candidateAccount);
     const report = await HelpCenterReport.create({
       name: account?.name || account?.fullName || normalizedName,
       email: (account?.email || account?.companyEmail || normalizedEmail).trim().toLowerCase(),
       phone: account?.phone || normalizedPhone,
       concern: normalizedConcern,
       message: normalizedMessage,
-      submittedByType: isAccountSubmission ? req.user.role : 'guest',
-      submittedBy: isAccountSubmission ? req.user.id : undefined,
-      submittedByModel: isAccountSubmission ? (req.user.role === 'candidate' ? 'Candidate' : 'Recruiter') : undefined,
+      submittedByType: isCandidateAccount ? 'candidate' : 'recruiter',
+      submittedBy: account._id,
+      submittedByModel: isCandidateAccount ? 'Candidate' : 'Recruiter',
     });
 
     try {

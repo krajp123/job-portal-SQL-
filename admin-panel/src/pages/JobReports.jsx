@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Eye, RefreshCcw, ShieldAlert, XCircle } from 'lucide-react';
 import adminAxiosInstance from '../api/adminAxiosInstance';
 
+const SEEN_REPORTS_KEY = 'admin-seen-job-reports';
+
 const STATUS_LABELS = {
   pending: 'Pending',
   under_review: 'Under Review',
@@ -32,7 +34,18 @@ export default function JobReports() {
     setError('');
     try {
       const { data } = await adminAxiosInstance.get('/moderation/reports', { params: statusFilter ? { status: statusFilter } : {} });
-      setReports(data.reports || []);
+      const nextReports = data.reports || [];
+      setReports(nextReports);
+      let storedSeenReportIds = [];
+      try {
+        storedSeenReportIds = JSON.parse(localStorage.getItem(SEEN_REPORTS_KEY) || '[]');
+      } catch {
+        storedSeenReportIds = [];
+      }
+      const seenReportIds = new Set(storedSeenReportIds);
+      nextReports.filter((report) => report.status === 'pending').forEach((report) => seenReportIds.add(report._id));
+      localStorage.setItem(SEEN_REPORTS_KEY, JSON.stringify([...seenReportIds]));
+      window.dispatchEvent(new Event('jobReportsViewed'));
     } catch (requestError) {
       setError(requestError.response?.data?.error || 'Unable to load job reports.');
     } finally {
@@ -150,7 +163,7 @@ export default function JobReports() {
                     <select value={draft.status || ''} onChange={(event) => updateDraft(report._id, 'status', event.target.value)} className="border border-[#EBC2AE] bg-[#FFFDFB] px-2 py-2 text-xs outline-none">
                       <option value="">Review status</option>
                       <option value="under_review">Under Review</option>
-                      <option value="valid">Valid</option>
+                      {report.reportType !== 'support' && <option value="valid">Valid</option>}
                       <option value="rejected">Rejected</option>
                       {report.reportType === 'support' && <option value="resolved">Resolved</option>}
                     </select>

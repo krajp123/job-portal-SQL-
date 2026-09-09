@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Cropper from 'react-easy-crop';
 import axiosInstance from '../../api/axiosInstance';
 import RecruiterNavbar from '../../components/RecruiterNavbar';
@@ -450,6 +450,7 @@ function validateExperienceEntry(exp) {
 /* --------------------------------------------------------------------- */
 
 export default function RecruiterSettings() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const isViewer = user?.workspaceAccess?.role === 'viewer';
   const [activeTab, setActiveTab] = useState('account');
@@ -716,6 +717,7 @@ export default function RecruiterSettings() {
       setEditingExperienceId(null);
       notify('Changes saved.');
       setAccountEditMode(false);
+      return true;
     } catch (err) {
       console.error('❌ Error saving profile - languages:', {
         message: err.message,
@@ -723,9 +725,26 @@ export default function RecruiterSettings() {
         status: err.response?.status,
       });
       setError(err.response?.data?.error || err.message || 'Failed to save changes.');
+      return false;
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleTabChange(tabId) {
+    if (tabId === activeTab) return;
+    if (accountEditMode) {
+      const saved = await saveAccount();
+      if (!saved) return;
+    }
+    setActiveTab(tabId);
+  }
+
+  async function handleSettingsNavigation(event, path) {
+    if (!accountEditMode) return;
+    event.preventDefault();
+    const saved = await saveAccount();
+    if (saved) navigate(path);
   }
 
   function handleProfilePictureChange(event) {
@@ -1029,7 +1048,7 @@ export default function RecruiterSettings() {
                     key={tab.id}
                     type="button"
                     data-viewer-allowed="true"
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => handleTabChange(tab.id)}
                     className={`flex shrink-0 items-center gap-2.5 rounded-2xl px-4 py-2.5 text-left text-sm font-semibold transition lg:w-full ${
                       isActive
                         ? isDanger
@@ -1225,9 +1244,11 @@ export default function RecruiterSettings() {
                 <Mail size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="email"
-                  className={`${inputClass} pl-9`}
+                  className={`${inputClass} cursor-not-allowed bg-slate-100 pl-9 text-slate-500`}
                   value={accountDraft.email}
-                  onChange={(e) => setAccountDraft((p) => ({ ...p, email: e.target.value }))}
+                  readOnly
+                  disabled
+                  title="Work email cannot be changed"
                   placeholder="you@company.com"
                 />
               </div>
@@ -1799,7 +1820,7 @@ export default function RecruiterSettings() {
                     </button>
                     <Link
                       to="/recruiter/invites"
-                      onClick={() => setActiveTab('team')}
+                      onClick={(event) => handleSettingsNavigation(event, '/recruiter/invites')}
                       className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
                     >
                       Manage invites

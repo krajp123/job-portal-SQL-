@@ -80,7 +80,7 @@ function getCompletion(profile) {
         { key: 'projects', anchor: 'section-projects', label: 'Add projects', weight: COMPLETION_WEIGHTS.projects, done: (p.projects || []).length > 0 },
         { key: 'portfolio', anchor: 'section-portfolio', label: 'Add portfolio', weight: COMPLETION_WEIGHTS.portfolio, done: (p.portfolio || []).length > 0 },
         { key: 'resume', anchor: 'section-resume', label: 'Upload your resume', weight: COMPLETION_WEIGHTS.resume, done: !!p.resumeUrl },
-        { key: 'social', anchor: 'section-social', label: 'Add social / portfolio links', weight: COMPLETION_WEIGHTS.social, done: !!(social.github || social.linkedin || social.website) },
+        { key: 'social', anchor: 'section-social', label: 'Add social links', weight: COMPLETION_WEIGHTS.social, done: !!(social.github || social.linkedin) },
         { key: 'preferences', anchor: 'section-preferences', label: 'Set work preferences', weight: COMPLETION_WEIGHTS.preferences, done: !!p.workPreferences },
     ];
     const rawPercent = items.reduce((sum, i) => sum + (i.done ? i.weight : 0), 0);
@@ -2078,7 +2078,7 @@ export default function Profile() {
     const [contactModalMode, setContactModalMode] = useState('contact');
     const [workPrefDraft, setWorkPrefDraft] = useState('');
     const [availabilityDraft, setAvailabilityDraft] = useState('');
-    const [socialDraft, setSocialDraft] = useState({ github: '', linkedin: '', website: '' });
+    const [socialDraft, setSocialDraft] = useState({ github: '', linkedin: '' });
     const [urlErrors, setUrlErrors] = useState({});
 
     const photoInputRef = useRef(null);
@@ -2759,7 +2759,6 @@ export default function Profile() {
         const errors = {};
         if (socialDraft.github && !isValidUrl(socialDraft.github)) errors.github = true;
         if (socialDraft.linkedin && !isValidUrl(socialDraft.linkedin)) errors.linkedin = true;
-        if (socialDraft.website && !isValidUrl(socialDraft.website)) errors.website = true;
 
         if (Object.keys(errors).length > 0) {
             setUrlErrors(errors);
@@ -2769,10 +2768,16 @@ export default function Profile() {
 
         setSaving(true);
         try {
-            await axiosInstance.put('/profile/social', socialDraft);
+            await axiosInstance.put('/profile/social', {
+                github: socialDraft.github,
+                linkedin: socialDraft.linkedin,
+            });
             setProfile((prev) => ({
                 ...prev,
-                socialLinks: socialDraft,
+                socialLinks: {
+                    github: socialDraft.github,
+                    linkedin: socialDraft.linkedin,
+                },
             }));
             setToast('Social links saved!');
             closeModal();
@@ -3110,7 +3115,7 @@ export default function Profile() {
                                         else if (item.anchor === 'section-portfolio') openPortfolioModal(null);
                                         else if (item.anchor === 'section-resume') resumeInputRef.current?.click();
                                         else if (item.anchor === 'section-social') {
-                                            setSocialDraft(profile?.socialLinks || { github: '', linkedin: '', website: '' });
+                                            setSocialDraft(profile?.socialLinks || { github: '', linkedin: '' });
                                             openModal('social');
                                         }
                                         else if (item.anchor === 'section-preferences') {
@@ -3682,17 +3687,17 @@ export default function Profile() {
                         {/* Social Links */}
                         <SectionCard
                             id="section-social"
-                            title="Social & Portfolio Links"
+                            title="Social Links"
                             weight={COMPLETION_WEIGHTS.social}
-                            done={!!(profile?.socialLinks?.github || profile?.socialLinks?.linkedin || profile?.socialLinks?.website)}
+                            done={!!(profile?.socialLinks?.github || profile?.socialLinks?.linkedin)}
                             onAdd={() => {
-                                setSocialDraft(profile?.socialLinks || { github: '', linkedin: '', website: '' });
+                                setSocialDraft(profile?.socialLinks || { github: '', linkedin: '' });
                                 openModal('social');
                             }}
                             addLabel="Add links"
                         >
-                            {!profile?.socialLinks?.github && !profile?.socialLinks?.linkedin && !profile?.socialLinks?.website ? (
-                                <p className="text-[12.5px] text-[#6B6259]">Add your social profiles and portfolio links.</p>
+                            {!profile?.socialLinks?.github && !profile?.socialLinks?.linkedin ? (
+                                <p className="text-[12.5px] text-[#6B6259]">Add your social profiles.</p>
                             ) : (
                                 <div className="flex flex-col gap-2">
                                     {profile?.socialLinks?.github && (
@@ -3703,11 +3708,6 @@ export default function Profile() {
                                     {profile?.socialLinks?.linkedin && (
                                         <a href={profile.socialLinks.linkedin} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-[13px] text-[#8B1E2F] hover:underline">
                                             <Link2 size={13} /> LinkedIn
-                                        </a>
-                                    )}
-                                    {profile?.socialLinks?.website && (
-                                        <a href={profile.socialLinks.website} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-[13px] text-[#8B1E2F] hover:underline">
-                                            <Globe size={13} /> Website
                                         </a>
                                     )}
                                 </div>
@@ -4422,8 +4422,8 @@ export default function Profile() {
 
                 {activeModal === 'social' && (
                     <Modal
-                        title="Social & portfolio links"
-                        subtitle="Help recruiters find more of your work."
+                        title="Social links"
+                        subtitle="Help recruiters find your professional profiles."
                         onClose={closeModal}
                         onSave={saveSocial}
                         saving={saving}
@@ -4449,17 +4449,6 @@ export default function Profile() {
                                     value={socialDraft.linkedin}
                                     onChange={(e) => updateSocialDraft('linkedin', e.target.value)}
                                     className={urlErrors.linkedin ? 'border-[#B23B3B]' : ''}
-                                />
-                            </div>
-                            <div>
-                                <div className="mb-1 flex items-center gap-1.5 text-[12px] font-medium text-[#6B6259]">
-                                    <Globe size={13} /> Personal website
-                                </div>
-                                <TextInput
-                                    placeholder="https://yourportfolio.com"
-                                    value={socialDraft.website}
-                                    onChange={(e) => updateSocialDraft('website', e.target.value)}
-                                    className={urlErrors.website ? 'border-[#B23B3B]' : ''}
                                 />
                             </div>
                         </div>

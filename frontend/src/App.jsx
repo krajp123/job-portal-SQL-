@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Outlet, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { AlertTriangle, LogOut } from 'lucide-react';
 import { AuthProvider } from './context/AuthContext';
@@ -59,7 +59,6 @@ function AppLayout() {
 
 function AppRoutes() {
   const location = useLocation();
-  const navigate = useNavigate();
   const [restrictionModal, setRestrictionModal] = useState({ show: false, message: '', code: '' });
 
   useEffect(() => {
@@ -96,6 +95,11 @@ function AppRoutes() {
     window.location.href = '/';
   };
 
+  const handleRestrictionSupport = () => {
+    setRestrictionModal({ show: false, message: '', code: '' });
+    window.location.href = '/contact';
+  };
+
   return (
     <>
       {/* Account Restriction Modal */}
@@ -117,6 +121,13 @@ function AppRoutes() {
               <p className="text-sm leading-relaxed text-[#3F3438]">
                 {restrictionModal.message}
               </p>
+              <button
+                type="button"
+                onClick={handleRestrictionSupport}
+                className="mt-2 text-sm font-semibold text-[#C75560] underline-offset-2 hover:underline"
+              >
+                Contact Us / Support
+              </button>
             </div>
 
             <div className="flex items-center justify-end gap-3 border-t border-[#F0E1D6] px-6 py-4">

@@ -240,7 +240,7 @@ export default function Recruiters() {
             ) : recruiters.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} className="border border-[#1D181A] px-2 py-6 text-center text-[#80576A]">
-                  No recruiters match your current search.
+                  No Pending Recruiters.
                 </td>
               </tr>
             ) : (

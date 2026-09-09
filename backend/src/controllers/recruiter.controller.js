@@ -695,15 +695,8 @@ exports.updateMyProfile = async (req, res) => {
     }
 
     if (email !== undefined) {
-      if (!isValidEmail(email)) {
-        return res.status(400).json({ error: 'Invalid email address' });
-      }
-      const existingEmail = await Recruiter.findOne({
-        email: email.toLowerCase(),
-        _id: { $ne: req.user.id },
-      });
-      if (existingEmail) {
-        return res.status(409).json({ error: 'Email is already in use' });
+      if (String(email).trim().toLowerCase() !== String(currentRecruiter.email || '').trim().toLowerCase()) {
+        return res.status(400).json({ error: 'Work email cannot be changed.' });
       }
     }
 
@@ -723,7 +716,6 @@ exports.updateMyProfile = async (req, res) => {
     const update = {};
     if (fullName !== undefined) update.fullName = fullName.trim();
     if (designation !== undefined) update.designation = designation.trim();
-    if (email !== undefined) update.email = email.toLowerCase();
     if (phone !== undefined) update.phone = phone;
     if (companyName !== undefined) update.companyName = companyName;
     if (companyWebsite !== undefined) update.companyWebsite = companyWebsite;

@@ -64,9 +64,19 @@ const NAV_LINK_SECTIONS = [
   },
 ];
 
+const SEEN_REPORTS_KEY = 'admin-seen-job-reports';
+
+function getSeenReportIds() {
+  try {
+    return new Set(JSON.parse(window.localStorage.getItem(SEEN_REPORTS_KEY) || '[]'));
+  } catch {
+    return new Set();
+  }
+}
+
 function SidebarLink({ item, collapsed, onNavigate, badgeCount = 0 }) {
   const Icon = item.icon;
-  const showBadge = !collapsed && item.to === '/reopen-requests' && badgeCount > 0;
+  const showBadge = !collapsed && badgeCount > 0;
 
   return (
     <NavLink
@@ -119,6 +129,7 @@ export default function AdminLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [pendingRequests, setPendingRequests] = useState([]);
+  const [pendingReports, setPendingReports] = useState(0);
   const [adminNotifications, setAdminNotifications] = useState([]);
   const [globalSearch, setGlobalSearch] = useState('');
   const [globalSearchResults, setGlobalSearchResults] = useState([]);
@@ -145,14 +156,18 @@ export default function AdminLayout() {
 
   const refreshNotifications = async () => {
     try {
-      const [requestsResponse, notificationsResponse] = await Promise.all([
+      const [requestsResponse, notificationsResponse, reportsResponse] = await Promise.all([
         dedupeRequest('admin-reopen-requests', () => adminAxiosInstance.get('/jobs/reopen-requests')),
         dedupeRequest('admin-notifications', () => adminAxiosInstance.get('/admin/notifications')),
+        dedupeRequest('admin-moderation-reports', () => adminAxiosInstance.get('/moderation/reports')),
       ]);
       const pending = Array.isArray(requestsResponse.data)
         ? requestsResponse.data.filter((req) => req.status === 'pending')
         : [];
       setPendingRequests(pending);
+      const reports = reportsResponse.data?.reports || [];
+      const seenReportIds = getSeenReportIds();
+      setPendingReports(reports.filter((report) => report.status === 'pending' && !seenReportIds.has(report._id)).length);
       setAdminNotifications(notificationsResponse.data?.items || []);
     } catch (err) {
       console.error('Failed to fetch admin notifications:', err);
@@ -161,6 +176,8 @@ export default function AdminLayout() {
 
   useEffect(() => {
     refreshNotifications();
+    const refreshTimer = window.setInterval(refreshNotifications, 30000);
+    return () => window.clearInterval(refreshTimer);
   }, []);
 
   useEffect(() => {
@@ -168,10 +185,16 @@ export default function AdminLayout() {
       refreshNotifications();
     };
 
+    const handleJobReportsViewed = () => {
+      refreshNotifications();
+    };
+
     window.addEventListener('reopenRequestsUpdated', handleReopenRequestsUpdate);
+    window.addEventListener('jobReportsViewed', handleJobReportsViewed);
 
     return () => {
       window.removeEventListener('reopenRequestsUpdated', handleReopenRequestsUpdate);
+      window.removeEventListener('jobReportsViewed', handleJobReportsViewed);
     };
   }, []);
 
@@ -471,7 +494,7 @@ export default function AdminLayout() {
                       key={item.to}
                       item={item}
                       collapsed={sidebarCollapsed}
-                      badgeCount={item.to === '/reopen-requests' ? pendingRequests.length : 0}
+                      badgeCount={item.to === '/reopen-requests' ? pendingRequests.length : item.to === '/job-reports' ? pendingReports : 0}
                     />
                   ))}
                 </div>
@@ -538,7 +561,7 @@ export default function AdminLayout() {
                           item={item}
                           collapsed={false}
                           onNavigate={() => setSidebarOpen(false)}
-                          badgeCount={item.to === '/reopen-requests' ? pendingRequests.length : 0}
+                          badgeCount={item.to === '/reopen-requests' ? pendingRequests.length : item.to === '/job-reports' ? pendingReports : 0}
                         />
                       ))}
                     </div>

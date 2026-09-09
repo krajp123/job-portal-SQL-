@@ -750,18 +750,27 @@ export default function CandidateProfile() {
   const profileCompletion = useMemo(() => {
     if (!candidate) return 0;
     const profile = candidate.profile || {};
-    const fields = [
-      candidate.name,
-      candidate.email,
-      candidate.phone,
-      profile.location,
-      profile.headline,
-      profile.about,
-      (profile.skills || []).length > 0,
-      profile.resumeUrl,
+    const social = candidate.socialLinks || {};
+    const sections = [
+      [6, Boolean(profile.profilePictureUrl)],
+      [5, Boolean(profile.headline)],
+      [6, Boolean(profile.about)],
+      [5, Boolean(profile.location || profile.phone || candidate.phone)],
+      [11, (profile.skills || []).length > 0],
+      [18, (profile.experience || []).length > 0],
+      [11, (profile.education || []).length > 0],
+      [5, (profile.certifications || []).length > 0],
+      [4, (profile.languages || []).length > 0],
+      [2, (profile.projects || []).length > 0],
+      [1, (profile.portfolio || []).length > 0],
+      [14, Boolean(profile.resumeUrl)],
+      [11, Boolean(social.github || social.linkedin)],
+      [1, Boolean(profile.workPreferences)],
     ];
-    const filled = fields.filter(Boolean).length;
-    return Math.round((filled / fields.length) * 100);
+    return Math.min(
+      100,
+      sections.reduce((total, [weight, complete]) => total + (complete ? weight : 0), 0),
+    );
   }, [candidate]);
 
   if (loading) {

@@ -18,7 +18,6 @@ import {
   Ban,
   ShieldCheck,
   ShieldAlert,
-  MessageSquare,
   KeyRound,
   Download,
   Eye,
@@ -925,8 +924,6 @@ export default function RecruiterProfile() {
       },
     });
 
-  const handleSendMessage = () => navigate(`/messages/new?recruiterId=${recruiterId}`);
-
   const handleDocumentAction = async (docId, status) => {
     try {
       await adminAxiosInstance.patch(`/users/recruiters/${recruiterId}/documents/${docId}`, { status });
@@ -1136,13 +1133,10 @@ export default function RecruiterProfile() {
                   </button>
                 )}
                 {recruiter.verificationStatus !== 'rejected' && (
-                  <button onClick={handleRejectVerification} className="flex items-center justify-center gap-1.5 rounded-xl border border-[#F0E1D6] px-3 py-2 text-[11px] font-semibold text-[#5B4A50] hover:bg-[#FFF4EF] transition">
+                  <button onClick={handleRejectVerification} className="col-span-2 flex items-center justify-center gap-1.5 rounded-xl border border-[#F0E1D6] px-3 py-2 text-[11px] font-semibold text-[#5B4A50] hover:bg-[#FFF4EF] transition">
                     <ShieldAlert size={13} /> Reject
                   </button>
                 )}
-                <button onClick={handleSendMessage} className="flex items-center justify-center gap-1.5 rounded-xl border border-[#F0E1D6] px-3 py-2 text-[11px] font-semibold text-[#5B4A50] hover:bg-[#FFF4EF] transition">
-                  <MessageSquare size={13} /> Message
-                </button>
                 <button onClick={handleResetPassword} className="col-span-2 flex items-center justify-center gap-1.5 rounded-xl border border-[#F0E1D6] px-3 py-2 text-[11px] font-semibold text-[#5B4A50] hover:bg-[#FFF4EF] transition">
                   <KeyRound size={13} /> Reset Password
                 </button>
