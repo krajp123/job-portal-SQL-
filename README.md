@@ -2,6 +2,8 @@
 
 Full-stack MERN recruitment platform with separate experiences for candidates, recruiters, and administrators. The repository contains two React/Vite browser applications and one Express/MongoDB server.
 
+![alt text](image-1.png)
+
 ## Contents
 
 - [What this project does](#what-this-project-does)
@@ -120,7 +122,6 @@ npm install
 
 cd ..\admin-panel
 npm install
-```
 
 ### 2. Create environment files
 
