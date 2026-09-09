@@ -423,6 +423,7 @@ exports.getPublicProfile = async (req, res) => {
       departments: recruiter.departments || [],
       departmentOpenings,
       tags: recruiter.tags || [],
+      companyCategories: recruiter.companyCategories || [],
       companyGallery: recruiter.companyGallery || [],
       companyBenefits: recruiter.companyBenefits || [],
       salaryInsights: recruiter.salaryInsights || [],
@@ -541,6 +542,7 @@ exports.updateMyProfile = async (req, res) => {
       departments,
       departmentOpenings,
       tags,
+      companyCategories,
       companyGallery,
       companyBenefits,
       salaryInsights,
@@ -604,6 +606,9 @@ exports.updateMyProfile = async (req, res) => {
     }
     if (tags !== undefined && !Array.isArray(tags)) {
       return res.status(400).json({ error: 'Tags must be an array' });
+    }
+    if (companyCategories !== undefined && !Array.isArray(companyCategories)) {
+      return res.status(400).json({ error: 'Company categories must be an array' });
     }
     if (companyGallery !== undefined && !Array.isArray(companyGallery)) {
       return res.status(400).json({ error: 'Company gallery must be an array' });
@@ -735,6 +740,9 @@ exports.updateMyProfile = async (req, res) => {
         .filter((item) => item.name);
     }
     if (tags !== undefined) update.tags = tags.map((tag) => String(tag).trim()).filter(Boolean);
+    if (companyCategories !== undefined) {
+      update.companyCategories = [...new Set(companyCategories.map((category) => String(category).trim()).filter(Boolean))];
+    }
     if (companyGallery !== undefined) {
       update.companyGallery = companyGallery
         .map((item) => ({ url: String(item?.url || '').trim(), alt: String(item?.alt || '').trim() }))

@@ -11,7 +11,7 @@ import NotificationCenter from './NotificationCenter';
 import Avatar from './Avatar';
 import { connectSocket } from '../socket';
 
-const NAV_FRAME = 'max-w-[960px]';
+const NAV_FRAME = 'w-[calc(100%-2.5rem)] max-w-[960px]';
 const CANDIDATE_PROFILE_CACHE_PREFIX = 'candidate-navbar-profile:';
 
 function getCachedCandidateProfile(user) {
@@ -256,6 +256,9 @@ export default function CandidateNavbar({ profile, onOpenAccountMenu, hideMobile
                             </div>
                         )}
                     </div>
+                    <NavLink to="/candidate/companies" className={({ isActive }) => navigationClass(isActive)}>
+                        Companies
+                    </NavLink>
                     <NavLink to="/candidate/messages" className={({ isActive }) => navigationClass(isActive)}>
                         Messages
                     </NavLink>
@@ -428,6 +431,9 @@ export default function CandidateNavbar({ profile, onOpenAccountMenu, hideMobile
                     </NavLink>
                     <NavLink to="/candidate/jobs" className={({ isActive }) => navigationClass(isActive)}>
                         Jobs
+                    </NavLink>
+                    <NavLink to="/candidate/companies" className={({ isActive }) => navigationClass(isActive)}>
+                        Companies
                     </NavLink>
                     <NavLink to="/candidate/messages" className={({ isActive }) => navigationClass(isActive)}>Messages</NavLink>
                     <NavLink to="/candidate/resume-match" className={({ isActive }) => navigationClass(isActive)}><Bot size={14} /></NavLink>

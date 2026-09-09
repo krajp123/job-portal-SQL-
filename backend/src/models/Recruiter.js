@@ -54,6 +54,7 @@ const recruiterSchema = new mongoose.Schema(
       },
     ],
     tags: [{ type: String, trim: true }],
+    companyCategories: [{ type: String, trim: true }],
     companyGallery: [
       {
         url: { type: String, trim: true },

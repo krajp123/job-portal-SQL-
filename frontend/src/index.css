@@ -202,7 +202,11 @@ body {
 }
 
 .candidate-navbar-shell {
+    width: 100%;
+    padding: 0.7rem 0;
     background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
 }
 
 .candidate-page-nav {
@@ -231,6 +235,10 @@ body {
 .candidate-page-nav .home-showcase-link {
     padding: 0.45rem 0.55rem;
     font-size: 0.7rem;
+}
+
+.candidate-page-nav-link {
+    white-space: nowrap;
 }
 
 .candidate-page-nav-link--active,

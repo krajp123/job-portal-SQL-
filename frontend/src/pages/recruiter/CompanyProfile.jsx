@@ -4,6 +4,7 @@ import RecruiterNavbar from "../../components/RecruiterNavbar";
 import CandidateNavbar from "../../components/CandidateNavbar";
 import axiosInstance from "../../api/axiosInstance";
 import { FONT_DISPLAY } from "../../theme";
+import Cropper from "react-easy-crop";
 import {
   ArrowLeft,
   ArrowRight,
@@ -22,6 +23,7 @@ import {
   MapPin,
   Pencil,
   Plus,
+  RotateCw,
   ShieldCheck,
   Sparkles,
   Star,
@@ -29,6 +31,7 @@ import {
   Trash2,
   Users,
   X,
+  ZoomIn,
 } from "lucide-react";
 
 const fallbackCompanyData = {
@@ -38,6 +41,7 @@ const fallbackCompanyData = {
   rating: 0,
   reviewCount: 0,
   tags: [],
+  categories: [],
   followers: 0,
   about: "",
   gallery: [],
@@ -53,6 +57,54 @@ function getWebsiteHref(value) {
   const website = String(value || "").trim();
   if (!website) return "";
   return /^https?:\/\//i.test(website) ? website : `https://${website}`;
+}
+
+function createCroppedImage(imageSrc, pixelCrop, rotation = 0) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      const radians = (rotation * Math.PI) / 180;
+      const sin = Math.abs(Math.sin(radians));
+      const cos = Math.abs(Math.cos(radians));
+      const rotatedWidth = image.width * cos + image.height * sin;
+      const rotatedHeight = image.width * sin + image.height * cos;
+      const canvas = document.createElement("canvas");
+      canvas.width = pixelCrop.width;
+      canvas.height = pixelCrop.height;
+      const context = canvas.getContext("2d");
+      if (!context) {
+        reject(new Error("Could not prepare image crop."));
+        return;
+      }
+      const rotatedCanvas = document.createElement("canvas");
+      rotatedCanvas.width = rotatedWidth;
+      rotatedCanvas.height = rotatedHeight;
+      const rotatedContext = rotatedCanvas.getContext("2d");
+      rotatedContext.translate(rotatedWidth / 2, rotatedHeight / 2);
+      rotatedContext.rotate(radians);
+      rotatedContext.drawImage(image, -image.width / 2, -image.height / 2);
+      context.drawImage(
+        rotatedCanvas,
+        pixelCrop.x,
+        pixelCrop.y,
+        pixelCrop.width,
+        pixelCrop.height,
+        0,
+        0,
+        pixelCrop.width,
+        pixelCrop.height,
+      );
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          reject(new Error("Could not create cropped image."));
+          return;
+        }
+        resolve(new File([blob], "company-image.jpg", { type: "image/jpeg" }));
+      }, "image/jpeg", 0.92);
+    };
+    image.onerror = () => reject(new Error("Could not read the selected image."));
+    image.src = imageSrc;
+  });
 }
 
 function Stars({ value, small = false }) {
@@ -237,6 +289,78 @@ function ImageActions({ label, value, onFile, onClear, uploading }) {
   );
 }
 
+function ImageCropModal({ image, label, onCancel, onConfirm }) {
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [rotation, setRotation] = useState(0);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const [processing, setProcessing] = useState(false);
+  const cropAspect = image.type === "cover" ? 16 / 5 : 1;
+
+  async function confirmCrop() {
+    if (!croppedAreaPixels) return;
+    setProcessing(true);
+    try {
+      const croppedFile = await createCroppedImage(
+        image.src,
+        croppedAreaPixels,
+        rotation,
+      );
+      await onConfirm(croppedFile);
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  return (
+    <div className="crop-modal-backdrop" role="presentation">
+      <div className="crop-modal" role="dialog" aria-modal="true" aria-labelledby="crop-modal-title">
+        <div className="crop-modal-head">
+          <div>
+            <h2 id="crop-modal-title">Adjust {label}</h2>
+            <p>Drag to move, use the slider to zoom, and rotate if needed.</p>
+          </div>
+          <button type="button" className="crop-close" onClick={onCancel} aria-label="Close crop editor">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="cropper-stage">
+          <Cropper
+            image={image.src}
+            crop={crop}
+            zoom={zoom}
+            rotation={rotation}
+            aspect={cropAspect}
+            cropShape="rect"
+            showGrid
+            restrictPosition={false}
+            onCropChange={setCrop}
+            onZoomChange={setZoom}
+            onRotationChange={setRotation}
+            onCropComplete={(_, pixels) => setCroppedAreaPixels(pixels)}
+          />
+        </div>
+        <div className="crop-controls">
+          <label className="crop-zoom-control">
+            <ZoomIn size={15} />
+            <span>Zoom</span>
+            <input type="range" min="1" max="3" step="0.05" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} />
+          </label>
+          <button type="button" className="crop-rotate" onClick={() => setRotation((value) => (value + 90) % 360)}>
+            <RotateCw size={14} /> Rotate
+          </button>
+        </div>
+        <div className="crop-modal-actions">
+          <button type="button" className="image-confirm-cancel" onClick={onCancel} disabled={processing}>Cancel</button>
+          <button type="button" className="image-confirm-remove crop-use-button" onClick={confirmCrop} disabled={processing || !croppedAreaPixels}>
+            {processing ? "Preparing..." : "Use cropped image"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const BENEFIT_ICONS = [
   {
     key: "ShieldCheck",
@@ -312,6 +436,66 @@ function JobRow({ job, readOnly }) {
   );
 }
 
+function formatJobSalary(value) {
+  if (!value) return "";
+  if (typeof value === "object") {
+    const min = Number(value.min);
+    const max = Number(value.max);
+    const currency = value.currency === "INR" ? "₹" : value.currency || "";
+    if (Number.isFinite(min) && Number.isFinite(max)) {
+      return `${currency}${min.toLocaleString()} - ${currency}${max.toLocaleString()}`;
+    }
+    if (Number.isFinite(min)) return `${currency}${min.toLocaleString()}`;
+  }
+  return String(value);
+}
+
+function CompanyJobCard({ job, readOnly, companyName, companyLogoUrl }) {
+  const href = job.id
+    ? readOnly
+      ? `/candidate/jobs/${job.id}`
+      : `/recruiter/jobs?jobId=${job.id}`
+    : "#";
+  return (
+    <article className="company-job-card">
+      <div className="flex gap-3">
+        {companyLogoUrl ? (
+          <img
+            src={companyLogoUrl}
+            alt=""
+            className="h-11 w-11 shrink-0 rounded-lg border border-[#F0DCD4] object-cover"
+          />
+        ) : (
+          <span className="company-job-logo-fallback">
+            <BriefcaseBusiness size={18} />
+          </span>
+        )}
+        <div className="min-w-0 flex-1">
+          <Link to={href} className="company-job-title">
+            {job.title}
+          </Link>
+          <p className="mt-1 text-xs font-medium text-[#8D6072]">{companyName}</p>
+        </div>
+        <ArrowUpRight size={16} className="shrink-0 text-[#C75560]" />
+      </div>
+      <div className="company-job-meta">
+        <span><MapPin size={14} />{job.location}</span>
+        <span><BriefcaseBusiness size={14} />{job.exp}</span>
+        {job.salary && <span>{formatJobSalary(job.salary)}</span>}
+      </div>
+      {job.skills?.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {job.skills.slice(0, 4).map((skill) => (
+            <span key={skill} className="company-job-skill">{skill}</span>
+          ))}
+        </div>
+      )}
+      {job.description && <p className="company-job-description">{job.description}</p>}
+      <Link to={href} className="company-job-action">View details</Link>
+    </article>
+  );
+}
+
 function normalizeCompanyProfile(data) {
   if (!data) return fallbackCompanyData;
   const iconMap = { ShieldCheck, Clock3, BriefcaseBusiness, Heart };
@@ -347,6 +531,9 @@ function normalizeCompanyProfile(data) {
               job.city ||
               job.workMode ||
               "Location not specified",
+            salary: job.salary || "",
+            skills: Array.isArray(job.skillsRequired) ? job.skillsRequired : [],
+            description: job.description || "",
           }))
       : [];
   const ratings =
@@ -382,6 +569,7 @@ function normalizeCompanyProfile(data) {
       Array.isArray(data.tags) && data.tags.length
         ? data.tags
         : fallbackCompanyData.tags,
+    categories: Array.isArray(data.companyCategories) ? data.companyCategories : [],
     gallery,
     departments:
       Array.isArray(data.departmentOpenings) && data.departmentOpenings.length
@@ -413,6 +601,7 @@ export default function RecruiterCompanyProfile({ readOnly = false }) {
   const [jobsLoading, setJobsLoading] = useState(false);
   const [jobsError, setJobsError] = useState("");
   const [tab, setTab] = useState("Overview");
+  const [jobsPage, setJobsPage] = useState(1);
   const [following, setFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -424,11 +613,22 @@ export default function RecruiterCompanyProfile({ readOnly = false }) {
   const [uploading, setUploading] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [recommendedJobs, setRecommendedJobs] = useState([]);
+  const [cropImage, setCropImage] = useState(null);
   const companyData = normalizeCompanyProfile(profile);
   const openingsCount = companyData.jobs.length;
+  const jobsPerPage = 4;
+  const jobsPageCount = Math.max(1, Math.ceil(companyData.jobs.length / jobsPerPage));
+  const visibleCompanyJobs = companyData.jobs.slice(
+    (jobsPage - 1) * jobsPerPage,
+    jobsPage * jobsPerPage,
+  );
   const [draft, setDraft] = useState({});
   const visibleLogoUrl = editMode ? draft.companyLogoUrl : companyData.logoUrl;
   const visibleCoverUrl = editMode ? draft.coverImageUrl : companyData.coverUrl;
+
+  useEffect(() => {
+    setJobsPage(1);
+  }, [companyData.jobs.length]);
 
   useEffect(() => {
     let cancelled = false;
@@ -545,6 +745,9 @@ export default function RecruiterCompanyProfile({ readOnly = false }) {
       industry: profile?.industry || "",
       location: profile?.location || "",
       tags: Array.isArray(profile?.tags) ? profile.tags.join(", ") : "",
+      categories: Array.isArray(profile?.companyCategories)
+        ? profile.companyCategories.join(", ")
+        : "",
       companyLogoUrl: profile?.companyLogoUrl || "",
       coverImageUrl: profile?.coverImageUrl || "",
       companyBenefits: Array.isArray(profile?.companyBenefits)
@@ -585,6 +788,10 @@ export default function RecruiterCompanyProfile({ readOnly = false }) {
         tags: draft.tags
           .split(",")
           .map((tag) => tag.trim())
+          .filter(Boolean),
+        companyCategories: draft.categories
+          .split(",")
+          .map((category) => category.trim())
           .filter(Boolean),
         companyLogoUrl: draft.companyLogoUrl,
         coverImageUrl: draft.coverImageUrl,
@@ -634,7 +841,7 @@ export default function RecruiterCompanyProfile({ readOnly = false }) {
     }));
   }
 
-  async function uploadCompanyImage(event, type) {
+  function uploadCompanyImage(event, type) {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
@@ -645,6 +852,15 @@ export default function RecruiterCompanyProfile({ readOnly = false }) {
       setSaveError("Use a JPG, PNG, or WEBP image smaller than 5MB.");
       return;
     }
+    if (type === "gallery") {
+      uploadCompanyImageFile(file, type);
+      return;
+    }
+    const src = URL.createObjectURL(file);
+    setCropImage({ src, type, label: type === "logo" ? "logo" : "cover image" });
+  }
+
+  async function uploadCompanyImageFile(file, type) {
     setUploading(true);
     setSaveError("");
     try {
@@ -670,6 +886,8 @@ export default function RecruiterCompanyProfile({ readOnly = false }) {
           url: data.companyGalleryUrl,
           alt: "",
         });
+      if (cropImage?.src) URL.revokeObjectURL(cropImage.src);
+      setCropImage(null);
     } catch (error) {
       setSaveError(error.response?.data?.error || "Could not upload image.");
     } finally {
@@ -719,31 +937,20 @@ export default function RecruiterCompanyProfile({ readOnly = false }) {
       className="min-h-screen bg-[#FFF7F2] text-[#1D181A]"
       style={{ fontFamily: FONT_DISPLAY }}
     >
-      <div className={`sticky top-0 z-40 ${shadow ? "shadow-md" : ""}`}>
+      <div className={`sticky top-0 z-40 ${!readOnly && shadow ? "shadow-md" : ""}`}>
         {readOnly ? <CandidateNavbar /> : <RecruiterNavbar />}
       </div>
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
-        <div className="mb-4 flex justify-end text-xs text-[#80576A]">
-          <Link
-            to={readOnly ? "/recruiters" : "/recruiter/dashboard"}
-            className="inline-flex items-center gap-1"
-          >
-            <ArrowLeft size={13} /> Back to workspace
-          </Link>
-        </div>
-        <section className="overflow-hidden rounded-[26px] border border-[#EBC2AE] bg-white shadow-sm">
-          <div className="relative h-32 overflow-hidden bg-[#38272C] sm:h-44">
+        <section className="relative overflow-visible rounded-[26px] border border-[#EBC2AE] bg-white shadow-sm">
+          <div className="relative aspect-[16/5] w-full overflow-hidden rounded-t-[26px] bg-[#38272C]">
             {visibleCoverUrl && (
               <img
                 src={visibleCoverUrl}
                 alt="Company office"
-                className="h-full w-full object-cover opacity-70"
+                className="h-full w-full object-cover opacity-100"
               />
             )}
-            <div className="absolute inset-0 bg-gradient-to-r from-[#24191C]/90 to-transparent" />
-            <span className="absolute left-5 top-4 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white">
-              Employer profile
-            </span>
+            <div className="absolute inset-0 bg-gradient-to-r from-[#24191C]/65 via-[#24191C]/15 to-transparent" />
             {!readOnly && editMode && (
               <ImageActions
                 label="cover image"
@@ -754,36 +961,37 @@ export default function RecruiterCompanyProfile({ readOnly = false }) {
               />
             )}
           </div>
-          <div className="relative px-5 pb-6 sm:px-8">
-            <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-                <div className="relative -mt-12 flex h-32 w-32 items-center justify-center overflow-hidden rounded-2xl border-[6px] border-white bg-[#FFF0E8] shadow-lg sm:h-36 sm:w-36">
-                  {visibleLogoUrl ? (
-                    <img
-                      src={visibleLogoUrl}
-                      alt={`${companyData.name} logo`}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <ShieldCheck size={30} className="text-[#C75560]" />
-                  )}
-                  {!readOnly && editMode && (
-                    <ImageActions
-                      label="logo"
-                      value={draft.companyLogoUrl}
-                      uploading={uploading}
-                      onFile={(event) => uploadCompanyImage(event, "logo")}
-                      onClear={() => setDraft({ ...draft, companyLogoUrl: "" })}
-                    />
-                  )}
-                </div>
-                <div className="pb-1">
+          <div className="company-header-body relative px-5 pb-5 pt-0 sm:px-8 sm:pb-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-6">
+              <div className="company-header-logo relative -mt-14 flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-[5px] border-white bg-[#FFF0E8] shadow-lg sm:-mt-[72px] sm:h-36 sm:w-36">
+                {visibleLogoUrl ? (
+                  <img
+                    src={visibleLogoUrl}
+                    alt={`${companyData.name} logo`}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <ShieldCheck size={30} className="text-[#C75560]" />
+                )}
+                {!readOnly && editMode && (
+                  <ImageActions
+                    label="logo"
+                    value={draft.companyLogoUrl}
+                    uploading={uploading}
+                    onFile={(event) => uploadCompanyImage(event, "logo")}
+                    onClear={() => setDraft({ ...draft, companyLogoUrl: "" })}
+                  />
+                )}
+              </div>
+
+              <div className="flex min-w-0 flex-1 flex-col gap-4 pt-1 sm:flex-row sm:items-end sm:justify-between sm:gap-6 sm:pt-0">
+                <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <h1 className="text-2xl font-bold sm:text-3xl">
+                    <h1 className="truncate text-2xl font-bold sm:text-3xl">
                       {companyData.name}
                     </h1>
                     {profile?.verificationStatus === "verified" && (
-                      <ShieldCheck size={18} className="text-emerald-600" />
+                      <ShieldCheck size={18} className="shrink-0 text-emerald-600" />
                     )}
                   </div>
                   <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-[#F0C9BA] bg-[#FFF7F2] px-3 py-1.5 text-xs font-semibold text-[#80576A]">
@@ -793,46 +1001,57 @@ export default function RecruiterCompanyProfile({ readOnly = false }) {
                       ({companyData.reviewCount} reviews)
                     </span>
                   </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {companyData.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="rounded-full bg-[#F8EEE9] px-3 py-1.5 text-[11px] font-semibold text-[#80576A]"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
+                  {(companyData.categories.length > 0 ||
+                    companyData.tags.length > 0) && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      {companyData.categories.map((category, index) => (
+                        <span
+                          key={`${category}-${index}`}
+                          className="company-category-chip"
+                        >
+                          {category}
+                        </span>
+                      ))}
+                      {companyData.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded-full bg-[#F8EEE9] px-3 py-1.5 text-[11px] font-semibold text-[#80576A]"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
-              <div className="flex flex-col items-start gap-2 md:items-end">
-                {!readOnly && (
-                  <span className="text-xs text-[#8F7B80]">
+
+                <div className="flex shrink-0 items-center gap-3">
+                  <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs font-semibold text-[#8F7B80]">
+                    <Users size={14} className="text-[#C75560]" />
                     {companyData.followers.toLocaleString()} followers
                   </span>
-                )}
-                {!readOnly && (
-                  <button
-                    type="button"
-                    onClick={startEditing}
-                    className="flex h-10 w-10 items-center justify-center rounded-full border border-[#C75560] text-[#C75560] hover:bg-[#FFF1EB]"
-                    aria-label="Edit company profile"
-                    title="Edit company profile"
-                  >
-                    <Pencil size={16} />
-                  </button>
-                )}
-                {readOnly && (
-                  <button
-                    type="button"
-                    onClick={toggleFollow}
-                    disabled={followLoading}
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-bold ${following ? "border-[#C75560] bg-[#C75560] text-white" : "border-[#C75560] text-[#C75560] hover:bg-[#FFF1EB]"}`}
-                  >
-                    <Heart size={14} fill={following ? "currentColor" : "none"} />
-                    {followLoading ? "Updating..." : following ? "Following" : "Follow"}
-                  </button>
-                )}
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={startEditing}
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#C75560] text-[#C75560] hover:bg-[#FFF1EB]"
+                      aria-label="Edit company profile"
+                      title="Edit company profile"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                  )}
+                  {readOnly && (
+                    <button
+                      type="button"
+                      onClick={toggleFollow}
+                      disabled={followLoading}
+                      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-bold ${following ? "border-[#C75560] bg-[#C75560] text-white" : "border-[#C75560] text-[#C75560] hover:bg-[#FFF1EB]"}`}
+                    >
+                      <Heart size={14} fill={following ? "currentColor" : "none"} />
+                      {followLoading ? "Updating..." : following ? "Following" : "Follow"}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
             {!readOnly && editMode && (
@@ -861,21 +1080,6 @@ export default function RecruiterCompanyProfile({ readOnly = false }) {
                 </label>
               </div>
             )}
-            <div className="mt-6 flex gap-6 overflow-x-auto border-b border-[#EFE3DE]">
-              {[
-                "Overview",
-                ...(!readOnly || companyData.jobs.length ? ["Jobs"] : []),
-              ].map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => setTab(item)}
-                  className={`relative shrink-0 pb-3 text-sm font-bold ${tab === item ? "text-[#C75560] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-[#C75560]" : "text-[#907D82]"}`}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
           </div>
         </section>
         {editMode && (
@@ -1011,6 +1215,29 @@ export default function RecruiterCompanyProfile({ readOnly = false }) {
                       .map((tag, index) => (
                         <span key={`${tag}-${index}`} className="chip">
                           <Tags size={10} /> {tag}
+                        </span>
+                      ))}
+                  </div>
+                )}
+              </label>
+              <label className="field sm:col-span-2">
+                Company categories <span className="font-normal text-[#8D6072]">comma separated — shown below the company rating</span>
+                <input
+                  placeholder="e.g. Auto Components, Automobile, Foreign MNC, B2B"
+                  value={draft.categories || ""}
+                  onChange={(event) =>
+                    setDraft({ ...draft, categories: event.target.value })
+                  }
+                />
+                {draft.categories?.trim() && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {draft.categories
+                      .split(",")
+                      .map((category) => category.trim())
+                      .filter(Boolean)
+                      .map((category, index) => (
+                        <span key={`${category}-${index}`} className="chip">
+                          <Tags size={10} /> {category}
                         </span>
                       ))}
                   </div>
@@ -1468,7 +1695,24 @@ export default function RecruiterCompanyProfile({ readOnly = false }) {
             </div>
           </section>
         )}
-        <div className="mt-7 grid items-start gap-7 lg:grid-cols-[minmax(0,7fr)_minmax(280px,3fr)]">
+        <div className="profile-tabs mt-4">
+          <div className="flex gap-7 overflow-x-auto px-1">
+            {[
+              "Overview",
+              ...(!readOnly || companyData.jobs.length ? ["Jobs"] : []),
+            ].map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => setTab(item)}
+                className={`relative shrink-0 pb-3 text-sm font-bold ${tab === item ? "text-[#C75560] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-[#C75560]" : "text-[#907D82]"}`}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="mt-5 grid items-start gap-7 lg:grid-cols-[minmax(0,7fr)_minmax(280px,3fr)]">
           <div className="min-w-0 space-y-7">
             {tab === "Overview" ? (
               <>
@@ -1698,17 +1942,40 @@ export default function RecruiterCompanyProfile({ readOnly = false }) {
                     {jobsError}
                   </p>
                 ) : companyData.jobs.length ? (
-                  <div className="space-y-3">
-                    {companyData.jobs.map((job) => (
-                      <JobRow
+                  <div className="company-job-grid">
+                    {visibleCompanyJobs.map((job) => (
+                      <CompanyJobCard
                         key={job.id || job.title}
                         job={job}
                         readOnly={readOnly}
+                        companyName={companyData.name}
+                        companyLogoUrl={companyData.logoUrl}
                       />
                     ))}
                   </div>
                 ) : (
                   <EmptyState text="No active jobs have been posted yet." />
+                )}
+                {jobsPageCount > 1 && (
+                  <div className="company-job-pagination">
+                    <button
+                      type="button"
+                      onClick={() => setJobsPage((page) => Math.max(1, page - 1))}
+                      disabled={jobsPage === 1}
+                      aria-label="Previous jobs page"
+                    >
+                      <ArrowLeft size={14} /> Previous
+                    </button>
+                    <span>Page {jobsPage} of {jobsPageCount}</span>
+                    <button
+                      type="button"
+                      onClick={() => setJobsPage((page) => Math.min(jobsPageCount, page + 1))}
+                      disabled={jobsPage === jobsPageCount}
+                      aria-label="Next jobs page"
+                    >
+                      Next <ArrowRight size={14} />
+                    </button>
+                  </div>
                 )}
               </section>
             )}
@@ -1842,6 +2109,17 @@ export default function RecruiterCompanyProfile({ readOnly = false }) {
           </aside>
         </div>
       </main>
+      {cropImage && (
+        <ImageCropModal
+          image={cropImage}
+          label={cropImage.label}
+          onCancel={() => {
+            URL.revokeObjectURL(cropImage.src);
+            setCropImage(null);
+          }}
+          onConfirm={(file) => uploadCompanyImageFile(file, cropImage.type)}
+        />
+      )}
       <style>{`.panel{border:1px solid #EBC2AE;border-radius:16px;background:#fff;padding:20px}.panel h2{color:#1D181A}.panel p{color:#8D6072}.panel [class*="border-"]{border-color:#EBC2AE}.action-link,.link{font-size:12px;font-weight:700;color:#C75560}.link:hover,.action-link:hover{text-decoration:underline}.panel small{font-size:11px;color:#8D6072;text-transform:uppercase;letter-spacing:.12em}.field{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:#80576A}.field input,.field textarea,.text-input,.number-input{width:100%;border:1px solid #EBC2AE;border-radius:10px;background:#FFFDFB;padding:10px 12px;font-size:13px;font-weight:500;color:#1D181A;outline:none}.field input:focus,.field textarea:focus,.text-input:focus,.number-input:focus{border-color:#C75560;box-shadow:0 0 0 3px #FFF0E8}.edit-group{border:1px solid #F0DCD4;border-radius:12px;background:#FFFDFB;padding:14px}.edit-group-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;font-size:13px;color:#1D181A}.edit-group-head span{font-size:10px;font-weight:500;color:#8D6072}.array-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;margin-top:8px}.array-row-wide{grid-template-columns:repeat(3,minmax(0,1fr)) auto}.number-input{max-width:110px}.remove-button{white-space:nowrap;border:1px solid #F2C5BA;border-radius:999px;padding:8px 10px;font-size:11px;font-weight:700;color:#B42318;background:#FFF8F6}.remove-button:hover{background:#FDECEC}.add-button,.upload-link{border:0;background:transparent;padding:0;font-size:11px;font-weight:700;color:#C75560;cursor:pointer}.upload-box{position:relative;display:flex;align-items:center;justify-content:center;min-height:56px;border:1px dashed #EBC2AE;border-radius:10px;color:#80576A;font-size:12px;font-weight:700;cursor:pointer}.upload-box input,.upload-link input{position:absolute;width:1px;height:1px;overflow:hidden;opacity:0}.field-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px;font-size:12px;color:#80576A}.field-row .number-input{max-width:90px}@media (max-width:640px){.array-row,.array-row-wide{grid-template-columns:1fr}.number-input{max-width:none}.remove-button{justify-self:start}}
 .edit-topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:1px solid #F0DCD4;background:rgba(255,255,255,.92);backdrop-filter:blur(6px);padding:16px 20px}
 @media (min-width:640px){.edit-topbar{padding:18px 28px}}
@@ -1855,6 +2133,8 @@ export default function RecruiterCompanyProfile({ readOnly = false }) {
 .add-button-solid input{position:absolute;width:1px;height:1px;overflow:hidden;opacity:0}
 .remove-button{display:inline-flex;align-items:center;justify-content:center}
 .chip{display:inline-flex;align-items:center;gap:4px;border-radius:999px;background:#F8EEE9;padding:4px 10px;font-size:11px;font-weight:600;color:#80576A}
+.company-category-chip{display:inline-flex;align-items:center;border:1px solid #F0C9BA;border-radius:999px;background:#FFF0E8;padding:5px 10px;font-size:11px;font-weight:600;color:#80576A;white-space:nowrap}
+.company-header-logo{transition:transform .18s ease}
 .image-drop{display:flex;flex-direction:column}
 .image-drop-label{margin-bottom:6px;font-size:12px;font-weight:700;color:#80576A}
 .image-drop-zone{position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1.5px dashed #EBC2AE;border-radius:14px;background:#FFF8F2;cursor:pointer}
@@ -1881,6 +2161,21 @@ export default function RecruiterCompanyProfile({ readOnly = false }) {
 .image-confirm-cancel{border:1px solid #EBC2AE;background:#fff;color:#8D6072}
 .image-confirm-remove{border:1px solid #B42318;background:#B42318;color:#fff}
 .image-confirm-remove:hover{background:#941F16}
+.crop-modal-backdrop{position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(29,24,26,.72)}
+.crop-modal{width:min(100%,760px);border:1px solid #EBC2AE;border-radius:18px;background:#fff;overflow:hidden;box-shadow:0 24px 80px rgba(29,24,26,.28)}
+.crop-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:18px 20px;border-bottom:1px solid #F0DCD4;background:#FFF8F2}
+.crop-modal-head h2{font-size:17px;font-weight:800;color:#1D181A}
+.crop-modal-head p{margin-top:4px;font-size:12px;color:#8D6072}
+.crop-close{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid #EBC2AE;border-radius:8px;background:#fff;color:#8D6072;cursor:pointer}
+.cropper-stage{position:relative;height:min(58vh,480px);min-height:300px;background:#24191C}
+.crop-controls{display:flex;align-items:center;gap:18px;padding:14px 20px;border-top:1px solid #F0DCD4;background:#FFFDFB}
+.crop-zoom-control{display:flex;align-items:center;gap:8px;flex:1;font-size:11px;font-weight:700;color:#80576A}
+.crop-zoom-control input{width:min(100%,300px);accent-color:#C75560}
+.crop-rotate{display:inline-flex;align-items:center;gap:5px;border:1px solid #EBC2AE;border-radius:999px;background:#fff;padding:8px 12px;font-size:11px;font-weight:700;color:#80576A;cursor:pointer}
+.crop-modal-actions{display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;background:#FFFDFB}
+.crop-use-button{border-color:#C75560;background:#C75560}
+.crop-use-button:disabled{cursor:not-allowed;opacity:.55}
+@media (max-width:640px){.crop-modal-backdrop{padding:0}.crop-modal{width:100%;height:100%;border:0;border-radius:0}.cropper-stage{height:calc(100vh - 210px);min-height:260px}.crop-controls{flex-wrap:wrap}.crop-zoom-control{min-width:100%}.crop-modal-actions{padding-bottom:calc(14px + env(safe-area-inset-bottom))}}
 .image-drop-action{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid rgba(255,255,255,.7);border-radius:8px;background:rgba(29,24,26,.72);color:#fff;cursor:pointer}
 .image-drop-action:hover{background:#C75560}
 .image-drop-delete:hover{background:#B42318}
@@ -1912,6 +2207,24 @@ export default function RecruiterCompanyProfile({ readOnly = false }) {
 .employee-rating-score{display:flex;align-items:center;justify-content:space-between;gap:6px}
 .employee-rating-score strong{font-size:14px;line-height:1;color:#A24F63}
 .employee-rating-card small{display:block;margin-top:6px;font-size:9px;line-height:1.35;letter-spacing:.1em;white-space:normal}
+.company-job-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.company-job-card{border:1px solid #F0DCD4;border-radius:14px;background:#FFFDFB;padding:14px;box-shadow:0 4px 14px rgba(110,67,67,.04);transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+.company-job-card:hover{transform:translateY(-2px);border-color:#D9A3A0;box-shadow:0 10px 24px rgba(110,67,67,.1)}
+.company-job-logo-fallback{display:flex;height:44px;width:44px;flex:none;align-items:center;justify-content:center;border:1px solid #F0DCD4;border-radius:10px;background:#FFF0E8;color:#C75560}
+.company-job-title{display:block;overflow:hidden;font-size:15px;font-weight:800;line-height:1.3;color:#1D181A;text-overflow:ellipsis;white-space:nowrap}
+.company-job-title:hover{color:#C75560;text-decoration:underline}
+.company-job-meta{display:flex;flex-wrap:wrap;gap:8px 12px;margin-top:14px;font-size:11px;color:#8D6072}
+.company-job-meta span{display:inline-flex;align-items:center;gap:4px}
+.company-job-meta svg{color:#C75560}
+.company-job-skill{border-radius:6px;background:#F8EEE9;padding:4px 7px;font-size:10px;font-weight:700;color:#80576A}
+.company-job-description{display:-webkit-box;overflow:hidden;margin-top:11px;font-size:11px;line-height:1.55;color:#8D6072;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+.company-job-action{display:inline-flex;margin-top:14px;border-radius:8px;background:#C75560;padding:8px 12px;font-size:11px;font-weight:800;color:#fff}
+.company-job-action:hover{background:#A94658}
+.company-job-pagination{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:18px;font-size:11px;font-weight:700;color:#8D6072}
+.company-job-pagination button{display:inline-flex;align-items:center;gap:5px;border:1px solid #EBC2AE;border-radius:999px;background:#fff;padding:7px 11px;color:#C75560;cursor:pointer}
+.company-job-pagination button:hover:not(:disabled){background:#FFF0E8}
+.company-job-pagination button:disabled{cursor:not-allowed;opacity:.45}
+@media (max-width:768px){.company-job-grid{grid-template-columns:1fr}}
 @media (max-width:768px){.salary-card-top{grid-template-columns:1fr}.salary-card-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 `}</style>
     </div>
