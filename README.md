@@ -2,7 +2,7 @@
 
 Full-stack MERN recruitment platform with separate experiences for candidates, recruiters, and administrators. The repository contains two React/Vite browser applications and one Express/MongoDB server.
 
-![alt text](image-1.png)
+
 
 ## Contents
 
@@ -974,3 +974,10 @@ The repository contains focused operational and implementation notes. Read the r
 - `QUICK_REFERENCE.md`
 
 The source code is the implementation authority. Project notes describe decisions and verification history, but route/controller/model behavior should always be checked before making a change.
+
+
+### Photos
+
+
+## Candidate (Dashboard,Jobs Page, Companies Page, Company Profile Page, Candidate Profile page )
+![alt text](image-2.png), ![alt text](image-3.png), ![alt text](image-4.png), ![alt text](image-5.png),![alt text](image-6.png)
