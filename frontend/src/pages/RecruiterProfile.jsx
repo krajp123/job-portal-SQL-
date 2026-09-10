@@ -274,10 +274,25 @@ function getInitials(name) {
   return parts.length === 1 ? parts[0][0].toUpperCase() : (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+function getLoggedInRecruiterId(user) {
+  if (user?._id || user?.id) return user._id || user.id;
+
+  try {
+    const payload = localStorage.getItem('token')?.split('.')[1];
+    if (!payload) return null;
+    const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const paddedPayload = normalizedPayload.padEnd(Math.ceil(normalizedPayload.length / 4) * 4, '=');
+    return JSON.parse(atob(paddedPayload)).id || null;
+  } catch {
+    return null;
+  }
+}
+
 export default function RecruiterProfile() {
   const { recruiterId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const loggedInRecruiterId = getLoggedInRecruiterId(user);
   const [recruiter, setRecruiter] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [activity, setActivity] = useState([]);
@@ -314,7 +329,10 @@ export default function RecruiterProfile() {
             });
             setCompanyMembers(
               (Array.isArray(membersResponse.data) ? membersResponse.data : []).filter(
-                (member) => String(member._id) !== String(data._id)
+                (member) => (
+                  String(member._id) !== String(data._id)
+                  && String(member._id) !== String(loggedInRecruiterId)
+                )
               )
             );
           } catch (membersError) {
@@ -342,7 +360,7 @@ export default function RecruiterProfile() {
     }
 
     loadRecruiterProfile();
-  }, [recruiterId]);
+  }, [loggedInRecruiterId, recruiterId]);
 
   if (loading) {
     return (

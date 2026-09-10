@@ -42,7 +42,9 @@ export default function Recruiters() {
                 if (mounted) {
                     setCompany(companyName);
                     const loadedMembers = Array.isArray(membersResponse.data) ? membersResponse.data : [];
-                    setMembers(loadedMembers);
+                    setMembers(loadedMembers.filter(
+                        (member) => String(member._id) !== String(profileResponse.data?._id)
+                    ));
                     setError('');
                 }
             } catch (requestError) {
