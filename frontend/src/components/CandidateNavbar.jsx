@@ -286,7 +286,9 @@ export default function CandidateNavbar({ profile, onOpenAccountMenu, hideMobile
                                         <Avatar src={profilePictureUrl} name={candidateName} size={52} />
                                         <div>
                                             <p className="text-[15px] font-bold text-stone-900">{profile?.name || user?.name}</p>
-                                            <p className="text-[12px] capitalize text-[#6B6259]">{profile?.workStatus || 'Status not mentioned'}</p>
+                                            {profile?.candidateCategory === 'student' && (
+                                                <p className="text-[12px] capitalize text-[#6B6259]">{profile.workStatus}</p>
+                                            )}
                                             <Link
                                                 to="/candidate/profile"
                                                 onClick={() => setMenuOpenSlide(false)}

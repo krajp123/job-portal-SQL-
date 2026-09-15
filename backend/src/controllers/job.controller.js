@@ -8,6 +8,121 @@ const sanitizeHtml = require('sanitize-html');
 const { sendEmail } = require('../services/email.service');
 const { getPlatformSettings } = require('../services/platformSettings.service');
 const { createNotification } = require('../services/notification.service');
+const { getCategoryDefinition, getCategoryFields } = require('../config/jobCategories');
+
+const EMPLOYMENT_TYPES = new Set(['Full-time', 'Part-time', 'Internship', 'Contract']);
+const WORK_MODES = new Set(['On-site', 'Hybrid', 'Remote']);
+const SALARY_TYPES = new Set(['Range', 'Fixed', 'Not disclosed']);
+
+function stringValue(value, maxLength = 2000) {
+  return String(value ?? '').trim().slice(0, maxLength);
+}
+
+function optionalNumber(value, label, minimum = 0) {
+  if (value === undefined || value === null || value === '') return undefined;
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < minimum) {
+    throw new Error(`${label} must be a number greater than or equal to ${minimum}.`);
+  }
+  return number;
+}
+
+function normalizeCategoryData(category, subCategory, categoryDetails, required = true) {
+  if (!category && !subCategory && categoryDetails === undefined && !required) return {};
+  const normalizedCategory = stringValue(category, 60);
+  const definition = getCategoryDefinition(normalizedCategory);
+  if (!definition) throw new Error('Choose a valid job category.');
+
+  const normalizedSubCategory = stringValue(subCategory, 80);
+  if (!definition.subCategories[normalizedSubCategory]) {
+    throw new Error('Choose a valid sub-category for the selected category.');
+  }
+
+  const sourceDetails = categoryDetails === undefined ? {} : categoryDetails;
+  if (!sourceDetails || typeof sourceDetails !== 'object' || Array.isArray(sourceDetails)) {
+    throw new Error('Category details must be an object.');
+  }
+
+  const fields = getCategoryFields(normalizedCategory, normalizedSubCategory);
+  const fieldMap = new Map(fields.map((field) => [field.key, field]));
+  const unknownField = Object.keys(sourceDetails).find((key) => !fieldMap.has(key));
+  if (unknownField) throw new Error(`Unknown field "${unknownField}" for this sub-category.`);
+
+  const normalizedDetails = {};
+  for (const field of fields) {
+    const rawValue = sourceDetails[field.key];
+    if (rawValue === undefined || rawValue === null || rawValue === '') {
+      if (required && field.required) throw new Error(`${field.label} is required.`);
+      continue;
+    }
+
+    if (field.type === 'number') {
+      normalizedDetails[field.key] = optionalNumber(rawValue, field.label, field.min || 0);
+    } else {
+      const value = stringValue(rawValue, 1000);
+      if (!value && required && field.required) throw new Error(`${field.label} is required.`);
+      if (field.options && !field.options.includes(value)) {
+        throw new Error(`${field.label} has an invalid value.`);
+      }
+      if (value) normalizedDetails[field.key] = value;
+    }
+  }
+
+  return {
+    category: normalizedCategory,
+    subCategory: normalizedSubCategory,
+    categoryDetails: normalizedDetails,
+  };
+}
+
+function normalizeJobMetadata(body, categoryDetails, required = true) {
+  const companyName = stringValue(body.companyName, 200);
+  const description = stringValue(body.description, 10000);
+  if (required && !companyName) throw new Error('Company name is required.');
+  if (required && !description) throw new Error('Job description is required.');
+
+  const employmentType = stringValue(body.employmentType, 40);
+  if (employmentType && !EMPLOYMENT_TYPES.has(employmentType)) throw new Error('Employment type is invalid.');
+  const workMode = stringValue(body.workMode, 40);
+  if (workMode && !WORK_MODES.has(workMode)) throw new Error('Work mode is invalid.');
+  const salaryType = stringValue(body.salaryType, 40);
+  if (salaryType && !SALARY_TYPES.has(salaryType)) throw new Error('Salary type is invalid.');
+
+  const minExperience = optionalNumber(body.minExperience, 'Minimum experience', 0);
+  const maxExperience = optionalNumber(body.maxExperience, 'Maximum experience', 0);
+  if (minExperience !== undefined && maxExperience !== undefined && maxExperience < minExperience) {
+    throw new Error('Maximum experience cannot be lower than minimum experience.');
+  }
+  const minSalary = optionalNumber(body.minSalary, 'Minimum salary', 0);
+  const maxSalary = optionalNumber(body.maxSalary, 'Maximum salary', 0);
+  if (salaryType === 'Range' && minSalary !== undefined && maxSalary !== undefined && maxSalary < minSalary) {
+    throw new Error('Maximum salary cannot be lower than minimum salary.');
+  }
+
+  const workLocation = categoryDetails?.workLocation;
+  const location = stringValue(workLocation || body.location || workMode, 300);
+  const extraLocations = Array.isArray(body.extraLocations)
+    ? body.extraLocations.map((value) => stringValue(value, 150)).filter(Boolean).slice(0, 20)
+    : [];
+
+  return {
+    companyName,
+    description,
+    department: stringValue(body.department, 120),
+    employmentType: employmentType || undefined,
+    workMode: workMode || undefined,
+    openings: optionalNumber(body.openings, 'Openings', 1),
+    minExperience,
+    maxExperience,
+    salaryType: salaryType || undefined,
+    minSalary,
+    maxSalary,
+    location,
+    extraLocations,
+    remoteOption: Boolean(body.remoteOption),
+    panIndia: Boolean(body.panIndia),
+  };
+}
 
 function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -168,28 +283,51 @@ function findModerationMatches(job, flaggedKeywords = []) {
 // POST /api/jobs (recruiter only)
 exports.create = async (req, res) => {
   try {
-    const { title, role, category, department, description, location, salary, skillsRequired, experienceLevel, descriptionSections } = req.body;
+    const body = req.body || {};
+    const categoryData = normalizeCategoryData(body.category, body.subCategory, body.categoryDetails, true);
+    const metadata = normalizeJobMetadata(body, categoryData.categoryDetails, true);
+    const title = stringValue(body.title, 200) || getCategoryDefinition(categoryData.category).subCategories[categoryData.subCategory];
+    const role = stringValue(body.role, 120);
+    const skillsRequired = Array.isArray(body.skillsRequired)
+      ? body.skillsRequired.map((value) => stringValue(value, 100)).filter(Boolean).slice(0, 50)
+      : [];
+    const experienceLevel = stringValue(body.experienceLevel, 80);
+    const descriptionSections = body.descriptionSections;
     const recruiter = await Recruiter.findById(workspaceRecruiterId(req)).select('industry');
     const settings = await getPlatformSettings();
     const moderationMatches = findModerationMatches(
-      { title, description, location, salary, experienceLevel, skillsRequired },
+      { title, description: metadata.description, location: metadata.location, salary: body.salary, experienceLevel, skillsRequired },
       settings.moderation?.flaggedKeywords || []
     );
-    const requestedStatus = req.body.status === 'active' ? 'open' : 'draft';
+    const requestedStatus = body.status === 'active' ? 'open' : 'draft';
 
     const job = await Job.create({
       title,
       role,
-      category,
-      department: String(department || '').trim(),
-      industry: recruiter?.industry || req.body.industry,
-      description,
+      category: categoryData.category,
+      subCategory: categoryData.subCategory,
+      categoryDetails: categoryData.categoryDetails,
+      companyName: metadata.companyName,
+      department: metadata.department,
+      industry: recruiter?.industry || stringValue(body.industry, 120),
+      employmentType: metadata.employmentType,
+      workMode: metadata.workMode,
+      openings: metadata.openings,
+      minExperience: metadata.minExperience,
+      maxExperience: metadata.maxExperience,
+      salaryType: metadata.salaryType,
+      minSalary: metadata.minSalary,
+      maxSalary: metadata.maxSalary,
+      description: metadata.description,
       descriptionSections: sanitizeDescriptionSections(descriptionSections),
-      location,
-      salary,
+      location: metadata.location,
+      extraLocations: metadata.extraLocations,
+      remoteOption: metadata.remoteOption,
+      panIndia: metadata.panIndia,
+      salary: stringValue(body.salary, 120),
       skillsRequired,
       experienceLevel,
-      applicationForm: normalizeApplicationForm(req.body.applicationForm),
+      applicationForm: normalizeApplicationForm(body.applicationForm),
       postedBy: workspaceRecruiterId(req),
       status: moderationMatches.length ? 'draft' : requestedStatus === 'open' ? 'open' : 'draft',
       moderationStatus: moderationMatches.length ? 'flagged' : 'clear',
@@ -203,7 +341,7 @@ exports.create = async (req, res) => {
         'profile.alertFrequency': 'instant',
         $or: [
           { 'profile.preferredRoles': { $regex: escapeRegex(String(title || '')), $options: 'i' } },
-          { 'profile.preferredLocations': { $regex: escapeRegex(String(location || '')), $options: 'i' } },
+          { 'profile.preferredLocations': { $regex: escapeRegex(String(metadata.location || '')), $options: 'i' } },
           { 'profile.preferredSkills': { $in: (skillsRequired || []).map((skill) => new RegExp(escapeRegex(skill), 'i')) } },
         ],
       }).select('_id');
@@ -211,7 +349,7 @@ exports.create = async (req, res) => {
         candidate: candidate._id,
         type: 'job_alert',
         title: 'New job matching your preferences',
-        message: `${title} is now open${location ? ` in ${location}` : ''}.`,
+        message: `${title} is now open${metadata.location ? ` in ${metadata.location}` : ''}.`,
         relatedId: job._id,
       })));
     } catch (alertError) {
@@ -220,14 +358,15 @@ exports.create = async (req, res) => {
 
     res.status(201).json(job);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    const status = err.name === 'ValidationError' || err.message?.includes(' is required') || err.message?.includes(' is invalid') || err.message?.includes(' must be') || err.message?.includes(' cannot be') || err.message?.startsWith('Choose ') || err.message?.startsWith('Unknown field') ? 400 : 500;
+    res.status(status).json({ error: err.message });
   }
 };
 
 // GET /api/jobs (public listing with search/filter)
 exports.list = async (req, res) => {
   try {
-    const { skill, title, role, category, industry, location, experienceLevel, salary, salaryRange, datePosted } = req.query;
+    const { skill, title, role, category, subCategory, industry, location, experienceLevel, salary, salaryRange, datePosted } = req.query;
     const query = { status: 'open' };
 
     if (skill) query.skillsRequired = { $regex: skill, $options: 'i' };
@@ -239,6 +378,10 @@ exports.list = async (req, res) => {
     if (category) {
       const categories = String(category).split(',').map((value) => value.trim()).filter(Boolean);
       query.category = { $regex: categories.map(escapeRegex).join('|'), $options: 'i' };
+    }
+    if (subCategory) {
+      const subCategories = String(subCategory).split(',').map((value) => value.trim()).filter(Boolean);
+      query.subCategory = { $regex: subCategories.map(escapeRegex).join('|'), $options: 'i' };
     }
     if (industry) {
       const industryRegex = { $regex: escapeRegex(industry), $options: 'i' };
@@ -442,7 +585,10 @@ exports.topCompanies = async (req, res) => {
 // GET /api/jobs/mine (recruiter only)
 exports.myJobs = async (req, res) => {
   try {
-    const jobs = await Job.find({ postedBy: workspaceRecruiterId(req), status: { $in: ['open', 'active'] } }).sort({ createdAt: -1 }).lean();
+    const jobs = await Job.find({
+      postedBy: workspaceRecruiterId(req),
+      status: { $in: ['open', 'active', 'closed'] },
+    }).sort({ createdAt: -1 }).lean();
 
     const applicantCounts = await Application.aggregate([
       { $match: { job: { $in: jobs.map((job) => job._id) } } },
@@ -463,34 +609,63 @@ exports.myJobs = async (req, res) => {
 // PATCH /api/jobs/:id (recruiter only)
 exports.update = async (req, res) => {
   try {
-    const allowedFields = ['title', 'role', 'category', 'department', 'industry', 'description', 'descriptionSections', 'location', 'salary', 'skillsRequired', 'experienceLevel', 'applicationForm'];
-    const updates = {};
+    const body = req.body || {};
+    const currentJob = await Job.findOne({ _id: req.params.id, postedBy: workspaceRecruiterId(req) }).lean();
+    if (!currentJob) return res.status(404).json({ error: 'Job not found' });
 
-    for (const field of allowedFields) {
-      if (req.body[field] !== undefined) {
-        if (field === 'skillsRequired') {
-          updates[field] = Array.isArray(req.body[field])
-            ? req.body[field].map((value) => String(value).trim()).filter(Boolean)
-            : String(req.body[field])
-                .split(',')
-                .map((value) => value.trim())
-                .filter(Boolean);
-        } else if (field === 'descriptionSections') {
-          updates[field] = sanitizeDescriptionSections(req.body[field]);
-        } else if (field === 'applicationForm') {
-          updates[field] = normalizeApplicationForm(req.body[field]);
-        } else {
-          updates[field] = req.body[field];
-        }
+    const updates = {};
+    const categoryWasProvided = ['category', 'subCategory', 'categoryDetails'].some((field) => body[field] !== undefined);
+    const hasCategoryContract = categoryWasProvided || (currentJob.category && currentJob.subCategory);
+    let categoryData = {};
+
+    if (hasCategoryContract) {
+      categoryData = normalizeCategoryData(
+        body.category ?? currentJob.category,
+        body.subCategory ?? currentJob.subCategory,
+        body.categoryDetails ?? currentJob.categoryDetails,
+        true
+      );
+      if (categoryWasProvided) Object.assign(updates, categoryData);
+    }
+
+    const metadataFields = [
+      'companyName', 'department', 'employmentType', 'workMode', 'openings',
+      'minExperience', 'maxExperience', 'salaryType', 'minSalary', 'maxSalary',
+      'location', 'extraLocations', 'remoteOption', 'panIndia', 'description',
+    ];
+    if ((metadataFields.some((field) => body[field] !== undefined) || categoryWasProvided) && hasCategoryContract) {
+      const metadata = normalizeJobMetadata(
+        { ...currentJob, ...body, categoryDetails: categoryData.categoryDetails },
+        categoryData.categoryDetails,
+        true
+      );
+      Object.assign(updates, metadata);
+    } else {
+      for (const field of metadataFields) {
+        if (body[field] !== undefined) updates[field] = body[field];
       }
     }
+
+    if (body.title !== undefined) {
+      const title = stringValue(body.title, 200);
+      updates.title = title || (categoryData.subCategory || currentJob.subCategory || currentJob.title);
+    }
+    if (body.role !== undefined) updates.role = stringValue(body.role, 120);
+    if (body.industry !== undefined) updates.industry = stringValue(body.industry, 120);
+    if (body.salary !== undefined) updates.salary = stringValue(body.salary, 120);
+    if (body.experienceLevel !== undefined) updates.experienceLevel = stringValue(body.experienceLevel, 80);
+    if (body.skillsRequired !== undefined) {
+      updates.skillsRequired = Array.isArray(body.skillsRequired)
+        ? body.skillsRequired.map((value) => stringValue(value, 100)).filter(Boolean).slice(0, 50)
+        : String(body.skillsRequired).split(',').map((value) => stringValue(value, 100)).filter(Boolean).slice(0, 50);
+    }
+    if (body.descriptionSections !== undefined) updates.descriptionSections = sanitizeDescriptionSections(body.descriptionSections);
+    if (body.applicationForm !== undefined) updates.applicationForm = normalizeApplicationForm(body.applicationForm);
 
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'No valid fields were provided to update.' });
     }
 
-    const currentJob = await Job.findOne({ _id: req.params.id, postedBy: workspaceRecruiterId(req) }).lean();
-    if (!currentJob) return res.status(404).json({ error: 'Job not found' });
     const moderationInput = { ...currentJob, ...updates };
     const settings = await getPlatformSettings();
     const moderationMatches = findModerationMatches(moderationInput, settings.moderation?.flaggedKeywords || []);
@@ -501,13 +676,14 @@ exports.update = async (req, res) => {
     const job = await Job.findOneAndUpdate(
       { _id: req.params.id, postedBy: workspaceRecruiterId(req) },
       updates,
-      { new: true }
+      { new: true, runValidators: true }
     );
 
     if (!job) return res.status(404).json({ error: 'Job not found' });
     res.json(job);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    const status = err.name === 'ValidationError' || err.message?.includes(' is required') || err.message?.includes(' is invalid') || err.message?.includes(' must be') || err.message?.includes(' cannot be') || err.message?.startsWith('Choose ') || err.message?.startsWith('Unknown field') ? 400 : 500;
+    res.status(status).json({ error: err.message });
   }
 };
 

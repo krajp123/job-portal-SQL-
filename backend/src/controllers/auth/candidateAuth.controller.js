@@ -17,11 +17,77 @@ const { calculateCharge } = require('../../services/tax.service');
 const PENDING_REGISTRATION_TTL_MS = 30 * 60 * 1000; // 30 minutes to finish paying
 const isDevPaymentDisabled = !razorpayInstance && process.env.NODE_ENV !== 'production';
 
-async function uploadCertificateToR2(file) {
+const CATEGORY_SUBCATEGORIES = {
+  student: ['student'],
+  construction: ['labour', 'mason', 'crane_operator', 'site_supervisor'],
+  security: ['retired_army', 'retired_police', 'ex_navy_air_force'],
+  technical: ['sme'],
+};
+
+const COMMON_PROFILE_FIELDS = [
+  'age',
+  'height',
+  'weight',
+  'medicalCertificate',
+  'willingToRelocate',
+  'currentLocation',
+];
+
+const CATEGORY_PROFILE_FIELDS = {
+  student: ['qualification', 'schoolName', 'course', 'yearOfStudy', 'studentSkills'],
+  labour: ['typeOfWorkDoneBefore'],
+  mason: [],
+  crane_operator: ['machineryTypeKnown', 'operatingLicenseNumber', 'experiencePerMachine'],
+  site_supervisor: ['qualification', 'supervisoryExperience', 'workersManaged'],
+  retired_army: ['serviceIdDischargeCertificate', 'rankHeld', 'yearsOfService', 'areaOfExpertise', 'retirementYear'],
+  retired_police: ['serviceIdRetirementCertificate', 'rankHeld', 'yearsOfService', 'departmentStateCadre'],
+  ex_navy_air_force: ['serviceIdDischargeCertificate', 'branchAndRank', 'yearsOfService'],
+  sme: ['fieldOfExpertise', 'qualification', 'portfolioResume'],
+};
+
+function pickFields(source, fields) {
+  return fields.reduce((result, field) => {
+    const value = source?.[field];
+    if (value !== undefined && value !== null && value !== '') result[field] = value;
+    return result;
+  }, {});
+}
+
+function parseCandidateProfile(rawProfile) {
+  if (!rawProfile) return {};
+  if (typeof rawProfile === 'object') return rawProfile;
+  try {
+    const parsed = JSON.parse(rawProfile);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    throw new Error('Invalid candidate profile data');
+  }
+}
+
+function buildCategoryData(category, subCategory, rawProfile, medicalCertificateUrl) {
+  const profile = parseCandidateProfile(rawProfile);
+  const categoryData = {};
+
+  if (category !== 'student') {
+    categoryData.common = pickFields(profile, COMMON_PROFILE_FIELDS);
+    if (medicalCertificateUrl) categoryData.common.medicalCertificateUrl = medicalCertificateUrl;
+  }
+
+  const categoryFields = CATEGORY_PROFILE_FIELDS[subCategory] || [];
+  const selectedFields = pickFields(profile, categoryFields);
+  if (Object.keys(selectedFields).length) {
+    if (category === 'student') categoryData.student = selectedFields;
+    else categoryData[category] = { [subCategory]: selectedFields };
+  }
+
+  return categoryData;
+}
+
+async function uploadCertificateToR2(file, folder) {
   if (!r2Client || !BUCKET_NAME || !PUBLIC_URL) {
     throw new Error('Cloudflare R2 is not configured for local development.');
   }
-  const key = `experience-certificates/${Date.now()}-${file.originalname}`;
+  const key = `${folder}/${Date.now()}-${file.originalname}`;
   await r2Client.send(
     new PutObjectCommand({ Bucket: BUCKET_NAME, Key: key, Body: file.buffer, ContentType: file.mimetype })
   );
@@ -45,7 +111,21 @@ exports.createRegistrationOrder = async (req, res) => {
       return res.status(403).json({ error: 'Candidate registration is currently disabled. Please contact support.' });
     }
 
-    const { name, phone, password, email, workStatus } = req.body;
+    const {
+      name,
+      phone,
+      password,
+      email,
+      workStatus,
+      candidateCategory,
+      candidateSubCategory: submittedSubCategory,
+      candidateProfile,
+    } = req.body;
+    const candidateSubCategory = candidateCategory === 'student'
+      ? 'student'
+      : submittedSubCategory;
+    const experienceCertificate = req.files?.experienceCertificate?.[0];
+    const medicalCertificate = req.files?.medicalCertificate?.[0];
 
     if (!isValidPhone(phone)) {
       return res.status(400).json({ error: 'Invalid phone number' });
@@ -59,8 +139,18 @@ exports.createRegistrationOrder = async (req, res) => {
     if (workStatus && !['fresher', 'experienced'].includes(workStatus)) {
       return res.status(400).json({ error: 'Invalid work status' });
     }
-    if (workStatus === 'experienced' && !req.file) {
+    if (workStatus === 'experienced' && !experienceCertificate) {
       return res.status(400).json({ error: 'Please upload your experience certificate' });
+    }
+    if (!candidateCategory || !CATEGORY_SUBCATEGORIES[candidateCategory]) {
+      return res.status(400).json({ error: 'Please select a valid candidate category' });
+    }
+    if (!CATEGORY_SUBCATEGORIES[candidateCategory].includes(candidateSubCategory)) {
+      return res.status(400).json({ error: 'Please select a valid candidate sub-category' });
+    }
+    const profile = parseCandidateProfile(candidateProfile);
+    if (candidateCategory !== 'student' && profile.medicalCertificate === 'Yes' && !medicalCertificate) {
+      return res.status(400).json({ error: 'Please upload your medical certificate' });
     }
 
     // Email must have been OTP-verified in this same registration attempt
@@ -87,9 +177,19 @@ exports.createRegistrationOrder = async (req, res) => {
     const passwordHash = await hashPassword(password);
 
     let experienceCertificateUrl;
-    if (workStatus === 'experienced' && req.file) {
-      experienceCertificateUrl = await uploadCertificateToR2(req.file);
+    if (workStatus === 'experienced' && experienceCertificate) {
+      experienceCertificateUrl = await uploadCertificateToR2(experienceCertificate, 'experience-certificates');
     }
+    let medicalCertificateUrl;
+    if (medicalCertificate) {
+      medicalCertificateUrl = await uploadCertificateToR2(medicalCertificate, 'medical-certificates');
+    }
+    const categoryData = buildCategoryData(
+      candidateCategory,
+      candidateSubCategory,
+      profile,
+      medicalCertificateUrl,
+    );
 
     const pricing = await getPaymentPricing();
     const charge = calculateCharge(pricing.CANDIDATE_REGISTRATION, {
@@ -120,8 +220,12 @@ exports.createRegistrationOrder = async (req, res) => {
       email,
       phone,
       passwordHash,
-      workStatus: workStatus || 'fresher',
+      workStatus: candidateCategory === 'student' ? (workStatus || 'fresher') : undefined,
       experienceCertificateUrl,
+      medicalCertificateUrl,
+      candidateCategory,
+      candidateSubCategory,
+      categoryData,
       amount,
       baseAmount: charge.baseAmount,
       gstAmount: charge.gstAmount,
@@ -198,6 +302,9 @@ exports.verifyRegistrationPayment = async (req, res) => {
       passwordHash: pending.passwordHash,
       workStatus: pending.workStatus,
       experienceCertificateUrl: pending.experienceCertificateUrl,
+      candidateCategory: pending.candidateCategory,
+      candidateSubCategory: pending.candidateSubCategory,
+      categoryData: pending.categoryData,
       renewalDueDate,
       accountStatus: 'active',
     });
@@ -278,6 +385,9 @@ exports.verifyRegistrationPayment = async (req, res) => {
       candidateId: candidate._id,
     });
   } catch (err) {
+    if (err?.code === 11000 && err?.keyPattern?.email) {
+      return res.status(409).json({ error: 'An account with this email address already exists' });
+    }
     res.status(500).json({ error: err.message });
   }
 };

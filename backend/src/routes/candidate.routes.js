@@ -22,7 +22,14 @@ router.post('/password/reset', candidatePasswordReset.resetPasswordByToken);
 
 // Public — registration is payment-first: create-order (Rs. 9) THEN verify-payment
 // actually creates the account. No account exists until payment is verified.
-router.post('/register/create-order', upload.single('experienceCertificate'), candidateAuth.createRegistrationOrder);
+router.post(
+  '/register/create-order',
+  upload.fields([
+    { name: 'experienceCertificate', maxCount: 1 },
+    { name: 'medicalCertificate', maxCount: 1 },
+  ]),
+  candidateAuth.createRegistrationOrder,
+);
 router.post('/register/verify-payment', candidateAuth.verifyRegistrationPayment);
 router.post('/login', candidateAuth.login);
 router.get('/search', optionalVerifyToken, candidateController.search);

@@ -57,6 +57,7 @@ const errorInputClass = 'border-[#B3261E] focus:border-[#B3261E] focus:shadow-[0
 /* Static option data                                                  */
 /* ------------------------------------------------------------------ */
 const STEPS = [
+    { key: 'category', label: 'Category', hint: 'Choose the hiring group', icon: Tag },
     { key: 'details', label: 'Job Details', hint: 'Title, company & role type', icon: BriefcaseBusiness },
     { key: 'location', label: 'Location', hint: 'Where the role is based', icon: MapPin },
     { key: 'experience', label: 'Experience & Salary', hint: 'Seniority & compensation', icon: IndianRupee },
@@ -66,18 +67,102 @@ const STEPS = [
 
 const EMPLOYMENT_TYPES = ['Full-time', 'Part-time', 'Internship', 'Contract'];
 const WORK_MODES = ['On-site', 'Hybrid', 'Remote'];
-const CATEGORIES = [
-    'IT / Software Development', 'Web Development', 'Mobile App Development',
-    'Data Science & Analytics', 'AI / Machine Learning', 'DevOps & Cloud',
-    'Cybersecurity', 'UI/UX Design', 'Graphic Design', 'Product Management',
-    'Sales', 'Business Development', 'Digital Marketing', 'Content Writing',
-    'Customer Support / BPO', 'Human Resources', 'Finance & Accounting',
-    'Banking & Insurance', 'Operations & Administration', 'Project Management',
-    'Supply Chain & Logistics', 'Mechanical Engineering', 'Civil Engineering',
-    'Electrical Engineering', 'Healthcare & Nursing', 'Pharmacy',
-    'Education & Teaching', 'Legal', 'Retail & E-commerce', 'Hospitality & Travel',
-    'Manufacturing & Production', 'Media & Entertainment',
+const JOB_CATEGORIES = [
+    { value: 'student', label: 'Student' },
+    { value: 'construction', label: 'Construction' },
+    { value: 'security', label: 'Security' },
+    { value: 'technical', label: 'Professional / Technical' },
 ];
+const JOB_SUBCATEGORIES = {
+    construction: [
+        { value: 'labour', label: 'Labour (Unskilled/Helper)' },
+        { value: 'mason', label: 'Mason (Rajmistri)' },
+        { value: 'crane_operator', label: 'Crane / JCB / Heavy Machinery Operator' },
+        { value: 'site_supervisor', label: 'Site Supervisor' },
+    ],
+    security: [
+        { value: 'retired_army', label: 'Retired Army' },
+        { value: 'retired_police', label: 'Retired Police' },
+        { value: 'ex_navy_air_force', label: 'Ex-Navy / Air Force' },
+    ],
+    technical: [{ value: 'sme', label: 'Subject Matter Expert' }],
+    student: [{ value: 'student', label: 'Student / Intern' }],
+};
+const JOB_CATEGORY_FIELDS = {
+    labour: [
+        { key: 'workType', label: 'Type of work', required: true, placeholder: 'Loading, digging, site helper work' },
+        { key: 'workersRequired', label: 'Number of workers required', type: 'number', required: true, placeholder: '20' },
+        { key: 'workLocation', label: 'Work location', required: true, placeholder: 'Site location / area' },
+        { key: 'accommodationAvailable', label: 'Accommodation available?', type: 'select', required: true, options: ['Yes', 'No'], placeholder: 'Select' },
+        { key: 'foodAvailable', label: 'Food available?', type: 'select', required: true, options: ['Yes', 'No'], placeholder: 'Select' },
+        { key: 'transportAvailable', label: 'Transport available?', type: 'select', required: true, options: ['Yes', 'No'], placeholder: 'Select' },
+    ],
+    mason: [
+        { key: 'workType', label: 'Type of work', required: true, placeholder: 'Brickwork, plastering, flooring' },
+        { key: 'workersRequired', label: 'Number of workers required', type: 'number', required: true, placeholder: '12' },
+        { key: 'toolsProvided', label: 'Tools provided or not', type: 'select', required: true, options: ['Yes', 'No'], placeholder: 'Select' },
+        { key: 'workLocation', label: 'Work location', required: true, placeholder: 'Site location / area' },
+        { key: 'accommodationAvailable', label: 'Accommodation available?', type: 'select', required: true, options: ['Yes', 'No'], placeholder: 'Select' },
+        { key: 'foodAvailable', label: 'Food available?', type: 'select', required: true, options: ['Yes', 'No'], placeholder: 'Select' },
+        { key: 'transportAvailable', label: 'Transport available?', type: 'select', required: true, options: ['Yes', 'No'], placeholder: 'Select' },
+    ],
+    crane_operator: [
+        { key: 'machineryType', label: 'Machinery type', required: true, placeholder: 'Crane, JCB, excavator' },
+        { key: 'licenseCategory', label: 'License category', required: true, placeholder: 'Heavy vehicle / excavator / crane' },
+        { key: 'requiredExperience', label: 'Required experience', required: true, placeholder: '3 years' },
+        { key: 'operatorsRequired', label: 'Number of operators', type: 'number', required: true, placeholder: '3' },
+        { key: 'projectType', label: 'Project type', required: true, placeholder: 'Residential, commercial, industrial' },
+        { key: 'shiftTiming', label: 'Shift timing', required: true, placeholder: 'Morning / night shift' },
+        { key: 'accommodationAvailable', label: 'Accommodation available?', type: 'select', required: true, options: ['Yes', 'No'], placeholder: 'Select' },
+        { key: 'foodAvailable', label: 'Food available?', type: 'select', required: true, options: ['Yes', 'No'], placeholder: 'Select' },
+        { key: 'transportAvailable', label: 'Transport available?', type: 'select', required: true, options: ['Yes', 'No'], placeholder: 'Select' },
+    ],
+    site_supervisor: [
+        { key: 'projectType', label: 'Project type', required: true, placeholder: 'Residential, commercial, industrial' },
+        { key: 'qualification', label: 'Qualification', required: true, placeholder: 'Diploma / B.Tech / civil engineering' },
+        { key: 'supervisoryExperience', label: 'Supervisory experience', required: true, placeholder: '5 years' },
+        { key: 'workersToManage', label: 'Number of workers to manage', type: 'number', required: true, placeholder: '30' },
+        { key: 'projectDuration', label: 'Project duration', required: true, placeholder: '6 months / 1 year' },
+        { key: 'accommodationAvailable', label: 'Accommodation available?', type: 'select', required: true, options: ['Yes', 'No'], placeholder: 'Select' },
+        { key: 'foodAvailable', label: 'Food available?', type: 'select', required: true, options: ['Yes', 'No'], placeholder: 'Select' },
+        { key: 'transportAvailable', label: 'Transport available?', type: 'select', required: true, options: ['Yes', 'No'], placeholder: 'Select' },
+    ],
+    retired_army: [
+        { key: 'securityAssignment', label: 'Security assignment', required: true, placeholder: 'Site security, access control, patrolling' },
+        { key: 'workersRequired', label: 'Number of workers required', type: 'number', required: true, placeholder: '5' },
+        { key: 'shiftTiming', label: 'Shift timing', required: true, placeholder: 'Day / night / rotating' },
+        { key: 'weaponRequirement', label: 'Weapon requirement, if applicable', placeholder: 'Armed / unarmed / as per policy' },
+        { key: 'accommodationAvailable', label: 'Accommodation', type: 'select', required: true, options: ['Yes', 'No'], placeholder: 'Select' },
+        { key: 'foodAvailable', label: 'Food', type: 'select', required: true, options: ['Yes', 'No'], placeholder: 'Select' },
+        { key: 'transportAvailable', label: 'Transport', type: 'select', required: true, options: ['Yes', 'No'], placeholder: 'Select' },
+    ],
+    retired_police: [
+        { key: 'assignmentType', label: 'Assignment type', required: true, placeholder: 'Site security, investigation, patrolling' },
+        { key: 'workersRequired', label: 'Number of workers required', type: 'number', required: true, placeholder: '4' },
+        { key: 'shiftTiming', label: 'Shift timing', required: true, placeholder: 'Day / night / rotating' },
+        { key: 'accommodationAvailable', label: 'Accommodation', type: 'select', required: true, options: ['Yes', 'No'], placeholder: 'Select' },
+        { key: 'foodAvailable', label: 'Food', type: 'select', required: true, options: ['Yes', 'No'], placeholder: 'Select' },
+        { key: 'transportAvailable', label: 'Transport', type: 'select', required: true, options: ['Yes', 'No'], placeholder: 'Select' },
+    ],
+    ex_navy_air_force: [
+        { key: 'serviceExpertise', label: 'Required service expertise', required: true, placeholder: 'Security, logistics, admin, operations' },
+        { key: 'assignmentType', label: 'Assignment type', required: true, placeholder: 'Site security, escort, logistics' },
+        { key: 'shiftTiming', label: 'Shift timing', required: true, placeholder: 'Morning / evening / night' },
+        { key: 'accommodationAvailable', label: 'Accommodation', type: 'select', required: true, options: ['Yes', 'No'], placeholder: 'Select' },
+        { key: 'foodAvailable', label: 'Food', type: 'select', required: true, options: ['Yes', 'No'], placeholder: 'Select' },
+        { key: 'transportAvailable', label: 'Transport', type: 'select', required: true, options: ['Yes', 'No'], placeholder: 'Select' },
+    ],
+    sme: [
+        { key: 'expertiseArea', label: 'Expertise area', required: true, placeholder: 'Construction, QA, safety, project management' },
+        { key: 'projectType', label: 'Project type', required: true, placeholder: 'Advisory, consultancy, audit, design' },
+        { key: 'requiredQualification', label: 'Required qualification', required: true, placeholder: 'B.Tech / MBA / PhD' },
+        { key: 'requiredExperience', label: 'Required experience', required: true, placeholder: '8 years' },
+        { key: 'engagementType', label: 'Engagement type', required: true, placeholder: 'Consulting / advisory / contract' },
+        { key: 'projectDuration', label: 'Project duration', required: true, placeholder: '3 months / 6 months' },
+        { key: 'expertsRequired', label: 'Number of experts', type: 'number', required: true, placeholder: '2' },
+        { key: 'workModePreference', label: 'Remote or on-site', required: true, placeholder: 'Remote / on-site / hybrid' },
+    ],
+};
 const SALARY_TYPES = ['Range', 'Fixed', 'Not disclosed'];
 
 const SUGGESTED_SKILLS = {
@@ -99,6 +184,8 @@ const INITIAL_FORM = {
     companyName: '',
     companyLogo: null,
     category: '',
+    subCategory: '',
+    categoryDetails: {},
     department: '',
     employmentType: 'Full-time',
     workMode: 'On-site',
@@ -284,76 +371,37 @@ function ChipInput({ values, onChange, placeholder, suggestions = [] }) {
     );
 }
 
-function CategoryAutocomplete({ value, onChange }) {
+function JobSelect({ value, onChange, options, placeholder, error }) {
     const [open, setOpen] = useState(false);
-    const [activeIndex, setActiveIndex] = useState(-1);
-    const wrapperRef = useRef(null);
-    const matches = CATEGORIES.filter((category) =>
-        category.toLowerCase().includes(value.trim().toLowerCase())
-    );
-
-    useEffect(() => {
-        function handleClickOutside(event) {
-            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) setOpen(false);
-        }
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    function handleKeyDown(event) {
-        if (!value.trim() || matches.length === 0) return;
-        if (event.key === 'ArrowDown') {
-            event.preventDefault();
-            setOpen(true);
-            setActiveIndex((index) => (index + 1) % matches.length);
-        } else if (event.key === 'ArrowUp') {
-            event.preventDefault();
-            setOpen(true);
-            setActiveIndex((index) => (index <= 0 ? matches.length - 1 : index - 1));
-        } else if (event.key === 'Enter' && open && activeIndex >= 0) {
-            event.preventDefault();
-            onChange(matches[activeIndex]);
-            setOpen(false);
-            setActiveIndex(-1);
-        } else if (event.key === 'Escape') {
-            event.preventDefault();
-            setOpen(false);
-            setActiveIndex(-1);
-        }
-    }
+    const selected = options.find((option) => option.value === value);
 
     return (
-        <div ref={wrapperRef} className="relative">
-            <input
-                value={value}
-                onChange={(event) => {
-                    onChange(event.target.value);
-                    setOpen(true);
-                    setActiveIndex(-1);
-                }}
-                onFocus={() => value.trim() && setOpen(true)}
-                onKeyDown={handleKeyDown}
-                placeholder="Type to search categories"
-                className={inputClass}
-                role="combobox"
-                aria-autocomplete="list"
-                aria-expanded={open && Boolean(value.trim())}
-                aria-activedescendant={activeIndex >= 0 ? `category-option-${activeIndex}` : undefined}
-            />
-            {open && value.trim() && matches.length > 0 && (
-                <div className="absolute left-0 right-0 top-full z-30 mt-1.5 max-h-52 overflow-y-auto rounded-[10px] border border-[#EBC2AE] bg-white p-1.5 shadow-lg">
-                    {matches.map((category, index) => (
+        <div className="relative">
+            <button
+                type="button"
+                onClick={() => setOpen((current) => !current)}
+                className={`${inputClass} flex items-center justify-between text-left ${
+                    error ? errorInputClass : ''
+                } ${selected ? 'text-[#1D181A]' : 'text-[#A77D8D]'}`}
+            >
+                <span>{selected?.label || placeholder}</span>
+                <span className="ml-2 text-[11px] text-[#80576A]">▾</span>
+            </button>
+            {open && (
+                <div className="absolute left-0 right-0 top-full z-30 mt-1.5 overflow-hidden rounded-[10px] border border-[#EBC2AE] bg-white p-1.5 shadow-lg">
+                    {options.map((option) => (
                         <button
-                            key={category}
-                            id={`category-option-${index}`}
+                            key={option.value}
                             type="button"
                             onClick={() => {
-                                onChange(category);
+                                onChange(option.value);
                                 setOpen(false);
                             }}
-                            className={`block w-full rounded-[8px] px-3 py-2 text-left text-[12.5px] text-[#54263F] transition-colors hover:bg-[#FFF0E8] hover:text-[#C75560] ${activeIndex === index ? 'bg-[#FFF0E8] text-[#C75560]' : ''}`}
+                            className={`block w-full rounded-[8px] px-3 py-2 text-left text-[12.5px] text-[#54263F] transition-colors hover:bg-[#FFF0E8] hover:text-[#C75560] ${
+                                value === option.value ? 'bg-[#FFF0E8] text-[#C75560]' : ''
+                            }`}
                         >
-                            {category}
+                            {option.label}
                         </button>
                     ))}
                 </div>
@@ -371,7 +419,7 @@ function formatLocationResult(result) {
     return names.length > 0 ? names.join(', ') : result.name || result.display_name?.split(',').slice(-1)[0]?.trim() || '';
 }
 
-function LocationAutocomplete({ value, onChange, error }) {
+function LocationAutocomplete({ value, onChange, error, label, required }) {
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState(value || '');
     const [suggestions, setSuggestions] = useState([]);
@@ -428,7 +476,7 @@ function LocationAutocomplete({ value, onChange, error }) {
         };
     }, [query, value]);
 
-    return (
+    const input = (
         <div ref={wrapperRef} className="relative">
             <MapPin size={15} className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-[#A77D8D]" />
             <input
@@ -467,6 +515,16 @@ function LocationAutocomplete({ value, onChange, error }) {
             )}
         </div>
     );
+
+    if (label !== undefined || required !== undefined) {
+        return (
+            <Field label={label} required={required} error={error}>
+                {input}
+            </Field>
+        );
+    }
+
+    return input;
 }
 
 function LogoUpload({ value, onChange }) {
@@ -645,49 +703,106 @@ export default function PostJob() {
     const [message, setMessage] = useState('');
     const [apiError, setApiError] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [categoryResetToken, setCategoryResetToken] = useState(0);
+    const isStudentFlow = form.category === 'student';
+    const visibleSteps = isStudentFlow
+        ? STEPS
+        : [
+            { key: 'category', label: 'Category', hint: 'Choose the hiring group', icon: Tag },
+            { key: 'details', label: 'Job Details', hint: 'Company & role details', icon: BriefcaseBusiness },
+        ];
 
     function update(patch) {
         setForm((current) => ({ ...current, ...patch }));
     }
 
+    function resetCategoryDetails(nextCategory, nextSubCategory) {
+        setForm((current) => ({
+            ...current,
+            category: nextCategory ?? current.category,
+            subCategory: nextSubCategory ?? current.subCategory,
+            categoryDetails: {},
+            companyName: '',
+            jobSummary: '',
+            rolesResponsibilities: '',
+            aboutCompany: '',
+            requiredQualifications: '',
+            preferredQualifications: '',
+            title: '',
+            role: '',
+            department: '',
+            minExperience: '',
+            maxExperience: '',
+            minSalary: '',
+            maxSalary: '',
+            skills: [],
+        }));
+        setCategoryResetToken((token) => token + 1);
+    }
+
     function validateStep(index) {
         const e = {};
         if (index === 0) {
-            if (!form.title.trim()) e.title = 'Job title is required.';
-            if (!form.role.trim()) e.role = 'Job role is required.';
-            if (!form.companyName.trim()) e.companyName = 'Company name is required.';
-            if (!form.employmentType) e.employmentType = 'Choose an employment type.';
-            if (!form.workMode) e.workMode = 'Choose a work mode.';
+            if (!form.category) e.category = 'Choose a job category.';
+            if (form.category !== 'student' && !form.subCategory) e.subCategory = 'Choose a sub-category.';
         }
         if (index === 1) {
+            if (isStudentFlow) {
+                if (!form.title.trim()) e.title = 'Job title is required.';
+                if (!form.role.trim()) e.role = 'Job role is required.';
+                if (!form.companyName.trim()) e.companyName = 'Company name is required.';
+                if (!form.department.trim()) e.department = 'Department is required.';
+                if (!form.employmentType) e.employmentType = 'Choose an employment type.';
+                if (!form.workMode) e.workMode = 'Choose a work mode.';
+            } else {
+                if (!form.companyName.trim()) e.companyName = 'Company name is required.';
+                if (stripHtml(form.jobSummary) === '') e.jobSummary = 'Job description is required.';
+                if (stripHtml(form.rolesResponsibilities) === '') e.rolesResponsibilities = 'Responsibility is required.';
+            }
+
+            if (form.category !== 'student' && form.subCategory) {
+                const requiredCategoryFields = JOB_CATEGORY_FIELDS[form.subCategory] || [];
+                requiredCategoryFields.forEach((field) => {
+                    if (field.required && !String(form.categoryDetails?.[field.key] ?? '').trim()) {
+                        e[field.key] = `${field.label} is required.`;
+                    }
+                });
+            }
+        }
+        if (!isStudentFlow && index === 2) {
+            return e;
+        }
+        if (index === 2) {
             if (!form.panIndia && !form.remoteOption && !form.location.trim()) {
                 e.location = 'Add a location, or mark this role as Pan India / remote.';
             }
         }
-        if (index === 2) {
-            if (form.minExperience === '' || Number(form.minExperience) < 0) {
-                e.minExperience = 'Minimum experience is required.';
-            }
-            if (form.maxExperience !== '' && Number(form.maxExperience) < Number(form.minExperience || 0)) {
-                e.maxExperience = 'Maximum experience should be higher than minimum.';
-            }
-            if (form.salaryType !== 'Not disclosed') {
-                if (form.minSalary === '') e.minSalary = 'Enter a salary amount.';
-                if (form.salaryType === 'Range') {
-                    if (form.maxSalary === '') e.maxSalary = 'Enter the upper end of the range.';
-                    else if (Number(form.maxSalary) < Number(form.minSalary || 0)) {
-                        e.maxSalary = 'Maximum salary should be higher than minimum.';
+        if (isStudentFlow) {
+            if (index === 3) {
+                if (form.minExperience === '' || Number(form.minExperience) < 0) {
+                    e.minExperience = 'Minimum experience is required.';
+                }
+                if (form.maxExperience !== '' && Number(form.maxExperience) < Number(form.minExperience || 0)) {
+                    e.maxExperience = 'Maximum experience should be higher than minimum.';
+                }
+                if (form.salaryType !== 'Not disclosed') {
+                    if (form.minSalary === '') e.minSalary = 'Enter a salary amount.';
+                    if (form.salaryType === 'Range') {
+                        if (form.maxSalary === '') e.maxSalary = 'Enter the upper end of the range.';
+                        else if (Number(form.maxSalary) < Number(form.minSalary || 0)) {
+                            e.maxSalary = 'Maximum salary should be higher than minimum.';
+                        }
                     }
                 }
             }
-        }
-        if (index === 3) {
-            if (form.skills.length === 0) e.skills = 'Add at least one skill.';
-        }
-        if (index === 4) {
-            if (stripHtml(form.jobSummary) === '') e.jobSummary = 'Give candidates a short summary of the role.';
-            if (stripHtml(form.rolesResponsibilities) === '') e.rolesResponsibilities = 'List the key responsibilities.';
-            if (stripHtml(form.requiredQualifications) === '') e.requiredQualifications = 'List the must-have qualifications.';
+            if (index === 4) {
+                if (form.skills.length === 0) e.skills = 'Add at least one skill.';
+            }
+            if (index === 5) {
+                if (stripHtml(form.jobSummary) === '') e.jobSummary = 'Give candidates a short summary of the role.';
+                if (stripHtml(form.rolesResponsibilities) === '') e.rolesResponsibilities = 'List the key responsibilities.';
+                if (stripHtml(form.requiredQualifications) === '') e.requiredQualifications = 'List the must-have qualifications.';
+            }
         }
         return e;
     }
@@ -704,7 +819,7 @@ export default function PostJob() {
             return;
         }
         setErrors({});
-        const next = Math.min(stepIndex + 1, STEPS.length - 1);
+        const next = Math.min(stepIndex + 1, visibleSteps.length - 1);
         setStepIndex(next);
         setMaxReached((m) => Math.max(m, next));
     }
@@ -758,6 +873,8 @@ export default function PostJob() {
             // wire these into the Job schema whenever it's ready to store them natively.
             companyName: form.companyName.trim(),
             category: form.category,
+            subCategory: form.subCategory,
+            categoryDetails: form.categoryDetails,
             department: form.department.trim(),
             employmentType: form.employmentType,
             workMode: form.workMode,
@@ -817,17 +934,19 @@ export default function PostJob() {
     }
 
     function handleSaveDraft() {
-        if (!form.title.trim()) {
+        if (isStudentFlow && !form.title.trim()) {
             setErrors({ title: 'Give this draft a job title before saving.' });
-            setStepIndex(0);
+            setStepIndex(1);
             return;
         }
         submitJob('draft');
     }
 
     const suggestions = SUGGESTED_SKILLS[form.category] || SUGGESTED_SKILLS.default;
-    const isLastStep = stepIndex === STEPS.length - 1;
-    const filledSteps = STEPS.filter((_, i) => Object.keys(validateStep(i)).length === 0).length;
+    const selectedSubCategoryLabel = (JOB_SUBCATEGORIES[form.category] || []).find((subCategory) => subCategory.value === form.subCategory)?.label || '';
+    const categoryFields = JOB_CATEGORY_FIELDS[form.subCategory] || [];
+    const isLastStep = stepIndex === visibleSteps.length - 1;
+    const filledSteps = visibleSteps.filter((_, i) => Object.keys(validateStep(i)).length === 0).length;
 
     return (
         <div className="portal-theme min-h-screen" style={{ background: '#FFF7F2' }}>
@@ -841,7 +960,7 @@ export default function PostJob() {
                             Post a new opportunity
                         </h1>
                         <p className="mt-2 max-w-xl text-[13.5px] leading-6 text-[#80576A]">
-                            Walk through five short steps to publish a listing that gives candidates everything they
+                            Walk through six short steps to publish a listing that gives candidates everything they
                             need to apply with confidence.
                         </p>
                     </div>
@@ -850,142 +969,274 @@ export default function PostJob() {
                     </span>
                 </div>
 
-                <Stepper currentIndex={stepIndex} maxReached={maxReached} onJump={goToStep} />
-
                 <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
                     <div className="portal-card p-5 sm:p-7">
                         {/* -------------------------------------------------- */}
-                        {/* Step 1 — Job details                                */}
+                        {/* Step 1 — Category                                  */}
                         {/* -------------------------------------------------- */}
                         {stepIndex === 0 && (
                             <div className="space-y-5">
-                                <div className="grid gap-4 sm:grid-cols-2">
-                                    <Field label="Job title" required error={errors.title}>
-                                        <input
-                                            name="title"
-                                            placeholder="e.g. Senior Product Designer"
-                                            value={form.title}
-                                            onChange={(e) => update({ title: e.target.value })}
-                                            className={`${inputClass} ${errors.title ? errorInputClass : ''}`}
-                                        />
-                                    </Field>
-
-                                    <Field label="Job role" required error={errors.role}>
-                                        <input
-                                            value={form.role}
-                                            onChange={(e) => update({ role: e.target.value })}
-                                            placeholder="e.g. Frontend Developer"
-                                            className={`${inputClass} ${errors.role ? errorInputClass : ''}`}
-                                        />
-                                    </Field>
+                                <div>
+                                    <h2 className="text-base font-bold text-[#1D181A]">Choose a hiring category</h2>
+                                    <p className="mt-1 text-[12.5px] leading-5 text-[#80576A]">
+                                        Select the category and sub-category before adding the job details.
+                                    </p>
                                 </div>
-
                                 <div className="grid gap-4 sm:grid-cols-2">
-                                    <Field label="Job category">
-                                        <CategoryAutocomplete
+                                    <Field label="Main category" required error={errors.category}>
+                                        <JobSelect
                                             value={form.category}
-                                            onChange={(category) => update({ category })}
+                                            placeholder="Select job category"
+                                            options={JOB_CATEGORIES}
+                                            error={errors.category}
+                                            onChange={(category) => {
+                                                resetCategoryDetails(category, category === 'student' ? 'student' : '');
+                                            }}
                                         />
                                     </Field>
-
-                                    <Field label="Department" hint="Optional">
-                                        <input
-                                            value={form.department}
-                                            onChange={(e) => update({ department: e.target.value })}
-                                            placeholder="Department Name"
-                                            className={inputClass}
-                                        />
-                                    </Field>
+                                    {form.category !== 'student' && (
+                                        <Field label="Sub-category" required error={errors.subCategory}>
+                                            <JobSelect
+                                                value={form.subCategory}
+                                                placeholder="Select sub-category"
+                                                options={JOB_SUBCATEGORIES[form.category] || []}
+                                                error={errors.subCategory}
+                                                onChange={(subCategory) => {
+                                                    resetCategoryDetails(form.category, subCategory);
+                                                }}
+                                            />
+                                        </Field>
+                                    )}
                                 </div>
-
-                                <Field label="Company name" required error={errors.companyName}>
-                                    <span className="relative block">
-                                        <Building2 size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#A77D8D]" />
-                                        <input
-                                            value={form.companyName}
-                                            onChange={(e) => update({ companyName: e.target.value })}
-                                            placeholder="Company Name"
-                                            className={`${inputClass} pl-9 ${errors.companyName ? errorInputClass : ''}`}
-                                        />
-                                    </span>
-                                </Field>
-
-                                <Field label="Employment type" required error={errors.employmentType}>
-                                    <PillGroup
-                                        options={EMPLOYMENT_TYPES}
-                                        value={form.employmentType}
-                                        onChange={(v) => update({ employmentType: v })}
-                                        error={errors.employmentType}
-                                    />
-                                </Field>
-
-                                <Field label="Work mode" required error={errors.workMode}>
-                                    <PillGroup
-                                        options={WORK_MODES}
-                                        value={form.workMode}
-                                        onChange={(v) => update({ workMode: v })}
-                                        error={errors.workMode}
-                                    />
-                                </Field>
                             </div>
                         )}
 
                         {/* -------------------------------------------------- */}
-                        {/* Step 2 — Location                                   */}
+                        {/* Step 2 — Job details                                */}
                         {/* -------------------------------------------------- */}
                         {stepIndex === 1 && (
                             <div className="space-y-5">
-                                <Field label="Location" required error={errors.location}>
-                                    <LocationAutocomplete
-                                        value={form.location}
-                                        onChange={(location) => update({ location })}
-                                        error={errors.location}
-                                    />
-                                </Field>
+                                {form.subCategory && categoryFields.length > 0 && (
+                                    <div key={`${form.category}-${form.subCategory}-${categoryResetToken}`} className="border-b border-[#F0D1BF] pb-5">
+                                        <div className="grid gap-4 sm:grid-cols-2">
+                                            {categoryFields.map((field) => {
+                                                if (field.key === 'workLocation') {
+                                                    return (
+                                                        <div key={`${form.subCategory}-${field.key}`}>
+                                                            <LocationAutocomplete
+                                                                label={field.label}
+                                                                required={field.required}
+                                                                value={form.categoryDetails?.[field.key] || ''}
+                                                                onChange={(value) => update({ categoryDetails: { ...form.categoryDetails, [field.key]: value } })}
+                                                                error={errors[field.key]}
+                                                            />
+                                                        </div>
+                                                    );
+                                                }
 
-                                <Field label="Additional locations" hint="Optional — for multi-city hiring">
-                                    <ChipInput
-                                        values={form.extraLocations}
-                                        onChange={(v) => update({ extraLocations: v })}
-                                        placeholder="Type a city and press Enter"
-                                    />
-                                </Field>
+                                                return (
+                                                    <Field key={`${form.subCategory}-${field.key}`} label={field.label} required={field.required} error={errors[field.key]}>
+                                                        {field.type === 'select' ? (
+                                                            <JobSelect
+                                                                value={form.categoryDetails?.[field.key] || ''}
+                                                                placeholder={field.placeholder}
+                                                                options={(field.options || []).map((option) => ({ value: option, label: option }))}
+                                                                error={errors[field.key]}
+                                                                onChange={(value) => update({ categoryDetails: { ...form.categoryDetails, [field.key]: value } })}
+                                                            />
+                                                        ) : (
+                                                            <input
+                                                                type={field.type || 'text'}
+                                                                min={field.type === 'number' ? '0' : undefined}
+                                                                value={form.categoryDetails?.[field.key] || ''}
+                                                                onChange={(event) => update({ categoryDetails: { ...form.categoryDetails, [field.key]: event.target.value } })}
+                                                                onWheel={(event) => field.type === 'number' && event.currentTarget.blur()}
+                                                                placeholder={field.placeholder}
+                                                                className={`${inputClass} ${field.type === 'number' ? '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none' : ''} ${errors[field.key] ? errorInputClass : ''}`}
+                                                            />
+                                                        )}
+                                                    </Field>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
 
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                    <label className="flex cursor-pointer items-start gap-3 rounded-[12px] border border-[#EBC2AE] bg-[#FFF9F5] p-3.5 transition-colors hover:border-[#C75560]">
-                                        <input
-                                            type="checkbox"
-                                            checked={form.remoteOption}
-                                            onChange={(e) => update({ remoteOption: e.target.checked })}
-                                            className="mt-0.5 h-4 w-4 accent-[#C75560]"
-                                        />
-                                        <span>
-                                            <span className="block text-[12.5px] font-semibold text-[#1D181A]">Remote option</span>
-                                            <span className="block text-[11.5px] text-[#80576A]">Candidates can work from anywhere for this role.</span>
-                                        </span>
-                                    </label>
-                                    <label className="flex cursor-pointer items-start gap-3 rounded-[12px] border border-[#EBC2AE] bg-[#FFF9F5] p-3.5 transition-colors hover:border-[#C75560]">
-                                        <input
-                                            type="checkbox"
-                                            checked={form.panIndia}
-                                            onChange={(e) => update({ panIndia: e.target.checked })}
-                                            className="mt-0.5 h-4 w-4 accent-[#C75560]"
-                                        />
-                                        <span>
-                                            <span className="flex items-center gap-1.5 text-[12.5px] font-semibold text-[#1D181A]">
-                                                <Globe2 size={13} className="text-[#C75560]" /> Pan India
+                                {!isStudentFlow && (
+                                    <>
+                                        <Field label="Company name" required error={errors.companyName}>
+                                            <span className="relative block">
+                                                <Building2 size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#A77D8D]" />
+                                                <input
+                                                    value={form.companyName}
+                                                    onChange={(e) => update({ companyName: e.target.value })}
+                                                    placeholder="Company Name"
+                                                    className={`${inputClass} pl-9 ${errors.companyName ? errorInputClass : ''}`}
+                                                />
                                             </span>
-                                            <span className="block text-[11.5px] text-[#80576A]">Hiring across multiple Indian cities.</span>
-                                        </span>
-                                    </label>
-                                </div>
+                                        </Field>
+
+                                        <div>
+                                            <RichTextField
+                                                label="Job description"
+                                                required
+                                                value={form.jobSummary}
+                                                onChange={(v) => update({ jobSummary: v })}
+                                                placeholder="Describe the role and what is expected from the candidate."
+                                                minHeight={90}
+                                            />
+                                            {errors.jobSummary && (
+                                                <p className="mt-1.5 flex items-center gap-1 text-[11.5px] font-medium text-[#B3261E]">
+                                                    <AlertCircle size={12} /> {errors.jobSummary}
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        <div>
+                                            <RichTextField
+                                                label="Responsibility"
+                                                required
+                                                value={form.rolesResponsibilities}
+                                                onChange={(v) => update({ rolesResponsibilities: v })}
+                                                placeholder="List the main responsibilities and daily tasks."
+                                            />
+                                            {errors.rolesResponsibilities && (
+                                                <p className="mt-1.5 flex items-center gap-1 text-[11.5px] font-medium text-[#B3261E]">
+                                                    <AlertCircle size={12} /> {errors.rolesResponsibilities}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </>
+                                )}
+
+                                {isStudentFlow && (
+                                    <>
+                                        <div className="grid gap-4 sm:grid-cols-2">
+                                            <Field label="Job title" required error={errors.title}>
+                                                <input
+                                                    name="title"
+                                                    placeholder="e.g. Senior Product Designer"
+                                                    value={form.title}
+                                                    onChange={(e) => update({ title: e.target.value })}
+                                                    className={`${inputClass} ${errors.title ? errorInputClass : ''}`}
+                                                />
+                                            </Field>
+
+                                            <Field label="Job role" required error={errors.role}>
+                                                <input
+                                                    value={form.role}
+                                                    onChange={(e) => update({ role: e.target.value })}
+                                                    placeholder="e.g. Frontend Developer"
+                                                    className={`${inputClass} ${errors.role ? errorInputClass : ''}`}
+                                                />
+                                            </Field>
+                                        </div>
+
+                                        <div className="grid gap-4 sm:grid-cols-2">
+                                            <Field label="Department" required error={errors.department}>
+                                                <input
+                                                    value={form.department}
+                                                    onChange={(e) => update({ department: e.target.value })}
+                                                    placeholder="Department Name"
+                                                    className={`${inputClass} ${errors.department ? errorInputClass : ''}`}
+                                                />
+                                            </Field>
+                                        </div>
+
+                                        <Field label="Company name" required error={errors.companyName}>
+                                            <span className="relative block">
+                                                <Building2 size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#A77D8D]" />
+                                                <input
+                                                    value={form.companyName}
+                                                    onChange={(e) => update({ companyName: e.target.value })}
+                                                    placeholder="Company Name"
+                                                    className={`${inputClass} pl-9 ${errors.companyName ? errorInputClass : ''}`}
+                                                />
+                                            </span>
+                                        </Field>
+
+                                        <Field label="Employment type" required error={errors.employmentType}>
+                                            <PillGroup
+                                                options={EMPLOYMENT_TYPES}
+                                                value={form.employmentType}
+                                                onChange={(v) => update({ employmentType: v })}
+                                                error={errors.employmentType}
+                                            />
+                                        </Field>
+
+                                        <Field label="Work mode" required error={errors.workMode}>
+                                            <PillGroup
+                                                options={WORK_MODES}
+                                                value={form.workMode}
+                                                onChange={(v) => update({ workMode: v })}
+                                                error={errors.workMode}
+                                            />
+                                        </Field>
+                                    </>
+                                )}
                             </div>
                         )}
 
                         {/* -------------------------------------------------- */}
-                        {/* Step 3 — Experience & salary                        */}
+                        {/* Step 3 — Location                                   */}
                         {/* -------------------------------------------------- */}
                         {stepIndex === 2 && (
+                            <div className="space-y-5">
+                                {isStudentFlow && (
+                                    <>
+                                        <Field label="Location" required error={errors.location}>
+                                            <LocationAutocomplete
+                                                value={form.location}
+                                                onChange={(location) => update({ location })}
+                                                error={errors.location}
+                                            />
+                                        </Field>
+
+                                        <Field label="Additional locations" hint="Optional — for multi-city hiring">
+                                            <ChipInput
+                                                values={form.extraLocations}
+                                                onChange={(v) => update({ extraLocations: v })}
+                                                placeholder="Type a city and press Enter"
+                                            />
+                                        </Field>
+
+                                        <div className="grid gap-3 sm:grid-cols-2">
+                                            <label className="flex cursor-pointer items-start gap-3 rounded-[12px] border border-[#EBC2AE] bg-[#FFF9F5] p-3.5 transition-colors hover:border-[#C75560]">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={form.remoteOption}
+                                                    onChange={(e) => update({ remoteOption: e.target.checked })}
+                                                    className="mt-0.5 h-4 w-4 accent-[#C75560]"
+                                                />
+                                                <span>
+                                                    <span className="block text-[12.5px] font-semibold text-[#1D181A]">Remote option</span>
+                                                    <span className="block text-[11.5px] text-[#80576A]">Candidates can work from anywhere for this role.</span>
+                                                </span>
+                                            </label>
+                                            <label className="flex cursor-pointer items-start gap-3 rounded-[12px] border border-[#EBC2AE] bg-[#FFF9F5] p-3.5 transition-colors hover:border-[#C75560]">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={form.panIndia}
+                                                    onChange={(e) => update({ panIndia: e.target.checked })}
+                                                    className="mt-0.5 h-4 w-4 accent-[#C75560]"
+                                                />
+                                                <span>
+                                                    <span className="flex items-center gap-1.5 text-[12.5px] font-semibold text-[#1D181A]">
+                                                        <Globe2 size={13} className="text-[#C75560]" /> Pan India
+                                                    </span>
+                                                    <span className="block text-[11.5px] text-[#80576A]">Hiring across multiple Indian cities.</span>
+                                                </span>
+                                            </label>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        )}
+
+                        {/* -------------------------------------------------- */}
+                        {/* Step 4 — Experience & salary                        */}
+                        {/* -------------------------------------------------- */}
+                        {stepIndex === 3 && (
                             <div className="space-y-5">
                                 <div className="grid gap-4 sm:grid-cols-2">
                                     <Field label="Minimum experience (years)" required error={errors.minExperience}>
@@ -1064,9 +1315,9 @@ export default function PostJob() {
                         )}
 
                         {/* -------------------------------------------------- */}
-                        {/* Step 4 — Skills                                     */}
+                        {/* Step 5 — Skills                                     */}
                         {/* -------------------------------------------------- */}
-                        {stepIndex === 3 && (
+                        {stepIndex === 4 && (
                             <div className="space-y-5">
                                 <Field label="Technical skills" required error={errors.skills} hint="Press Enter after each one">
                                     <ChipInput
@@ -1084,9 +1335,9 @@ export default function PostJob() {
                         )}
 
                         {/* -------------------------------------------------- */}
-                        {/* Step 5 — Description                                */}
+                        {/* Step 6 — Description                                */}
                         {/* -------------------------------------------------- */}
-                        {stepIndex === 4 && (
+                        {stepIndex === 5 && (
                             <div className="space-y-5">
                                 <RichTextField
                                     label="About the company"

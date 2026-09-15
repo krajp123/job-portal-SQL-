@@ -14,8 +14,36 @@ const pendingCandidateRegistrationSchema = new mongoose.Schema({
   email: { type: String, required: true, trim: true, lowercase: true },
   phone: { type: String, required: true },
   passwordHash: { type: String, required: true },
-  workStatus: { type: String, enum: ['fresher', 'experienced'], default: 'fresher' },
+  workStatus: {
+    type: String,
+    enum: ['fresher', 'experienced'],
+    default() {
+      return this.candidateCategory === 'student' ? 'fresher' : undefined;
+    },
+  },
   experienceCertificateUrl: { type: String },
+  medicalCertificateUrl: { type: String },
+  candidateCategory: {
+    type: String,
+    enum: ['student', 'construction', 'security', 'technical'],
+    required: true,
+  },
+  candidateSubCategory: {
+    type: String,
+    enum: [
+      'student',
+      'labour',
+      'mason',
+      'crane_operator',
+      'site_supervisor',
+      'retired_army',
+      'retired_police',
+      'ex_navy_air_force',
+      'sme',
+    ],
+    required: true,
+  },
+  categoryData: { type: mongoose.Schema.Types.Mixed, default: {} },
 
   amount: { type: Number, required: true },
   baseAmount: { type: Number },

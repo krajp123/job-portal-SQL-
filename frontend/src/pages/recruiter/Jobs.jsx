@@ -1302,8 +1302,8 @@ export default function RecruiterJobs() {
 
     const stats = useMemo(() => {
         const total = jobs.length;
-        const open = jobs.filter((j) => j.status === 'open').length;
-        const closed = total - open;
+        const open = jobs.filter((j) => ['open', 'active'].includes(j.status)).length;
+        const closed = jobs.filter((j) => j.status === 'closed').length;
         const statsLoaded = jobs.length > 0 && jobs.every((j) => j.applicantStats !== null);
         const totalApplicants = statsLoaded
             ? jobs.reduce((sum, j) => sum + (j.applicantStats?.total || 0), 0)
@@ -1315,7 +1315,11 @@ export default function RecruiterJobs() {
         let list = [...jobs];
 
         if (statusFilter !== 'all') {
-            list = list.filter((j) => j.status === statusFilter);
+            list = list.filter((j) =>
+                statusFilter === 'open'
+                    ? ['open', 'active'].includes(j.status)
+                    : j.status === statusFilter
+            );
         }
 
         const term = search.trim().toLowerCase();

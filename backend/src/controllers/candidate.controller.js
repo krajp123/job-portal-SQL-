@@ -1069,19 +1069,34 @@ exports.getByUniqueId = async (req, res) => {
 // GET /api/candidate/search - full search for recruiters
 exports.search = async (req, res) => {
   try {
-    const { skill, location, q } = req.query;
-    const query = { visibility: { $ne: 'private' } };
+    const { skill, location, q, category, subCategory } = req.query;
+    const query = { visibility: { $ne: 'private' }, searchable: true };
+    if (category) query.candidateCategory = category;
+    if (subCategory) query.candidateSubCategory = subCategory;
     if (skill) query['profile.skills'] = { $regex: skill, $options: 'i' };
+    if (location) {
+      query.$or = [
+        { 'profile.location': { $regex: location, $options: 'i' } },
+        { 'categoryData.common.currentLocation': { $regex: location, $options: 'i' } },
+      ];
+    }
     if (q && q.trim()) {
       const searchTerm = q.trim();
-      query.$or = [
+      const textSearch = [
         { name: { $regex: searchTerm, $options: 'i' } },
         { email: { $regex: searchTerm, $options: 'i' } },
         { uniqueId: { $regex: searchTerm, $options: 'i' } },
         { 'profile.headline': { $regex: searchTerm, $options: 'i' } },
         { 'profile.location': { $regex: searchTerm, $options: 'i' } },
         { 'profile.skills': { $regex: searchTerm, $options: 'i' } },
+        { 'categoryData.common.currentLocation': { $regex: searchTerm, $options: 'i' } },
       ];
+      if (query.$or) {
+        query.$and = [{ $or: query.$or }, { $or: textSearch }];
+        delete query.$or;
+      } else {
+        query.$or = textSearch;
+      }
     }
 
     const results = await Candidate.find(query)

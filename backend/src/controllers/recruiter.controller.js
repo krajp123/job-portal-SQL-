@@ -149,7 +149,7 @@ exports.getMyProfile = async (req, res) => {
     const ownerId = req.recruiterAccess?.ownerId || recruiter._id;
     const [departmentOpenings, jobs] = await Promise.all([
       getDepartmentOpenings(ownerId),
-      Job.find({ postedBy: ownerId, status: { $in: ['open', 'active'] } })
+      Job.find({ postedBy: ownerId, status: { $in: ['open', 'active', 'closed'] } })
         .sort({ createdAt: -1 })
         .limit(200)
         .lean(),

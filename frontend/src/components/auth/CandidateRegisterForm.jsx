@@ -21,6 +21,214 @@ const actionBtnClass =
 const isValidEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 const isValidPhone = (v) => /^[0-9]{10}$/.test(v.replace(/\D/g, ""));
 
+const candidateMainCategories = [
+  { value: "student", label: "Student" },
+  { value: "construction", label: "Construction" },
+  { value: "security", label: "Security " },
+  { value: "technical", label: " Professional" },
+];
+
+const candidateSubCategories = {
+  student: [{ value: "student", label: "Student" }],
+  construction: [
+    { value: "labour", label: "Labour (Unskilled/Helper)" },
+    { value: "mason", label: "Mason (Rajmistri)" },
+    { value: "crane_operator", label: "Crane / JCB / Heavy Machinery Operator" },
+    { value: "site_supervisor", label: "Site Supervisor" },
+  ],
+  security: [
+    { value: "retired_army", label: "Retired Army" },
+    { value: "retired_police", label: "Retired Police" },
+    { value: "ex_navy_air_force", label: "Ex-Navy / Air Force" },
+  ],
+  technical: [
+    { value: "sme", label: "Subject Matter Expert" },
+  ],
+};
+
+const dynamicFieldClass =
+  "block w-full rounded-[10px] border border-[#EBC2AE] bg-[#FFF9F5] px-2.5 py-2 text-[12.5px] text-[#1D181A] placeholder:text-[#A77D8D] outline-none transition-all duration-150 focus:border-[#C75560] focus:bg-white focus:shadow-[0_0_0_3px_rgba(199,85,96,0.14)] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
+
+function CustomSelect({ value, placeholder, options, onChange }) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find((option) => option.value === value);
+
+  return (
+    <div className="relative w-full">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className={`${dynamicFieldClass} flex min-h-[38px] w-full items-center justify-between text-left ${
+          selected ? "text-[#1D181A]" : "text-[#A77D8D]"
+        }`}
+      >
+        <span>{selected ? selected.label : placeholder}</span>
+        <span className="ml-2 text-[11px] text-[#80576A]">▾</span>
+      </button>
+
+      {open && (
+        <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-[10px] border border-[#EBC2AE] bg-white shadow-[0_8px_22px_rgba(29,24,26,0.10)]">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => {
+                onChange(option.value);
+                setOpen(false);
+              }}
+              className={`block w-full px-2.5 py-2 text-left text-[12.5px] leading-snug transition-colors duration-150 ${
+                value === option.value
+                  ? "bg-[#FFF0E8] text-[#1D181A]"
+                  : "bg-white text-[#1D181A] hover:bg-[#FFF9F5]"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const getCategorySpecificFields = (category, subCategory) => {
+  const baseCommon = [
+    { key: "age", label: "Age", type: "number", placeholder: "Age" },
+    { key: "height", label: "Height (cm)", type: "number", placeholder: "170" },
+    { key: "weight", label: "Weight (kg)", type: "number", placeholder: "65" },
+    { key: "medicalCertificate", label: "Medical certificate", type: "select", options: ["No", "Yes"] },
+    { key: "willingToRelocate", label: "Willing to relocate?", type: "select", options: ["No", "Yes"] },
+    { key: "currentLocation", label: "Current location", type: "text", placeholder: "City / state / country" },
+  ];
+
+  switch (subCategory) {
+    case "student":
+      return [
+        { key: "qualification", label: "Qualification", type: "text", placeholder: "12th / Diploma / Graduation" },
+        { key: "schoolName", label: "School / College / University", type: "text", placeholder: "Institute name" },
+        { key: "course", label: "Course / Stream", type: "text", placeholder: "B.Tech / Arts / Commerce" },
+        { key: "yearOfStudy", label: "Year of study", type: "text", placeholder: "1st / 2nd / final year" },
+        { key: "studentSkills", label: "Skills / Interests", type: "text", placeholder: "Excel, CAD, Computer skills" },
+      ];
+    case "labour":
+      return [
+        ...baseCommon,
+        { key: "typeOfWorkDoneBefore", label: "Type of work done before", type: "text", placeholder: "Construction helper, loading, site work" },
+      ];
+    case "mason":
+      return [
+        ...baseCommon,
+      ];
+    case "plumber":
+      return [
+        { key: "age", label: "Age", type: "number", placeholder: "Age" },
+        { key: "height", label: "Height (cm)", type: "number", placeholder: "170" },
+        { key: "weight", label: "Weight (kg)", type: "number", placeholder: "65" },
+        { key: "willingToRelocate", label: "Willing to relocate?", type: "select", options: ["No", "Yes"] },
+        { key: "currentLocation", label: "Current location", type: "text", placeholder: "City / state / country" },
+      ];
+    case "painter":
+      return [
+        ...baseCommon,
+        { key: "paintingType", label: "Painting type", type: "select", options: ["Interior", "Exterior", "Texture", "Spray"] },
+        { key: "ownEquipment", label: "Own equipment?", type: "select", options: ["No", "Yes"] },
+      ];
+    case "welder":
+      return [
+        ...baseCommon,
+        { key: "weldingType", label: "Welding type", type: "select", options: ["Arc", "MIG", "TIG", "Gas"] },
+        { key: "tradeCertificate", label: "Certificate / ITI / Trade", type: "text", placeholder: "ITI / Welding trade" },
+        { key: "ownEquipment", label: "Own equipment?", type: "select", options: ["No", "Yes"] },
+      ];
+    case "tile_marble_worker":
+      return [
+        ...baseCommon,
+      ];
+    case "crane_operator":
+      return [
+        ...baseCommon,
+        { key: "machineryTypeKnown", label: "Machinery type known", type: "text", placeholder: "Crane, JCB, Excavator" },
+        { key: "operatingLicenseNumber", label: "Operating license number & category", type: "text", placeholder: "License no / category" },
+        { key: "experiencePerMachine", label: "Years of experience per machine", type: "text", placeholder: "Crane 3 yrs, JCB 2 yrs" },
+      ];
+    case "site_supervisor":
+      return [
+        ...baseCommon,
+        { key: "qualification", label: "Qualification", type: "text", placeholder: "ITI / Diploma / Degree" },
+        { key: "supervisoryExperience", label: "Years of supervisory experience", type: "text", placeholder: "5 years" },
+        { key: "workersManaged", label: "Number of workers managed", type: "text", placeholder: "30 workers" },
+      ];
+    case "retired_army":
+      return [
+        ...baseCommon,
+        { key: "serviceIdDischargeCertificate", label: "Service ID / Discharge certificate", type: "text", placeholder: "Certificate no / service ID" },
+        { key: "rankHeld", label: "Rank held", type: "text", placeholder: "Captain / Havildar" },
+        { key: "yearsOfService", label: "Years of service", type: "text", placeholder: "12 years" },
+        { key: "areaOfExpertise", label: "Area of expertise", type: "text", placeholder: "Security, logistics, training" },
+        { key: "retirementYear", label: "Retirement year", type: "text", placeholder: "2019" },
+      ];
+    case "retired_police":
+      return [
+        ...baseCommon,
+        { key: "serviceIdRetirementCertificate", label: "Service ID / Retirement certificate", type: "text", placeholder: "ID/Certificate" },
+        { key: "rankHeld", label: "Rank held", type: "text", placeholder: "Inspector / Head Constable" },
+        { key: "yearsOfService", label: "Years of service", type: "text", placeholder: "15 years" },
+        { key: "departmentStateCadre", label: "Department / state cadre", type: "text", placeholder: "Delhi Police / UP Cadre" },
+      ];
+    case "ex_navy_air_force":
+      return [
+        ...baseCommon,
+        { key: "serviceIdDischargeCertificate", label: "Service ID / Discharge certificate", type: "text", placeholder: "Service ID / discharge certificate" },
+        { key: "branchAndRank", label: "Branch & rank", type: "text", placeholder: "Navy / Air Force / rank" },
+        { key: "yearsOfService", label: "Years of service", type: "text", placeholder: "10 years" },
+      ];
+    case "sme":
+      return [
+        { key: "fieldOfExpertise", label: "Field of Expertise", type: "text", placeholder: "Enter your subject matter expertise" },
+        { key: "qualification", label: "Qualification / Degree", type: "text", placeholder: "Degree / certification" },
+        { key: "portfolioResume", label: "Portfolio Link", type: "text", placeholder: "Upload link or note" },
+      ];
+    case "civil_engineer":
+      return [
+        { key: "qualification", label: "Qualification", type: "text", placeholder: "B.E. / B.Tech / Diploma" },
+        { key: "experienceYears", label: "Years of experience", type: "text", placeholder: "5 years" },
+        { key: "softwareKnowledge", label: "Software knowledge", type: "text", placeholder: "AutoCAD / STAAD / Revit" },
+        { key: "licenseRegistrationNumber", label: "License / registration number", type: "text", placeholder: "Registration no" },
+      ];
+    case "electrician":
+      return [
+        { key: "height", label: "Height (cm)", type: "number", placeholder: "170" },
+        { key: "medicalCertificate", label: "Medical certificate", type: "select", options: ["No", "Yes"] },
+        { key: "tradeCertificate", label: "Certificate / ITI / Trade license", type: "text", placeholder: "ITI / license no" },
+      ];
+    case "solar_technician":
+      return [
+        { key: "height", label: "Height (cm)", type: "number", placeholder: "170" },
+        { key: "medicalCertificate", label: "Medical certificate", type: "select", options: ["No", "Yes"] },
+        { key: "solarCertification", label: "Solar installation certification", type: "text", placeholder: "Certification name" },
+        { key: "systemsWorkedOn", label: "Type of systems worked on", type: "text", placeholder: "On-grid / off-grid / rooftop" },
+      ];
+    case "cctv_networking_technician":
+      return [
+        { key: "height", label: "Height (cm)", type: "number", placeholder: "170" },
+        { key: "medicalCertificate", label: "Medical certificate", type: "select", options: ["No", "Yes"] },
+        { key: "brandsFamiliar", label: "Brands / systems familiar", type: "text", placeholder: "Hikvision / CP Plus / Cisco" },
+        { key: "certificateIfAny", label: "Certificate", type: "text", placeholder: "If any" },
+      ];
+    case "interior_designer":
+      return [
+        { key: "qualification", label: "Qualification", type: "text", placeholder: "Diploma / Degree / Course" },
+        { key: "experienceYears", label: "Years of experience", type: "text", placeholder: "3 years" },
+        { key: "portfolioResume", label: "Portfolio / Resume", type: "text", placeholder: "Portfolio link or note" },
+      ];
+    default:
+      return [
+        ...baseCommon,
+        { key: "qualification", label: "Qualification", type: "text", placeholder: "Add qualification" },
+      ];
+  }
+};
+
 export default function CandidateRegisterForm({ onSwitchToLogin, onSuccess }) {
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -31,9 +239,14 @@ export default function CandidateRegisterForm({ onSwitchToLogin, onSuccess }) {
     phone: "",
     password: "",
     confirmPassword: "",
-    workStatus: "fresher", // 'fresher' | 'experienced'
+    workStatus: "", // 'fresher' | 'experienced' — Student only
+    candidateCategory: "",
+    candidateSubCategory: "",
   });
   const [certificate, setCertificate] = useState(null);
+  const [medicalCertificateFile, setMedicalCertificateFile] = useState(null);
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState("");
 
   const [fieldNames] = useState(() => {
     const suffix = Math.random().toString(36).slice(2);
@@ -78,7 +291,20 @@ export default function CandidateRegisterForm({ onSwitchToLogin, onSuccess }) {
       [fieldNames.password]: "password",
       [fieldNames.confirmPassword]: "confirmPassword",
     }[name] || name;
-    setForm((f) => ({ ...f, [mappedName]: value }));
+
+    setForm((f) => {
+      if (mappedName === "candidateCategory") {
+        const nextMainCategory = value;
+        return {
+          ...f,
+          candidateCategory: nextMainCategory,
+          candidateSubCategory: "",
+          workStatus: nextMainCategory === "student" ? "fresher" : "",
+        };
+      }
+      return { ...f, [mappedName]: value };
+    });
+
     // editing a verified field resets its verification
     if (mappedName === "email" && emailOtp.verified) {
       setEmailOtp({
@@ -100,6 +326,52 @@ export default function CandidateRegisterForm({ onSwitchToLogin, onSuccess }) {
         error: "",
       });
     }
+  }
+
+  function useCurrentLocation() {
+    if (!navigator.geolocation || locating) {
+      setLocationError("Current location is not supported by this browser.");
+      return;
+    }
+
+    setLocating(true);
+    setLocationError("");
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        try {
+          const response = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${coords.latitude}&longitude=${coords.longitude}&localityLanguage=en`,
+          );
+          if (!response.ok) throw new Error("Location lookup failed");
+          const data = await response.json();
+          const location = [
+            data.city || data.locality,
+            data.principalSubdivision,
+            data.countryName,
+          ]
+            .filter(Boolean)
+            .join(", ");
+
+          setForm((currentForm) => ({
+            ...currentForm,
+            currentLocation: location || `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`,
+          }));
+        } catch {
+          setForm((currentForm) => ({
+            ...currentForm,
+            currentLocation: `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`,
+          }));
+          setLocationError("City lookup unavailable. Coordinates added instead.");
+        } finally {
+          setLocating(false);
+        }
+      },
+      () => {
+        setLocationError("Location permission was denied. You can enter it manually.");
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 300000 },
+    );
   }
 
   // ---------- email OTP ----------
@@ -186,6 +458,11 @@ export default function CandidateRegisterForm({ onSwitchToLogin, onSuccess }) {
   const passwordsMismatch =
     form.confirmPassword.length > 0 && form.password !== form.confirmPassword;
 
+  const categorySpecificFields = getCategorySpecificFields(
+    form.candidateCategory,
+    form.candidateSubCategory,
+  );
+
   // Password strength — checks length + character variety, used for both
   // the visual meter and the strong/not-strong alert below the field.
   const passwordStrength = useMemo(() => {
@@ -216,7 +493,7 @@ export default function CandidateRegisterForm({ onSwitchToLogin, onSuccess }) {
       return setError("Passwords do not match.");
     if (!passwordStrength.isStrong)
       return setError("Please choose a stronger password before continuing.");
-    if (form.workStatus === "experienced" && !certificate) {
+    if (form.candidateCategory === "student" && form.workStatus === "experienced" && !certificate) {
       return setError("Please upload your experience certificate.");
     }
     if (!agreeTerms || !agreePrivacy) {
@@ -225,6 +502,28 @@ export default function CandidateRegisterForm({ onSwitchToLogin, onSuccess }) {
       );
     }
 
+    const candidateProfile = {};
+    Object.entries(form).forEach(([key, value]) => {
+      if (
+        [
+          "fullName",
+          "email",
+          "phone",
+          "password",
+          "confirmPassword",
+          "workStatus",
+          "candidateCategory",
+          "agreeTerms",
+          "agreePrivacy",
+        ].includes(key)
+      ) {
+        return;
+      }
+      if (value !== "" && value !== null && value !== undefined) {
+        candidateProfile[key] = value;
+      }
+    });
+
     setSubmitting(true);
     try {
       // ---- Step 1: create-order. No account exists yet — this just
@@ -232,14 +531,24 @@ export default function CandidateRegisterForm({ onSwitchToLogin, onSuccess }) {
       let payload;
       let headers;
 
-      if (form.workStatus === "experienced" && certificate) {
+      if ((form.candidateCategory === "student" && form.workStatus === "experienced" && certificate) || medicalCertificateFile) {
         payload = new FormData();
         payload.append("name", form.fullName);
         payload.append("email", form.email);
         payload.append("phone", form.phone);
         payload.append("password", form.password);
-        payload.append("workStatus", form.workStatus);
-        payload.append("experienceCertificate", certificate);
+        if (form.candidateCategory === "student") {
+          payload.append("workStatus", form.workStatus);
+        }
+        payload.append("candidateCategory", form.candidateCategory);
+        payload.append("candidateSubCategory", form.candidateSubCategory);
+        payload.append("candidateProfile", JSON.stringify(candidateProfile));
+        if (certificate) {
+          payload.append("experienceCertificate", certificate);
+        }
+        if (medicalCertificateFile) {
+          payload.append("medicalCertificate", medicalCertificateFile);
+        }
         headers = { "Content-Type": "multipart/form-data" };
       } else {
         payload = {
@@ -247,7 +556,10 @@ export default function CandidateRegisterForm({ onSwitchToLogin, onSuccess }) {
           email: form.email,
           phone: form.phone,
           password: form.password,
-          workStatus: form.workStatus,
+          ...(form.candidateCategory === "student" ? { workStatus: form.workStatus } : {}),
+          candidateCategory: form.candidateCategory,
+          candidateSubCategory: form.candidateSubCategory,
+          candidateProfile,
         };
       }
 
@@ -615,28 +927,158 @@ export default function CandidateRegisterForm({ onSwitchToLogin, onSuccess }) {
         </p>
       )}
 
-      {/* Work status */}
-      <p className="mb-2 text-[12.5px] font-semibold text-[#54263F]">
-        Work status
-      </p>
-      <div className="mb-3 flex gap-2">
-        {["fresher", "experienced"].map((status) => (
-          <button
-            key={status}
-            type="button"
-            onClick={() => setForm((f) => ({ ...f, workStatus: status }))}
-            className={`flex-1 rounded-[12px] border px-3.5 py-2.5 text-[13px] font-semibold capitalize transition-colors duration-150 ${
-              form.workStatus === status
-                ? "border-[#C75560] bg-[#FFF0E8] text-[#1D181A]"
-                : "border-[#EBC2AE] bg-[#FFF9F5] text-[#80576A] hover:bg-[#FFF0E8]"
-            }`}
-          >
-            {status}
-          </button>
-        ))}
+      {/* Candidate category hierarchy */}
+      <div className="mb-4">
+        <label className="mb-1.5 block text-[12.5px] font-semibold text-[#54263F]">
+          Main category
+        </label>
+        <CustomSelect
+          value={form.candidateCategory}
+          placeholder="Select your category"
+          options={candidateMainCategories}
+          onChange={(value) => {
+            setForm((f) => ({
+              ...f,
+              candidateCategory: value,
+              candidateSubCategory: "",
+            }));
+          }}
+        />
       </div>
 
-      {form.workStatus === "experienced" && (
+      {form.candidateCategory !== "student" && (
+        <div className="mb-4">
+          <label className="mb-1.5 block text-[12.5px] font-semibold text-[#54263F]">
+            Sub category
+          </label>
+          <CustomSelect
+            value={form.candidateSubCategory}
+            placeholder="Select your sub category"
+            options={candidateSubCategories[form.candidateCategory] || []}
+            onChange={(value) => {
+              setForm((f) => ({ ...f, candidateSubCategory: value }));
+            }}
+          />
+        </div>
+      )}
+
+      {form.candidateCategory === "student" && (
+        <>
+          <p className="mb-2 text-[12.5px] font-semibold text-[#54263F]">
+            Work status
+          </p>
+          <div className="mb-3 flex gap-2">
+            {["fresher", "experienced"].map((status) => (
+              <button
+                key={status}
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, workStatus: status }))}
+                className={`flex-1 rounded-[12px] border px-3.5 py-2.5 text-[13px] font-semibold capitalize transition-colors duration-150 ${
+                  form.workStatus === status
+                    ? "border-[#C75560] bg-[#FFF0E8] text-[#1D181A]"
+                    : "border-[#EBC2AE] bg-[#FFF9F5] text-[#80576A] hover:bg-[#FFF0E8]"
+                }`}
+              >
+                {status}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {form.candidateCategory !== "student" && form.candidateSubCategory && (
+        <div className="mb-4 rounded-[14px] border border-[#F2D9CC] bg-[#FFF9F5] p-3">
+          <h3 className="mb-2 text-[12.5px] font-semibold text-[#54263F]">
+            {candidateMainCategories.find((category) => category.value === form.candidateCategory)?.label || "Category details"}
+            {' / '}
+            {(candidateSubCategories[form.candidateCategory] || []).find(
+              (category) => category.value === form.candidateSubCategory,
+            )?.label || "Sub category"}
+          </h3>
+          <div className="space-y-3">
+            {categorySpecificFields.map((field) => (
+              <div key={field.key}>
+                <label className="mb-1.5 block text-[12.5px] text-[#80576A]">
+                  {field.label}
+                </label>
+                {field.type === "select" ? (
+                  <>
+                    <select
+                      name={field.key}
+                      value={form[field.key] || ""}
+                      onChange={handleChange}
+                      className={dynamicFieldClass}
+                    >
+                      <option value="">Select</option>
+                      {field.options.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                    {field.key === "medicalCertificate" && form.medicalCertificate === "Yes" && (
+                      <div className="mt-2">
+                        <label className="mb-1.5 block text-[12px] text-[#80576A]">
+                          Upload medical certificate
+                        </label>
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={(e) => setMedicalCertificateFile(e.target.files?.[0] || null)}
+                          className="block w-full cursor-pointer rounded-[10px] border border-[#EBC2AE] bg-[#FFF9F5] text-[12px] text-[#80576A] file:mr-2 file:cursor-pointer file:rounded-[7px] file:border-0 file:bg-[#1D181A] file:px-2.5 file:py-1.5 file:text-[11px] file:font-semibold file:text-white hover:file:bg-[#3A3034]"
+                        />
+                        {medicalCertificateFile && (
+                          <p className="mt-1 text-[11px] text-[#8D6072]">
+                            Selected: {medicalCertificateFile.name}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </>
+                ) : field.type === "textarea" ? (
+                  <textarea
+                    name={field.key}
+                    value={form[field.key] || ""}
+                    onChange={handleChange}
+                    placeholder={field.placeholder}
+                    className={`${dynamicFieldClass} min-h-[90px] resize-y`}
+                  />
+                ) : (
+                  <>
+                    <input
+                      type={field.type}
+                      name={field.key}
+                      value={form[field.key] || ""}
+                      onChange={handleChange}
+                      placeholder={field.placeholder}
+                      className={dynamicFieldClass}
+                    />
+                    {field.key === "currentLocation" && (
+                      <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          onClick={useCurrentLocation}
+                          disabled={locating}
+                          className="p-0 text-[11px] font-semibold text-[#8B1E2F] underline-offset-2 transition-colors hover:text-[#C75560] hover:underline disabled:cursor-wait disabled:opacity-60"
+                        >
+                          {locating ? "Detecting location..." : "Use current location"}
+                        </button>
+                        {locationError && (
+                          <span className="text-[10.5px] font-medium text-[#B3261E]">
+                            {locationError}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {form.candidateCategory === "student" && form.workStatus === "experienced" && (
         <div className="mb-4">
           <label className="mb-1.5 block text-[12.5px] text-[#80576A]">
             Upload your experience certificate

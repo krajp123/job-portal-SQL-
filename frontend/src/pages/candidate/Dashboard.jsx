@@ -544,9 +544,11 @@ export default function Dashboard() {
                                     <Avatar src={profile?.profile?.profilePictureUrl} name={user?.name || profile?.name} size={52} />
                                     <div>
                                         <p className="text-[15px] font-bold text-stone-900">{profile?.name || user?.name}</p>
-                                        <p className="text-[12px] capitalize text-[#6B6259]">
-                                            {profile?.workStatus || 'Status not mentioned'}
-                                        </p>
+                                        {profile?.candidateCategory === 'student' && (
+                                            <p className="text-[12px] capitalize text-[#6B6259]">
+                                                {profile.workStatus}
+                                            </p>
+                                        )}
                                         <Link
                                             to="/candidate/profile"
                                             onClick={() => setMenuOpen(false)}
@@ -719,11 +721,11 @@ export default function Dashboard() {
                                     <span className="candidate-dashboard-id">
                                         ID: {profile?.uniqueId}
                                     </span>
-                                    <span
-                                        className="candidate-dashboard-status"
-                                    >
-                                        {profile?.workStatus}
-                                    </span>
+                                    {profile?.candidateCategory === 'student' && (
+                                        <span className="candidate-dashboard-status">
+                                            {profile.workStatus}
+                                        </span>
+                                    )}
                                     {isHired && (
                                         <span className="candidate-dashboard-hired">
                                             <Award size={12.5} />
