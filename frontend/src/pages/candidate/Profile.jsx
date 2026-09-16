@@ -36,6 +36,76 @@ import SKILL_SUGGESTIONS from '../../data/skillSuggestions';
 const MAX_RESUME_BYTES = 10 * 1024 * 1024; // 10MB
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5MB
 
+const CATEGORY_FIELD_LABELS = {
+    age: 'Age',
+    height: 'Height',
+    weight: 'Weight',
+    medicalCertificate: 'Medical certificate',
+    medicalCertificateUrl: 'Medical certificate file',
+    willingToRelocate: 'Willing to relocate',
+    currentLocation: 'Current location',
+    typeOfWorkDoneBefore: 'Type of work done before',
+    machineryTypeKnown: 'Machinery known',
+    operatingLicenseNumber: 'Operating license number',
+    experiencePerMachine: 'Experience per machine',
+    qualification: 'Qualification',
+    supervisoryExperience: 'Supervisory experience',
+    workersManaged: 'Workers managed',
+    serviceIdDischargeCertificate: 'Service ID / discharge certificate',
+    serviceIdRetirementCertificate: 'Service ID / retirement certificate',
+    rankHeld: 'Rank held',
+    yearsOfService: 'Years of service',
+    areaOfExpertise: 'Area of expertise',
+    retirementYear: 'Retirement year',
+    departmentStateCadre: 'Department / state cadre',
+    branchAndRank: 'Branch and rank',
+    fieldOfExpertise: 'Field of expertise',
+    portfolioResume: 'Portfolio / resume',
+};
+
+function categoryFieldLabel(key) {
+    return CATEGORY_FIELD_LABELS[key] || key.replace(/[A-Z]/g, (letter) => ` ${letter}`).replace(/^./, (letter) => letter.toUpperCase());
+}
+
+function getRegisteredCategoryDetails(candidate) {
+    const category = candidate?.candidateCategory;
+    const subCategory = candidate?.candidateSubCategory;
+    const common = candidate?.categoryData?.common || {};
+    const specific = category === 'student'
+        ? candidate?.categoryData?.student || {}
+        : candidate?.categoryData?.[category]?.[subCategory] || {};
+    return { common, specific };
+}
+
+const CANDIDATE_CATEGORY_LABELS = {
+    student: 'Student',
+    construction: 'Construction',
+    security: 'Security',
+    technical: 'Professional',
+};
+
+const CANDIDATE_SUBCATEGORY_LABELS = {
+    student: 'Student',
+    labour: 'Labour (Unskilled/Helper)',
+    mason: 'Mason (Rajmistri)',
+    crane_operator: 'Crane / JCB / Heavy Machinery Operator',
+    site_supervisor: 'Site Supervisor',
+    retired_army: 'Retired Army',
+    retired_police: 'Retired Police',
+    ex_navy_air_force: 'Ex-Navy / Air Force',
+    sme: 'Subject Matter Expert',
+};
+
+function formatCandidateCategoryLabel(category) {
+    if (!category) return 'Category';
+    return CANDIDATE_CATEGORY_LABELS[category] || category.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function formatCandidateSubCategoryLabel(subCategory) {
+    if (!subCategory) return 'Sub-category';
+    return CANDIDATE_SUBCATEGORY_LABELS[subCategory] || subCategory.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 // Completion weights for profile sections (total = 100)
 const COMPLETION_WEIGHTS = { 
     photo: 6, 
@@ -67,6 +137,16 @@ function isValidUrl(value) {
 function getCompletion(profile) {
     const p = profile?.profile || {};
     const social = profile?.socialLinks || {};
+    if (profile?.candidateCategory !== 'student') {
+        const { common, specific } = getRegisteredCategoryDetails(profile);
+        const detailCount = Object.keys({ ...common, ...specific }).filter((key) => key !== 'medicalCertificateUrl').length;
+        const hasDetails = detailCount > 0;
+        return {
+            percent: hasDetails ? 100 : 0,
+            missing: hasDetails ? [] : [{ key: 'categoryProfile', anchor: 'section-category-profile', label: 'Add category details', weight: 100, done: false }],
+            items: [{ key: 'categoryProfile', anchor: 'section-category-profile', label: 'Edit category details', weight: 100, done: hasDetails }],
+        };
+    }
     const items = [
         { key: 'photo', anchor: 'section-photo', label: 'Add profile photo', weight: COMPLETION_WEIGHTS.photo, done: !!p.profilePictureUrl },
         { key: 'headline', anchor: 'section-headline', label: 'Add professional headline', weight: COMPLETION_WEIGHTS.headline, done: !!p.headline },
@@ -2079,6 +2159,7 @@ export default function Profile() {
     const [workPrefDraft, setWorkPrefDraft] = useState('');
     const [availabilityDraft, setAvailabilityDraft] = useState('');
     const [socialDraft, setSocialDraft] = useState({ github: '', linkedin: '' });
+    const [categoryDraft, setCategoryDraft] = useState({ common: {}, specific: {} });
     const [urlErrors, setUrlErrors] = useState({});
 
     const photoInputRef = useRef(null);
@@ -2088,6 +2169,8 @@ export default function Profile() {
     const [resumeDeleteConfirm, setResumeDeleteConfirm] = useState(false);
 
     // Derived data
+    const isStudent = profile?.candidateCategory === 'student';
+    const registeredCategoryDetails = useMemo(() => getRegisteredCategoryDetails(profile), [profile]);
     const { percent, missing, items } = useMemo(() => getCompletion(profile), [profile]);
     const skillsList = profile?.profile?.skills || [];
     const experienceList = profile?.profile?.experience || [];
@@ -2249,7 +2332,7 @@ export default function Profile() {
 
     function openContactModal(mode = 'contact') {
         setLocationDraft(profile?.profile?.location || '');
-        setPhoneDraft(profile?.profile?.phone || '');
+        setPhoneDraft(profile?.phone || profile?.profile?.phone || '');
         setContactModalMode(mode);
         openModal('contact');
     }
@@ -2261,7 +2344,7 @@ export default function Profile() {
         const { city, state } = parseLocation(profile?.profile?.location || '');
         setCityDraft(city);
         setStateDraft(state);
-        setPhoneDraft(profile?.profile?.phone || '');
+        setPhoneDraft(profile?.phone || profile?.profile?.phone || '');
         setAvailabilityDraft(profile?.profile?.availability || '');
         openModal('basicInfo');
     }
@@ -2313,6 +2396,41 @@ export default function Profile() {
     function openLanguagesModal() {
         setLanguagesDraft(languages);
         openModal('languages');
+    }
+
+    function openCategoryProfileModal() {
+        setCategoryDraft({
+            common: { ...registeredCategoryDetails.common },
+            specific: { ...registeredCategoryDetails.specific },
+        });
+        openModal('categoryProfile');
+    }
+
+    async function saveCategoryProfile() {
+        setSaving(true);
+        try {
+            const categoryData = profile?.categoryData || {};
+            const nextCategoryData = {
+                ...categoryData,
+                common: { ...(categoryData.common || {}), ...categoryDraft.common },
+                [profile.candidateCategory]: {
+                    ...(categoryData[profile.candidateCategory] || {}),
+                    [profile.candidateSubCategory]: {
+                        ...(categoryData[profile.candidateCategory]?.[profile.candidateSubCategory] || {}),
+                        ...categoryDraft.specific,
+                    },
+                },
+            };
+            const { data } = await axiosInstance.put('/profile', { categoryData: nextCategoryData });
+            setProfile(data);
+            setToast('Category details saved!');
+            closeModal();
+        } catch (err) {
+            console.error('Failed to save category details:', err);
+            setToast(err?.response?.data?.error || 'Failed to save category details');
+        } finally {
+            setSaving(false);
+        }
     }
 
     // Save methods
@@ -3123,6 +3241,7 @@ export default function Profile() {
                                             setAvailabilityDraft(profile?.profile?.availability || '');
                                             openModal('workpref');
                                         }
+                                        else if (item.anchor === 'section-category-profile') openCategoryProfileModal();
                                     }
                                 }))}
                             />
@@ -3198,14 +3317,22 @@ export default function Profile() {
                                             ) : (
                                                 <button onClick={() => openContactModal('location')} className="flex min-h-5 items-center gap-2 text-left text-[13px] font-semibold text-[#3564A0] hover:underline"><MapPin size={14} className="shrink-0" />Add location</button>
                                             )}
-                                            {profile?.profile?.phone ? (
-                                                <span className="flex min-h-5 min-w-0 items-center gap-2 truncate text-[13px] text-stone-700"><Phone size={14} className="shrink-0 text-stone-500" />{profile.profile.phone}</span>
+                                            {(profile?.phone || profile?.profile?.phone) ? (
+                                                <span className="flex min-h-5 min-w-0 items-center gap-2 truncate text-[13px] text-stone-700"><Phone size={14} className="shrink-0 text-stone-500" />{profile?.phone || profile?.profile?.phone}</span>
                                             ) : (
                                                 <button onClick={() => openContactModal('phone')} className="flex min-h-5 items-center gap-2 text-left text-[13px] font-semibold text-[#3564A0] hover:underline"><Phone size={14} className="shrink-0" />Add mobile number</button>
                                             )}
-                                            <span className="flex min-h-5 items-center gap-2 text-[13px] text-stone-700"><Briefcase size={14} className="shrink-0 text-stone-500" />{experienceList.length === 0 ? 'Fresher' : 'Experienced'}</span>
+                                            {profile?.candidateCategory !== 'student' ? (
+                                                <span className="flex min-h-5 items-center gap-2 text-[13px] text-stone-700"><Briefcase size={14} className="shrink-0 text-stone-500" />{formatCandidateCategoryLabel(profile?.candidateCategory)}</span>
+                                            ) : (
+                                                <span className="flex min-h-5 items-center gap-2 text-[13px] text-stone-700"><Briefcase size={14} className="shrink-0 text-stone-500" />{experienceList.length === 0 ? 'Fresher' : 'Experienced'}</span>
+                                            )}
                                             <div className="flex min-h-5 min-w-0 items-center gap-2"><Mail size={14} className="shrink-0 text-stone-500" /><span className="truncate text-[13px] text-stone-700">{profile?.email || 'No email'}</span>{profile?.email && <CheckCircle2 size={15} className="shrink-0" color="#38A85C" />}</div>
-                                            <button onClick={() => { setWorkPrefDraft(profile?.profile?.workPreferences || ''); setAvailabilityDraft(profile?.profile?.availability || ''); openModal('workpref'); }} className="flex min-h-5 items-center gap-2 text-left text-[13px] font-semibold text-[#3564A0] hover:underline"><CalendarDays size={14} className="shrink-0" />{profile?.profile?.availability || 'Add availability to join'}</button>
+                                            {profile?.candidateCategory !== 'student' ? (
+                                                <span className="flex min-h-5 items-center gap-2 text-[13px] text-stone-700"><CalendarDays size={14} className="shrink-0 text-stone-500" />{formatCandidateSubCategoryLabel(profile?.candidateSubCategory)}</span>
+                                            ) : (
+                                                <button onClick={() => { setWorkPrefDraft(profile?.profile?.workPreferences || ''); setAvailabilityDraft(profile?.profile?.availability || ''); openModal('workpref'); }} className="flex min-h-5 items-center gap-2 text-left text-[13px] font-semibold text-[#3564A0] hover:underline"><CalendarDays size={14} className="shrink-0" />{profile?.profile?.availability || 'Add availability to join'}</button>
+                                            )}
                                         </div>
                                     </div>
 
@@ -3220,7 +3347,8 @@ export default function Profile() {
                             </div>
                         </div>
 
-                        {/* Profile Header Card */}
+                        {isStudent && (
+                            <>
                         <SectionCard
                             id="section-about"
                             title="Professional Bio"
@@ -3732,6 +3860,50 @@ export default function Profile() {
                                 <p className="text-[13px] text-stone-700">{profile.profile.workPreferences}</p>
                             )}
                         </SectionCard>
+                            </>
+                        )}
+
+                        {!isStudent && (
+                            <div id="section-category-profile" className="rounded-[18px] border border-[#E7CBB7] bg-[#FFFDFD] p-4 shadow-[0_8px_20px_-20px_rgba(76,39,30,0.2)]">
+                                <div className="mb-3 flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-2 text-[15px] font-bold text-[#2B2726]" style={{ fontFamily: FONT_DISPLAY }}>
+                                        <Briefcase size={15} className="text-[#8B1E2F]" />
+                                        <span>Category Details</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={openCategoryProfileModal}
+                                        className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#8B1E2F] transition-colors hover:text-[#6E1B2B]"
+                                    >
+                                        <Plus size={13} />
+                                        Edit details
+                                    </button>
+                                </div>
+
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                    {[
+                                        ...Object.entries(registeredCategoryDetails.common),
+                                        ...Object.entries(registeredCategoryDetails.specific),
+                                    ].filter(([key]) => key !== 'medicalCertificateUrl').map(([key, value]) => (
+                                        <div key={key} className="px-0 py-1.5">
+                                            <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-[#2D2928]">{categoryFieldLabel(key)}</p>
+                                            <p className="mt-1.5 text-[13px] font-medium leading-relaxed text-[#5A514F]">{String(value)}</p>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {registeredCategoryDetails.common.medicalCertificateUrl && (
+                                    <a
+                                        href={registeredCategoryDetails.common.medicalCertificateUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="mt-3 inline-flex text-[11.5px] font-semibold text-[#8B1E2F] hover:underline"
+                                    >
+                                        View medical certificate
+                                    </a>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                 </div>
@@ -3739,6 +3911,37 @@ export default function Profile() {
 
             {/* Modals */}
             <AnimatePresence>
+                {activeModal === 'categoryProfile' && (
+                    <Modal
+                        title="Edit category details"
+                        subtitle="Update the information you provided during registration."
+                        onClose={closeModal}
+                        onSave={saveCategoryProfile}
+                        saving={saving}
+                    >
+                        <div className="space-y-4">
+                            {[
+                                ['common', categoryDraft.common],
+                                ['specific', categoryDraft.specific],
+                            ].map(([group, values]) => (
+                                <div key={group} className="space-y-3">
+                                    {Object.keys(values).filter((key) => key !== 'medicalCertificateUrl').map((key) => (
+                                        <div key={`${group}-${key}`}>
+                                            <label className="mb-1 block text-[12px] font-medium text-[#6B6259]">{categoryFieldLabel(key)}</label>
+                                            <TextInput
+                                                value={values[key] ?? ''}
+                                                onChange={(event) => setCategoryDraft((previous) => ({
+                                                    ...previous,
+                                                    [group]: { ...previous[group], [key]: event.target.value },
+                                                }))}
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            ))}
+                        </div>
+                    </Modal>
+                )}
                 {activeModal === 'basicInfo' && (
                     <Modal
                         title="Edit profile info"

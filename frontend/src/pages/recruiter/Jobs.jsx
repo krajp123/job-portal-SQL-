@@ -265,6 +265,45 @@ function IconActionButton({ icon: Icon, label, tone = 'neutral', onClick }) {
     );
 }
 
+function getCategoryDetailHighlights(job) {
+    if (!job?.category || job.category === 'student') return [];
+
+    const details = job.categoryDetails || {};
+    const orderedKeys = [
+        'workersRequired',
+        'workLocation',
+        'accommodationAvailable',
+        'foodAvailable',
+        'transportAvailable',
+        'shiftTiming',
+        'projectType',
+        'requiredExperience',
+        'expertiseArea',
+        'expertsRequired',
+        'projectDuration',
+        'workModePreference',
+    ];
+
+    const labelMap = {
+        workersRequired: 'Workers required',
+        workLocation: 'Work location',
+        accommodationAvailable: 'Accommodation',
+        foodAvailable: 'Food',
+        transportAvailable: 'Transport',
+        shiftTiming: 'Shift timing',
+        projectType: 'Project type',
+        requiredExperience: 'Required experience',
+        expertiseArea: 'Expertise area',
+        expertsRequired: 'Experts required',
+        projectDuration: 'Project duration',
+        workModePreference: 'Work mode',
+    };
+
+    return orderedKeys
+        .filter((key) => details[key] !== undefined && details[key] !== null && details[key] !== '')
+        .map((key) => ({ label: labelMap[key] || key, value: details[key] }));
+}
+
 function JobCard({ job, onOpenDetail, onRequestClose, onRequestEdit, onRequestDelete }) {
     const { user } = useAuth();
     const isViewer = user?.workspaceAccess?.role === 'viewer';
@@ -273,6 +312,7 @@ function JobCard({ job, onOpenDetail, onRequestClose, onRequestEdit, onRequestDe
     const overflowCount = skills.length - visibleSkills.length;
     const total = job.applicantStats?.total ?? null;
     const counts = job.applicantStats?.counts ?? emptyStatusCounts();
+    const categoryHighlights = getCategoryDetailHighlights(job);
 
     return (
         <article className="portal-card group flex h-full flex-col p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_48px_-28px_rgba(29,24,26,0.5)]">
@@ -324,6 +364,19 @@ function JobCard({ job, onOpenDetail, onRequestClose, onRequestEdit, onRequestDe
                             +{overflowCount} more
                         </span>
                     )}
+                </div>
+            )}
+
+            {categoryHighlights.length > 0 && (
+                <div className="mt-3.5 flex flex-wrap gap-1.5">
+                    {categoryHighlights.map((item) => (
+                        <span
+                            key={`${job._id}-${item.label}`}
+                            className="rounded-full border border-[#EBC2AE] bg-[#FFF9F5] px-2 py-1 text-[10px] font-semibold text-[#54263F]"
+                        >
+                            {item.label}: {item.value}
+                        </span>
+                    ))}
                 </div>
             )}
 
@@ -408,6 +461,7 @@ function JobRow({ job, onOpenDetail, onRequestClose, onRequestEdit, onRequestDel
     const { user } = useAuth();
     const isViewer = user?.workspaceAccess?.role === 'viewer';
     const total = job.applicantStats?.total ?? null;
+    const categoryHighlights = getCategoryDetailHighlights(job);
     return (
         <div className="portal-card flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-5 sm:p-4">
             <button
@@ -443,6 +497,16 @@ function JobRow({ job, onOpenDetail, onRequestClose, onRequestEdit, onRequestDel
                     `${total} applicant${total === 1 ? '' : 's'}`
                 )}
             </div>
+
+            {categoryHighlights.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 text-[10px] font-semibold text-[#54263F]">
+                    {categoryHighlights.slice(0, 3).map((item) => (
+                        <span key={`${job._id}-${item.label}`} className="rounded-full border border-[#EBC2AE] bg-[#FFF9F5] px-2 py-1">
+                            {item.label}: {item.value}
+                        </span>
+                    ))}
+                </div>
+            )}
 
             <div className="w-full shrink-0 sm:w-32">
                 <PipelineBar counts={job.applicantStats?.counts ?? emptyStatusCounts()} total={total || 0} />
@@ -1006,6 +1070,8 @@ function DrawerDescription({ job }) {
 }
 
 function JobDetailDrawer({ job, onClose, onRequestClose }) {
+    const { user } = useAuth();
+    const isViewer = user?.workspaceAccess?.role === 'viewer';
     const counts = job?.applicantStats?.counts ?? emptyStatusCounts();
     const total = job?.applicantStats?.total ?? 0;
     const skills = Array.isArray(job?.skillsRequired) ? job.skillsRequired.filter(Boolean) : [];

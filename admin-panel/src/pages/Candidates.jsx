@@ -9,6 +9,8 @@ const COLUMNS = [
   { key: 'name', label: 'Name' },
   { key: 'email', label: 'Email' },
   { key: 'phone', label: 'Phone' },
+  { key: 'candidateCategory', label: 'Category' },
+  { key: 'candidateSubCategory', label: 'Sub Category' },
   { key: 'accountStatus', label: 'Status' },
 ];
 
@@ -70,6 +72,48 @@ export default function Candidates() {
   }, [searchTerm, statusFilter]);
 
   const renderCell = (candidate, key) => {
+    if (key === 'candidateCategory') {
+      const category = candidate.candidateCategory || '—';
+      const label =
+        category === 'student'
+          ? 'Student'
+          : category === 'construction'
+          ? 'Construction'
+          : category === 'security'
+          ? 'Security'
+          : category === 'technical'
+          ? 'Technical'
+          : category;
+
+      return <span className="block max-w-full break-words whitespace-normal">{label}</span>;
+    }
+
+    if (key === 'candidateSubCategory') {
+      const subCategory = candidate.candidateSubCategory || '—';
+      const label =
+        subCategory === 'student'
+          ? 'Student'
+          : subCategory === 'labour'
+          ? 'Labour'
+          : subCategory === 'mason'
+          ? 'Mason'
+          : subCategory === 'crane_operator'
+          ? 'Crane Operator'
+          : subCategory === 'site_supervisor'
+          ? 'Site Supervisor'
+          : subCategory === 'retired_army'
+          ? 'Retired Army'
+          : subCategory === 'retired_police'
+          ? 'Retired Police'
+          : subCategory === 'ex_navy_air_force'
+          ? 'Ex Navy / Air Force'
+          : subCategory === 'sme'
+          ? 'SME'
+          : subCategory;
+
+      return <span className="block max-w-full break-words whitespace-normal">{label}</span>;
+    }
+
     if (key === 'accountStatus') {
       const status = candidate.accountStatus || 'unknown';
       const styles =
@@ -129,13 +173,13 @@ export default function Candidates() {
       </div>
 
       <div className="w-full max-w-full overflow-x-auto border border-[#1D181A] bg-[#FFFDFB]">
-        <table className="min-w-full w-full table-fixed border-collapse text-xs sm:text-[11px] md:min-w-[760px]">
+        <table className="w-full border-collapse text-xs sm:text-[11px] md:min-w-[760px]" style={{ tableLayout: 'auto' }}>
           <thead>
             <tr>
               {COLUMNS.map((col) => (
                 <th
                   key={col.key}
-                  className="border border-[#1D181A] bg-[#FFF4EF] px-2 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-[#1D181A] break-words"
+                  className="border border-[#1D181A] bg-[#FFF4EF] px-2 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-[#1D181A] align-middle"
                 >
                   {col.label}
                 </th>
@@ -171,7 +215,7 @@ export default function Candidates() {
                   {COLUMNS.map((col) => (
                     <td
                       key={col.key}
-                      className={`border border-[#1D181A] overflow-hidden px-2 py-2 align-top text-[#1D181A] break-words ${
+                      className={`border border-[#1D181A] overflow-hidden px-2 py-2 align-middle text-[#1D181A] ${
                         col.key === 'name' ? 'font-medium' : ''
                       }`}
                     >

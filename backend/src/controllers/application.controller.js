@@ -101,9 +101,16 @@ exports.apply = async (req, res) => {
     }
 
     const [candidate, settings] = await Promise.all([
-      Candidate.findById(req.user.id),
+      Candidate.findById(req.user.id).select('candidateCategory emailVerified name email phone profile accountStatus workStatus'),
       getPlatformSettings(),
     ]);
+    if (!candidate?.candidateCategory) {
+      return res.status(403).json({ error: 'Candidate category not found.' });
+    }
+    if (job.category !== candidate.candidateCategory) {
+      return res.status(403).json({ error: 'You are not authorized to apply for this job.' });
+    }
+
     const referredJob = await Referral.findOne({ referredCandidate: req.user.id, job: jobId }).select('_id').lean();
     if (referredJob) {
       return res.status(403).json({ error: 'This job was referred to you. Applications are not required for referred jobs.', code: 'REFERRED_JOB_APPLICATION_BLOCKED' });

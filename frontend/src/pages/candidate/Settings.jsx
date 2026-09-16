@@ -1510,12 +1510,14 @@ export default function Settings() {
     if (typeof window === 'undefined') return 'account';
 
     const hashTab = window.location.hash.replace('#', '');
-    if (TABS.some((tab) => tab.key === hashTab)) {
-      return hashTab;
+    const validHashTab = TABS.some((tab) => tab.key === hashTab) ? hashTab : null;
+    const storedTab = localStorage.getItem('candidate-settings-tab');
+
+    if (validHashTab && validHashTab !== 'danger') {
+      return validHashTab;
     }
 
-    const storedTab = localStorage.getItem('candidate-settings-tab');
-    if (storedTab && TABS.some((tab) => tab.key === storedTab)) {
+    if (storedTab && TABS.some((tab) => tab.key === storedTab) && storedTab !== 'danger') {
       return storedTab;
     }
 
@@ -1532,8 +1534,15 @@ export default function Settings() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    localStorage.setItem('candidate-settings-tab', activeTab);
-    window.history.replaceState(null, '', `${window.location.pathname}#${activeTab}`);
+
+    if (activeTab !== 'danger') {
+      localStorage.setItem('candidate-settings-tab', activeTab);
+      window.history.replaceState(null, '', `${window.location.pathname}#${activeTab}`);
+      return;
+    }
+
+    localStorage.removeItem('candidate-settings-tab');
+    window.history.replaceState(null, '', `${window.location.pathname}#danger`);
   }, [activeTab]);
 
   useEffect(() => {

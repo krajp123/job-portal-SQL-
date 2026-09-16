@@ -10,6 +10,64 @@ function displayExperienceLevel(value) {
   return /^0(?:\s*[-+]\s*0?)?\s*years?/i.test(String(value || '').trim()) ? 'Freshers' : value;
 }
 
+function getJobLabel(job) {
+  if (job?.category && job.category !== 'student' && job.subCategory) {
+    const labelMap = {
+      labour: 'Labour',
+      mason: 'Mason',
+      crane_operator: 'Crane / JCB / Heavy Machinery Operator',
+      site_supervisor: 'Site Supervisor',
+      retired_army: 'Retired Army',
+      retired_police: 'Retired Police',
+      ex_navy_air_force: 'Ex-Navy / Air Force',
+      sme: 'Subject Matter Expert',
+    };
+
+    return labelMap[job.subCategory] || String(job.subCategory).replace(/_/g, ' ');
+  }
+
+  return displayExperienceLevel(job?.experienceLevel);
+}
+
+function getCategoryDetailHighlights(job) {
+  if (!job?.category || job.category === 'student') return [];
+
+  const details = job.categoryDetails || {};
+  const orderedKeys = [
+    'workersRequired',
+    'workLocation',
+    'accommodationAvailable',
+    'foodAvailable',
+    'transportAvailable',
+    'shiftTiming',
+    'projectType',
+    'requiredExperience',
+    'expertiseArea',
+    'expertsRequired',
+    'projectDuration',
+    'workModePreference',
+  ];
+
+  const labelMap = {
+    workersRequired: 'Workers required',
+    workLocation: 'Work location',
+    accommodationAvailable: 'Accommodation',
+    foodAvailable: 'Food',
+    transportAvailable: 'Transport',
+    shiftTiming: 'Shift timing',
+    projectType: 'Project type',
+    requiredExperience: 'Required experience',
+    expertiseArea: 'Expertise area',
+    expertsRequired: 'Experts required',
+    projectDuration: 'Project duration',
+    workModePreference: 'Work mode',
+  };
+
+  return orderedKeys
+    .filter((key) => details[key] !== undefined && details[key] !== null && details[key] !== '')
+    .map((key) => ({ label: labelMap[key] || key, value: details[key] }));
+}
+
 export default function RecommendedJobs() {
   const navigate = useNavigate();
   const [jobs, setJobs] = useState([]);
@@ -115,10 +173,18 @@ export default function RecommendedJobs() {
                     <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1.5 text-xs text-[#687584]">
                       {job.location && <div className="flex items-center gap-1"><MapPin size={14} className="text-[#8C99A6]" />{job.location}</div>}
                       {job.salary && <div className="flex items-center gap-1"><IndianRupee size={14} className="text-[#8C99A6]" />{job.salary}</div>}
-                      {job.experienceLevel && <div className="flex items-center gap-1"><Briefcase size={14} className="text-[#8C99A6]" />{displayExperienceLevel(job.experienceLevel)}</div>}
+                      {(job.experienceLevel || job.subCategory) && <div className="flex items-center gap-1"><Briefcase size={14} className="text-[#8C99A6]" />{getJobLabel(job)}</div>}
                     </div>
                     {job.skillsRequired?.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{job.skillsRequired.slice(0, 4).map((skill) => <span key={skill} className="rounded-md bg-[#F1F4F6] px-2 py-1 text-[11px] font-semibold text-[#566473]">{skill}</span>)}</div>}
-                    {job.description && <p className="mt-3 line-clamp-2 text-xs leading-5 text-[#687584]">{job.description}</p>}
+                    {getCategoryDetailHighlights(job).length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {getCategoryDetailHighlights(job).map((item) => (
+                          <span key={`${job._id}-${item.label}`} className="rounded-md border border-[#E3E8ED] bg-[#F8FAFB] px-2 py-1 text-[10px] font-medium text-[#475569]">
+                            {item.label}: {item.value}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <button type="button" onClick={() => navigate(`/candidate/jobs/${job._id}`)} className="mt-4 inline-flex items-center rounded-lg bg-[#C75560] px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-[#A94658]">View details</button>

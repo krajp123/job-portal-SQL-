@@ -46,6 +46,18 @@ function isValidUrl(value) {
   }
 }
 
+const CATEGORY_PROFILE_FIELDS = {
+  common: ['age', 'height', 'weight', 'medicalCertificate', 'willingToRelocate', 'currentLocation'],
+  labour: ['typeOfWorkDoneBefore'],
+  mason: [],
+  crane_operator: ['machineryTypeKnown', 'operatingLicenseNumber', 'experiencePerMachine'],
+  site_supervisor: ['qualification', 'supervisoryExperience', 'workersManaged'],
+  retired_army: ['serviceIdDischargeCertificate', 'rankHeld', 'yearsOfService', 'areaOfExpertise', 'retirementYear'],
+  retired_police: ['serviceIdRetirementCertificate', 'rankHeld', 'yearsOfService', 'departmentStateCadre'],
+  ex_navy_air_force: ['serviceIdDischargeCertificate', 'branchAndRank', 'yearsOfService'],
+  sme: ['fieldOfExpertise', 'qualification', 'portfolioResume'],
+};
+
 function uploadBufferToCloudinary(buffer, folder, publicId, resourceType = 'auto') {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
@@ -562,12 +574,36 @@ exports.updateProfile = async (req, res) => {
       languages,
       workPreferences,
       availability,
+      categoryData,
     } = req.body;
 
     const update = {};
 
     if (headline !== undefined) update['profile.headline'] = String(headline).trim();
     if (about !== undefined) update['profile.about'] = String(about).trim();
+
+    if (categoryData !== undefined) {
+      const candidate = await Candidate.findById(req.user.id).select('candidateCategory candidateSubCategory');
+      if (!candidate?.candidateCategory || !candidate?.candidateSubCategory) {
+        return res.status(403).json({ error: 'Candidate category is not configured.' });
+      }
+
+      const commonFields = CATEGORY_PROFILE_FIELDS.common;
+      const categoryFields = CATEGORY_PROFILE_FIELDS[candidate.candidateSubCategory] || [];
+      const commonValues = categoryData?.common || {};
+      const categoryValues = categoryData?.[candidate.candidateCategory]?.[candidate.candidateSubCategory] || {};
+
+      for (const field of commonFields) {
+        if (Object.prototype.hasOwnProperty.call(commonValues, field)) {
+          update[`categoryData.common.${field}`] = commonValues[field];
+        }
+      }
+      for (const field of categoryFields) {
+        if (Object.prototype.hasOwnProperty.call(categoryValues, field)) {
+          update[`categoryData.${candidate.candidateCategory}.${candidate.candidateSubCategory}.${field}`] = categoryValues[field];
+        }
+      }
+    }
     if (location !== undefined) update['profile.location'] = String(location).trim();
     if (phone !== undefined) update['profile.phone'] = String(phone).trim();
     if (workPreferences !== undefined) update['profile.workPreferences'] = String(workPreferences).trim();

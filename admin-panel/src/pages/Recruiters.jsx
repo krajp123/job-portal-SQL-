@@ -107,7 +107,7 @@ export default function Recruiters() {
           href={recruiter.companyWebsite}
           target="_blank"
           rel="noopener noreferrer"
-          className="block max-w-full break-words text-[#C75560] underline decoration-[#EBC2AE] underline-offset-2 hover:text-[#D9654A]"
+          className="block max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-[#C75560] underline decoration-[#EBC2AE] underline-offset-2 hover:text-[#D9654A]"
         >
           {recruiter.companyWebsite}
         </a>
@@ -135,7 +135,7 @@ export default function Recruiters() {
       );
     }
 
-    return <span className="block max-w-full break-words whitespace-normal">{recruiter[key] || '—'}</span>;
+    return <span className="block max-w-full overflow-hidden text-ellipsis whitespace-nowrap">{recruiter[key] || '—'}</span>;
   };
 
   return (
@@ -211,13 +211,16 @@ export default function Recruiters() {
       </div>
 
       <div className="w-full max-w-full overflow-x-auto border border-[#1D181A] bg-[#FFFDFB]">
-        <table className="min-w-full w-full table-fixed border-collapse text-xs sm:text-[11px] md:min-w-[760px]">
+        <table
+          className="w-full border-collapse text-xs sm:text-[11px] md:min-w-[760px]"
+          style={{ tableLayout: 'auto' }}
+        >
           <thead>
             <tr>
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className="border border-[#1D181A] bg-[#FFF4EF] px-2 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-[#1D181A] break-words"
+                  className="border border-[#1D181A] bg-[#FFF4EF] px-2 py-1.5 text-left align-middle text-[10px] font-bold uppercase tracking-wide text-[#1D181A] whitespace-nowrap"
                 >
                   {col.label}
                 </th>
@@ -260,7 +263,7 @@ export default function Recruiters() {
                   {columns.map((col) => (
                     <td
                       key={col.key}
-                      className={`border border-[#1D181A] overflow-hidden px-2 py-2 align-top text-[#1D181A] break-words ${
+                      className={`border border-[#1D181A] overflow-hidden px-2 py-1.5 align-middle text-[#1D181A] ${
                         col.key === 'fullName' || col.key === 'companyName' ? 'font-medium' : ''
                       }`}
                     >

@@ -31,6 +31,64 @@ function displayExperienceLevel(value) {
   return /^0(?:\s*[-+]\s*0?)?\s*years?/i.test(String(value || '').trim()) ? 'Freshers' : value;
 }
 
+function getJobLabel(job) {
+  if (job?.category && job.category !== 'student' && job.subCategory) {
+    const labelMap = {
+      labour: 'Labour',
+      mason: 'Mason',
+      crane_operator: 'Crane / JCB / Heavy Machinery Operator',
+      site_supervisor: 'Site Supervisor',
+      retired_army: 'Retired Army',
+      retired_police: 'Retired Police',
+      ex_navy_air_force: 'Ex-Navy / Air Force',
+      sme: 'Subject Matter Expert',
+    };
+
+    return labelMap[job.subCategory] || String(job.subCategory).replace(/_/g, ' ');
+  }
+
+  return displayExperienceLevel(job?.experienceLevel);
+}
+
+function getCategoryDetailHighlights(job) {
+  if (!job?.category || job.category === 'student') return [];
+
+  const details = job.categoryDetails || {};
+  const orderedKeys = [
+    'workersRequired',
+    'workLocation',
+    'accommodationAvailable',
+    'foodAvailable',
+    'transportAvailable',
+    'shiftTiming',
+    'projectType',
+    'requiredExperience',
+    'expertiseArea',
+    'expertsRequired',
+    'projectDuration',
+    'workModePreference',
+  ];
+
+  const labelMap = {
+    workersRequired: 'Workers required',
+    workLocation: 'Work location',
+    accommodationAvailable: 'Accommodation',
+    foodAvailable: 'Food',
+    transportAvailable: 'Transport',
+    shiftTiming: 'Shift timing',
+    projectType: 'Project type',
+    requiredExperience: 'Required experience',
+    expertiseArea: 'Expertise area',
+    expertsRequired: 'Experts required',
+    projectDuration: 'Project duration',
+    workModePreference: 'Work mode',
+  };
+
+  return orderedKeys
+    .filter((key) => details[key] !== undefined && details[key] !== null && details[key] !== '')
+    .map((key) => ({ label: labelMap[key] || key, value: details[key] }));
+}
+
 function timeAgo(dateString) {
   if (!dateString) return "";
   const diffMs = Date.now() - new Date(dateString).getTime();
@@ -378,7 +436,7 @@ export default function SavedJobs() {
                           {job.experienceLevel && (
                             <span className="flex items-center gap-1">
                               <Briefcase size={14} />
-                              {displayExperienceLevel(job.experienceLevel)}
+                              {getJobLabel(job)}
                             </span>
                           )}
                           {(job.savedAt || job.createdAt) && (
@@ -411,11 +469,6 @@ export default function SavedJobs() {
                           </div>
                         )}
 
-                        {job.description && (
-                          <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-gray-500">
-                            {job.description}
-                          </p>
-                        )}
                       </div>
                     </div>
 

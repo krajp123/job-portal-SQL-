@@ -147,11 +147,11 @@ export default function ReopenRequests() {
       </div>
 
       <div className="w-full max-w-full overflow-x-auto border border-[#1D181A] bg-[#FFFDFB]">
-        <table className="min-w-full w-full table-fixed border-collapse text-xs sm:text-[11px] md:min-w-[980px]">
+        <table className="w-full border-collapse text-xs sm:text-[11px] md:min-w-[980px]" style={{ tableLayout: 'auto' }}>
           <thead>
             <tr>
               {['Job', 'Recruiter', 'Message', 'Status', 'Requested', 'Actions'].map((label) => (
-                <th key={label} className="border border-[#1D181A] bg-[#FFF4EF] px-2 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-[#1D181A] break-words">
+                <th key={label} className="border border-[#1D181A] bg-[#FFF4EF] px-2 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-[#1D181A] align-middle">
                   {label}
                 </th>
               ))}
@@ -165,15 +165,15 @@ export default function ReopenRequests() {
           ) : (
             filteredRequests.map((request, index) => (
               <tr key={request._id} className={`transition hover:bg-[#FFF0E8] ${index % 2 === 0 ? 'bg-[#FFFDFB]' : 'bg-[#FFF4EF]/40'}`}>
-                <td className="border border-[#1D181A] px-2 py-2 align-top text-[#1D181A] break-words">
+                <td className="border border-[#1D181A] px-2 py-2 align-middle text-[#1D181A]">
                   <p className="font-medium">{request.job?.title || 'Unknown job'}</p>
                   <p className="mt-1 text-[10px] text-[#80576A]">Closed by admin: {request.job?.adminClosed ? 'Yes' : 'No'}</p>
                 </td>
-                <td className="border border-[#1D181A] px-2 py-2 align-top text-[#1D181A] break-words">
+                <td className="border border-[#1D181A] px-2 py-2 align-middle text-[#1D181A]">
                   <p className="font-medium">{request.recruiter?.companyName || request.recruiter?.fullName || 'Unknown recruiter'}</p>
                   <p className="mt-1 text-[10px] text-[#80576A]">{request.recruiter?.email || 'No email'}</p>
                 </td>
-                <td className="border border-[#1D181A] px-2 py-2 align-top text-[#1D181A] break-words">
+                <td className="border border-[#1D181A] px-2 py-2 align-middle text-[#1D181A]">
                   <button
                     type="button"
                     onClick={() => openRequestDetails(request)}

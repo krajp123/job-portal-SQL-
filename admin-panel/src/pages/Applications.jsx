@@ -187,13 +187,13 @@ export default function Applications() {
       </div>
 
       <div className="hidden w-full max-w-full overflow-x-auto border border-[#1D181A] bg-[#FFFDFB] md:block">
-        <table className="min-w-full w-full table-fixed border-collapse text-xs sm:text-[11px] md:min-w-[760px]">
+        <table className="w-full border-collapse text-xs sm:text-[11px] md:min-w-[760px]" style={{ tableLayout: 'auto' }}>
           <thead>
             <tr>
               {COLUMNS.map((col) => (
                 <th
                   key={col.key}
-                  className="border border-[#1D181A] bg-[#FFF4EF] px-2 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-[#1D181A] break-words"
+                  className="border border-[#1D181A] bg-[#FFF4EF] px-2 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-[#1D181A] align-middle"
                 >
                   {col.label}
                 </th>
@@ -228,7 +228,7 @@ export default function Applications() {
                   {COLUMNS.map((col) => (
                     <td
                       key={col.key}
-                      className="border border-[#1D181A] overflow-hidden px-2 py-2 align-top text-[#1D181A] break-words"
+                      className="border border-[#1D181A] overflow-hidden px-2 py-2 align-middle text-[#1D181A]"
                     >
                       {renderCell(application, col.key)}
                     </td>

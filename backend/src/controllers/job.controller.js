@@ -269,6 +269,17 @@ function collectJobKeywords(job) {
   return new Set(rawKeywords.filter((token) => token && token.length >= 3 && !STOP_WORDS.has(token)));
 }
 
+async function getCandidateCategoryAccess(req) {
+  if (req.user?.role !== 'candidate') return null;
+
+  const candidate = await Candidate.findById(req.user.id).select('candidateCategory').lean();
+  if (!candidate?.candidateCategory) {
+    throw Object.assign(new Error('Candidate category not found.'), { statusCode: 403 });
+  }
+
+  return candidate.candidateCategory;
+}
+
 function findModerationMatches(job, flaggedKeywords = []) {
   const searchableText = [job.title, job.description, job.location, job.salary, job.experienceLevel, ...(job.skillsRequired || [])]
     .filter(Boolean)
@@ -369,13 +380,18 @@ exports.list = async (req, res) => {
     const { skill, title, role, category, subCategory, industry, location, experienceLevel, salary, salaryRange, datePosted } = req.query;
     const query = { status: 'open' };
 
+    if (req.user?.role === 'candidate') {
+      const candidateCategory = await getCandidateCategoryAccess(req);
+      query.category = candidateCategory;
+    }
+
     if (skill) query.skillsRequired = { $regex: skill, $options: 'i' };
     if (title) {
       const titles = String(title).split(',').map((value) => value.trim()).filter(Boolean);
       query.title = { $regex: titles.map(escapeRegex).join('|'), $options: 'i' };
     }
     if (role) query.role = { $regex: escapeRegex(role), $options: 'i' };
-    if (category) {
+    if (category && req.user?.role !== 'candidate') {
       const categories = String(category).split(',').map((value) => value.trim()).filter(Boolean);
       query.category = { $regex: categories.map(escapeRegex).join('|'), $options: 'i' };
     }
@@ -418,7 +434,17 @@ exports.list = async (req, res) => {
 exports.suggestions = async (req, res) => {
   try {
     const search = String(req.query.q || '').trim();
-    const jobs = await Job.find({ status: 'open' })
+    const query = { status: 'open' };
+
+    if (req.user?.role === 'candidate') {
+      const candidate = await Candidate.findById(req.user.id).select('candidateCategory').lean();
+      if (!candidate?.candidateCategory) {
+        return res.status(403).json({ error: 'Candidate category not found.' });
+      }
+      query.category = candidate.candidateCategory;
+    }
+
+    const jobs = await Job.find(query)
       .select('title role category industry location')
       .populate('postedBy', 'industry')
       .sort({ createdAt: -1 })
@@ -442,14 +468,17 @@ exports.suggestions = async (req, res) => {
 // GET /api/jobs/recommended (candidate only)
 exports.recommended = async (req, res) => {
   try {
-    const candidate = await Candidate.findById(req.user.id).select('profile').lean();
+    const candidate = await Candidate.findById(req.user.id).select('profile candidateCategory').lean();
+    if (!candidate?.candidateCategory) {
+      return res.status(403).json({ error: 'Candidate category not found.' });
+    }
     const preferences = candidate?.profile || {};
     const candidateSkills = [...(preferences.skills || []), ...(preferences.preferredSkills || [])].filter(Boolean).map((value) => String(value).toLowerCase());
     const roles = (preferences.preferredRoles || []).filter(Boolean).map((value) => String(value).toLowerCase());
     const locations = (preferences.preferredLocations || []).filter(Boolean).map((value) => String(value).toLowerCase());
     const minSalary = Number(preferences.preferredMinSalary);
     const maxSalary = Number(preferences.preferredMaxSalary);
-    const jobs = await Job.find({ status: 'open' }).sort({ createdAt: -1 }).limit(100).populate('postedBy', 'companyName companyLogoUrl').lean();
+    const jobs = await Job.find({ status: 'open', category: candidate.candidateCategory }).sort({ createdAt: -1 }).limit(100).populate('postedBy', 'companyName companyLogoUrl').lean();
     const scoredJobs = jobs.map((job) => {
       const searchable = `${job.title || ''} ${job.role || ''} ${job.description || ''}`.toLowerCase();
       const jobLocation = String(job.location || '').toLowerCase();
@@ -474,13 +503,17 @@ exports.analyzeResume = async (req, res) => {
       return res.status(400).json({ error: 'Please upload a resume PDF.' });
     }
 
-    const candidate = await Candidate.findById(req.user.id).select('profile.skills').lean();
+    const candidate = await Candidate.findById(req.user.id).select('profile.skills candidateCategory').lean();
+    if (!candidate?.candidateCategory) {
+      return res.status(403).json({ error: 'Candidate category not found.' });
+    }
+
     const resumeParse = await pdfParse(req.file.buffer);
     const resumeText = resumeParse.text || '';
     const candidateSkills = Array.isArray(candidate?.profile?.skills) ? candidate.profile.skills : [];
     const extractedKeywords = extractKeywordsFromText(`${resumeText}\n${candidateSkills.join(' ')}`);
 
-    const jobs = await Job.find({ status: 'open' })
+    const jobs = await Job.find({ status: 'open', category: candidate.candidateCategory })
       .populate('postedBy', 'companyName companyLogoUrl')
       .sort({ createdAt: -1 })
       .lean();
@@ -546,8 +579,18 @@ exports.resumeContact = async (req, res) => {
 // GET /api/companies/top
 exports.topCompanies = async (req, res) => {
   try {
-    const jobs = await Job.find({ status: 'open' })
-      .select('postedBy')
+    const query = { status: 'open' };
+
+    if (req.user?.role === 'candidate') {
+      const candidate = await Candidate.findById(req.user.id).select('candidateCategory').lean();
+      if (!candidate?.candidateCategory) {
+        return res.status(403).json({ error: 'Candidate category not found.' });
+      }
+      query.category = candidate.candidateCategory;
+    }
+
+    const jobs = await Job.find(query)
+      .select('postedBy category')
       .populate('postedBy', 'companyName companyType industry companySize location companyWebsite companyLogoUrl');
     const companies = new Map();
 
@@ -704,6 +747,16 @@ exports.getById = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id).populate('postedBy', 'companyName companyLogoUrl');
     if (!job) return res.status(404).json({ error: 'Job not found' });
+
+    if (req.user?.role === 'candidate') {
+      const candidate = await Candidate.findById(req.user.id).select('candidateCategory').lean();
+      if (!candidate?.candidateCategory) {
+        return res.status(403).json({ error: 'Candidate category not found.' });
+      }
+      if (job.category !== candidate.candidateCategory) {
+        return res.status(403).json({ error: 'You are not authorized to view this job.' });
+      }
+    }
 
     const applicantsCount = await Application.countDocuments({ job: job._id });
 

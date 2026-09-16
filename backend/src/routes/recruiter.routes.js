@@ -5,7 +5,7 @@ const recruiterAuth = require('../controllers/auth/recruiterAuth.controller');
 const recruiterPasswordReset = require('../controllers/auth/recruiterPasswordReset.controller');
 const recruiterController = require('../controllers/recruiter.controller');
 const walletRoutes = require('./wallet.routes');
-const { verifyTokenAndStatus } = require('../middleware/auth');
+const { verifyTokenAndStatus, optionalVerifyToken } = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
 const requireRecruiterWorkspaceRole = require('../middleware/requireRecruiterWorkspaceRole');
 const upload = require('../middleware/uploadHandler');
@@ -50,7 +50,7 @@ router.post('/login', recruiterAuth.login);
 router.post('/password/forgot/send', recruiterPasswordReset.sendResetOtp);
 router.post('/password/forgot/reset', recruiterPasswordReset.resetPassword);
 router.get('/company-members', recruiterController.getCompanyMembers);
-router.get('/:recruiterId/public-profile', recruiterController.getPublicProfile);
+router.get('/:recruiterId/public-profile', optionalVerifyToken, recruiterController.getPublicProfile);
 
 // Authenticated (recruiter only)
 router.get('/me/profile', verifyTokenAndStatus, requireRole('recruiter'), recruiterController.getMyProfile);

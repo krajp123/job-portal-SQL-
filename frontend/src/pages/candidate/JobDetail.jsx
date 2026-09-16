@@ -92,6 +92,72 @@ function displayExperienceLevel(value) {
     return /^0(?:\s*[-+]\s*0?)?\s*years?/i.test(String(value || '').trim()) ? 'Freshers' : value;
 }
 
+function getJobLabel(job) {
+    if (job?.category && job.category !== 'student' && job.subCategory) {
+        const labelMap = {
+            labour: 'Labour',
+            mason: 'Mason',
+            crane_operator: 'Crane / JCB / Heavy Machinery Operator',
+            site_supervisor: 'Site Supervisor',
+            retired_army: 'Retired Army',
+            retired_police: 'Retired Police',
+            ex_navy_air_force: 'Ex-Navy / Air Force',
+            sme: 'Subject Matter Expert',
+        };
+
+        return labelMap[job.subCategory] || String(job.subCategory).replace(/_/g, ' ');
+    }
+
+    return displayExperienceLevel(job?.experienceLevel);
+}
+
+function getCategoryDetailHighlights(job) {
+    if (!job?.category || job.category === 'student') return [];
+
+    const details = job.categoryDetails || {};
+    const orderedKeys = [
+        'workersRequired',
+        'workLocation',
+        'accommodationAvailable',
+        'foodAvailable',
+        'transportAvailable',
+        'shiftTiming',
+        'projectType',
+        'requiredExperience',
+        'expertiseArea',
+        'expertsRequired',
+        'projectDuration',
+        'workModePreference',
+    ];
+
+    const labelMap = {
+        workersRequired: 'Workers required',
+        workLocation: 'Work location',
+        accommodationAvailable: 'Accommodation',
+        foodAvailable: 'Food',
+        transportAvailable: 'Transport',
+        shiftTiming: 'Shift timing',
+        projectType: 'Project type',
+        requiredExperience: 'Required experience',
+        expertiseArea: 'Expertise area',
+        expertsRequired: 'Experts required',
+        projectDuration: 'Project duration',
+        workModePreference: 'Work mode',
+    };
+
+    return orderedKeys
+        .filter((key) => details[key] !== undefined && details[key] !== null && details[key] !== '')
+        .map((key) => ({ label: labelMap[key] || key, value: details[key] }));
+}
+
+function getJobMetaLabel(job) {
+    if (job?.category && job.category !== 'student') {
+        return 'Job Category';
+    }
+
+    return 'Experience Level';
+}
+
 const BULLET_PATTERN = /^[-•*]\s+/;
 
 /**
@@ -669,6 +735,7 @@ export default function JobDetail() {
     const descriptionSections = buildDescriptionSections(job);
     const tagline = job ? extractTagline(descriptionSections) : null;
     const highlightRegex = job ? buildHighlightRegex(job.skillsRequired) : null;
+    const categoryHighlights = getCategoryDetailHighlights(job);
 
     const hasMetaGrid =
         job &&
@@ -679,7 +746,7 @@ export default function JobDetail() {
     // strip is skipped if nothing at all is available.
     const statCells = job
         ? [
-                { label: 'Experience Level', value: displayExperienceLevel(job.experienceLevel) },
+                { label: getJobMetaLabel(job), value: getJobLabel(job) },
               {
                   label: 'Applicants',
                   value: typeof job.applicantsCount === 'number' ? `${job.applicantsCount}+ applicants` : null,
@@ -765,7 +832,7 @@ export default function JobDetail() {
                                             {job.experienceLevel && (
                                                 <span className="flex items-center gap-1.5">
                                                     <Briefcase size={13} className="text-stone-400" />
-                                                    {displayExperienceLevel(job.experienceLevel)}
+                                                    {getJobLabel(job)}
                                                 </span>
                                             )}
                                             <span className="flex items-center gap-1">
@@ -928,6 +995,26 @@ export default function JobDetail() {
                                     <div className="flex flex-wrap divide-x divide-stone-100">
                                         {statCells.map((cell) => (
                                             <StatCell key={cell.label} label={cell.label} value={cell.value} />
+                                        ))}
+                                    </div>
+                                </section>
+                            )}
+
+                            {categoryHighlights.length > 0 && (
+                                <section className="rounded-[18px] border border-[#E8CFC3] bg-[#FFFDFB] p-4 shadow-[0_10px_24px_-20px_rgba(92,20,32,0.35)]">
+                                    <div className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[#9A671A]">
+                                        <Briefcase size={12} /> Role requirements
+                                    </div>
+                                    <div className="grid gap-2.5 sm:grid-cols-2">
+                                        {categoryHighlights.map((item) => (
+                                            <div key={`${job._id}-${item.label}`} className="rounded-[12px] border border-[#EDD6C9] bg-white/70 p-2.5">
+                                                <div className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#8D6072]">
+                                                    {item.label}
+                                                </div>
+                                                <div className="mt-1 text-[13px] font-semibold leading-5 text-stone-800">
+                                                    {item.value}
+                                                </div>
+                                            </div>
                                         ))}
                                     </div>
                                 </section>

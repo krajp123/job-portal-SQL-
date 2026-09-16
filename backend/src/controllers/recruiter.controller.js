@@ -21,9 +21,19 @@ function workspaceRecruiterId(req) {
   return req.workspaceOwnerId || req.user.id;
 }
 
-async function getDepartmentOpenings(recruiterId) {
+async function getDepartmentOpenings(recruiterId, candidateCategory = null) {
+  const match = {
+    postedBy: recruiterId,
+    status: { $in: ['open', 'active'] },
+    department: { $type: 'string', $ne: '' },
+  };
+
+  if (candidateCategory) {
+    match.category = candidateCategory;
+  }
+
   return Job.aggregate([
-    { $match: { postedBy: recruiterId, status: { $in: ['open', 'active'] }, department: { $type: 'string', $ne: '' } } },
+    { $match: match },
     { $group: { _id: '$department', openings: { $sum: 1 } } },
     { $project: { _id: 0, name: '$_id', openings: 1 } },
     { $sort: { openings: -1, name: 1 } },
@@ -234,9 +244,21 @@ exports.getPublicProfile = async (req, res) => {
       return res.status(404).json({ error: 'Recruiter not found' });
     }
 
+    let candidateCategory = null;
+    if (req.user?.role === 'candidate') {
+      const candidate = await Candidate.findById(req.user.id).select('candidateCategory').lean();
+      candidateCategory = candidate?.candidateCategory || null;
+    }
+
     const publicJobs = req.query.allJobs === 'true';
-    const departmentOpenings = await getDepartmentOpenings(recruiter._id);
-    const jobsQuery = Job.find({ postedBy: recruiter._id, status: { $in: ['open', 'active'] } })
+    const departmentOpenings = await getDepartmentOpenings(recruiter._id, candidateCategory);
+    const jobsFilter = {
+      postedBy: recruiter._id,
+      status: { $in: ['open', 'active'] },
+      ...(candidateCategory ? { category: candidateCategory } : {}),
+    };
+
+    const jobsQuery = Job.find(jobsFilter)
         .sort({ createdAt: -1 })
         .limit(publicJobs ? 200 : 4)
         .lean();

@@ -9,6 +9,8 @@ const COLUMNS = [
   { key: 'title', label: 'Job Title' },
   { key: 'company', label: 'Company' },
   { key: 'recruiter', label: 'Posted By' },
+  { key: 'category', label: 'Category' },
+  { key: 'subCategory', label: 'Sub Category' },
   { key: 'applicants', label: 'Applicants' },
   { key: 'status', label: 'Status' },
   { key: 'action', label: 'Action' },
@@ -16,6 +18,38 @@ const COLUMNS = [
 
 function getStatus(job) {
   return job.status ? job.status.toLowerCase() : 'unknown';
+}
+
+function formatCategoryLabel(category) {
+  const map = {
+    student: 'Student',
+    construction: 'Construction',
+    security: 'Security',
+    technical: 'Technical',
+  };
+
+  return map[category] || category || '—';
+}
+
+function formatSubCategoryLabel(category, subCategory) {
+  const labels = {
+    student: { student: 'Student' },
+    construction: {
+      labour: 'Labour',
+      mason: 'Mason',
+      crane_operator: 'Crane Operator',
+      site_supervisor: 'Site Supervisor',
+    },
+    security: {
+      retired_army: 'Retired Army',
+      retired_police: 'Retired Police',
+      ex_navy_air_force: 'Ex Navy / Air Force',
+    },
+    technical: { sme: 'SME' },
+  };
+
+  const categoryMap = labels[category] || {};
+  return categoryMap[subCategory] || subCategory || '—';
 }
 
 export default function Jobs() {
@@ -106,6 +140,14 @@ export default function Jobs() {
   const renderCell = (job, key) => {
     if (key === 'title') {
       return <span className="block max-w-full overflow-hidden text-ellipsis whitespace-nowrap">{job.title || '—'}</span>;
+    }
+
+    if (key === 'category') {
+      return <span className="block max-w-full overflow-hidden text-ellipsis whitespace-nowrap">{formatCategoryLabel(job.category)}</span>;
+    }
+
+    if (key === 'subCategory') {
+      return <span className="block max-w-full overflow-hidden text-ellipsis whitespace-nowrap">{formatSubCategoryLabel(job.category, job.subCategory)}</span>;
     }
 
     if (key === 'action') {
@@ -203,21 +245,13 @@ export default function Jobs() {
       </div>
 
       <div className="overflow-x-auto border border-[#1D181A] bg-[#FFFDFB]">
-        <table className="min-w-full w-full table-fixed border-collapse text-xs sm:text-[11px] md:min-w-[760px]">
+        <table className="w-full border-collapse text-xs sm:text-[11px] md:min-w-[760px]" style={{ tableLayout: 'auto' }}>
           <thead>
             <tr>
               {COLUMNS.map((col) => (
                 <th
                   key={col.key}
-                  className={`border border-[#1D181A] bg-[#FFF4EF] px-2 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-[#1D181A] break-words ${
-                    col.key === 'action'
-                      ? 'w-[62px] min-w-[62px]'
-                      : col.key === 'applicants'
-                      ? 'w-[80px] min-w-[78px]'
-                      : col.key === 'status'
-                      ? 'w-[84px] min-w-[84px]'
-                      : ''
-                  }`}
+                  className="border border-[#1D181A] bg-[#FFF4EF] px-2 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-[#1D181A] align-middle"
                 >
                   {col.label}
                 </th>
@@ -253,9 +287,9 @@ export default function Jobs() {
                   {COLUMNS.map((col) => (
                     <td
                       key={col.key}
-                      className={`border border-[#1D181A] overflow-hidden px-2 py-1.5 align-top text-[#1D181A] break-words ${
+                      className={`border border-[#1D181A] overflow-hidden px-2 py-1.5 align-middle text-[#1D181A] ${
                         col.key === 'title' ? 'font-medium' : ''
-                      } ${col.key === 'action' ? 'w-[62px] align-middle' : ''}`}
+                      }`}
                     >
                       {renderCell(job, col.key)}
                     </td>

@@ -4,13 +4,13 @@ const router = express.Router();
 const jobController = require('../controllers/job.controller');
 const jobModerationController = require('../controllers/jobModeration.controller');
 const upload = require('../middleware/uploadHandler');
-const { verifyTokenAndStatus } = require('../middleware/auth');
+const { verifyTokenAndStatus, optionalVerifyToken } = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
 const requireRecruiterWorkspaceRole = require('../middleware/requireRecruiterWorkspaceRole');
 
 // Public
-router.get('/', jobController.list);
-router.get('/suggestions', jobController.suggestions);
+router.get('/', optionalVerifyToken, jobController.list);
+router.get('/suggestions', optionalVerifyToken, jobController.suggestions);
 router.get('/recommended', verifyTokenAndStatus, requireRole('candidate'), jobController.recommended);
 router.post(
 	'/analyze-resume',
@@ -32,6 +32,6 @@ router.delete('/:id', verifyTokenAndStatus, requireRole('recruiter'), requireRec
 
 // Keep dynamic routes last so named paths such as /recommended and /mine/list
 // are not treated as a job ID.
-router.get('/:id', jobController.getById);
+router.get('/:id', optionalVerifyToken, jobController.getById);
 
 module.exports = router;

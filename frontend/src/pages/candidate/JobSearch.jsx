@@ -33,7 +33,68 @@ import {
 import CandidateNavbar from "../../components/CandidateNavbar";
 
 function displayExperienceLevel(value) {
-  return /^0(?:\s*[-+]\s*0?)?\s*years?/i.test(String(value || '').trim()) ? 'Freshers' : value;
+  return /^0(?:\s*[-+]\s*0?)?\s*years?/i.test(String(value || '').trim()) ? "Freshers" : value;
+}
+
+function getJobLabel(job) {
+  if (job?.category && job.category !== "student" && job.subCategory) {
+    const labelMap = {
+      labour: "Labour",
+      mason: "Mason",
+      crane_operator: "Crane / JCB / Heavy Machinery Operator",
+      site_supervisor: "Site Supervisor",
+      retired_army: "Retired Army",
+      retired_police: "Retired Police",
+      ex_navy_air_force: "Ex-Navy / Air Force",
+      sme: "Subject Matter Expert",
+    };
+
+    return labelMap[job.subCategory] || String(job.subCategory).replace(/_/g, " ");
+  }
+
+  return displayExperienceLevel(job?.experienceLevel);
+}
+
+function getCategoryDetailHighlights(job) {
+  if (!job?.category || job.category === "student") return [];
+
+  const details = job.categoryDetails || {};
+  const orderedKeys = [
+    "workersRequired",
+    "workLocation",
+    "accommodationAvailable",
+    "foodAvailable",
+    "transportAvailable",
+    "shiftTiming",
+    "projectType",
+    "requiredExperience",
+    "expertiseArea",
+    "expertsRequired",
+    "projectDuration",
+    "workModePreference",
+  ];
+
+  const labelMap = {
+    workersRequired: "Workers required",
+    workLocation: "Work location",
+    accommodationAvailable: "Accommodation",
+    foodAvailable: "Food",
+    transportAvailable: "Transport",
+    shiftTiming: "Shift timing",
+    projectType: "Project type",
+    requiredExperience: "Required experience",
+    expertiseArea: "Expertise area",
+    expertsRequired: "Experts required",
+    projectDuration: "Project duration",
+    workModePreference: "Work mode",
+  };
+
+  return orderedKeys
+    .filter((key) => details[key] !== undefined && details[key] !== null && details[key] !== "")
+    .map((key) => ({
+      label: labelMap[key] || key,
+      value: details[key],
+    }));
 }
 
 const EXPERIENCE_LEVELS = ["Fresher", "1-3 years", "3-5 years", "5+ years"];
@@ -635,18 +696,18 @@ export default function JobSearch() {
                             />
                           </p>
                           <div className="mt-2.5 flex flex-wrap items-center text-[14px] text-stone-600">
-                            {job.experienceLevel && (
+                            {job.experienceLevel || job.subCategory ? (
                               <>
                                 <span className="flex items-center gap-1">
                                   <Briefcase
                                     size={14}
                                     className="text-stone-400"
                                   />
-                                  {displayExperienceLevel(job.experienceLevel)}
+                                  {getJobLabel(job)}
                                 </span>
                                 <span className="mx-3 text-stone-300">|</span>
                               </>
-                            )}
+                            ) : null}
 
                             {job.salary && (
                               <>
@@ -668,17 +729,29 @@ export default function JobSearch() {
                               </span>
                             )}
                           </div>
-                          {job.description && (
-                            <p className="mt-2 line-clamp-1 text-[14px] text-stone-500">
-                              {job.description}
-                            </p>
-                          )}
                           {Array.isArray(job.skillsRequired) &&
                             job.skillsRequired.length > 0 && (
                               <p className="mt-2 line-clamp-1 text-[13px] text-stone-400">
                                 {job.skillsRequired.slice(0, 6).join(" • ")}
                               </p>
                             )}
+
+                          {getCategoryDetailHighlights(job).length > 0 && (
+                            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[13px] text-stone-600">
+                              {getCategoryDetailHighlights(job).map((item, index) => (
+                                <>
+                                  <span key={`${job._id}-${item.label}`} className="flex items-center gap-1">
+                                    <span className="font-semibold text-stone-800">{item.label}:</span>
+                                    <span>{item.value}</span>
+                                  </span>
+                                  {index < getCategoryDetailHighlights(job).length - 1 && (
+                                    <span className="text-stone-300">|</span>
+                                  )}
+                                </>
+                              ))}
+                            </div>
+                          )}
+
                           <div className="mt-3 flex items-center justify-between">
                             <p className="flex items-center gap-1 text-[12.5px] text-stone-400">
                               <Clock size={13} />
