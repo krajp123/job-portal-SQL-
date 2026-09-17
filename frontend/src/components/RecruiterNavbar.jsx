@@ -25,7 +25,7 @@ function navClass(isActive, isPostJob = false) {
         }`;
     }
 
-    return `inline-flex items-center gap-2 rounded-lg px-3 py-2 text-[12.5px] font-semibold transition-colors ${
+    return `inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-[12.5px] font-semibold transition-colors ${
         isActive
             ? 'bg-[#FFF0E8] text-[#C75560]'
             : 'text-[#80576A] hover:bg-[#FFF0E8] hover:text-[#1D181A]'
@@ -83,8 +83,8 @@ export default function RecruiterNavbar() {
 
     return (
         <header className="sticky top-0 z-50 overflow-visible border-b border-[#EBC2AE] bg-[#FFFDFC]/95 backdrop-blur-md">
-            <div className="mx-auto flex w-full max-w-[1400px] items-center gap-4 overflow-visible px-4 py-3 sm:px-6">
-                <Link to="/recruiter/dashboard" className="flex min-w-[220px] shrink-0 items-center gap-2.5" aria-label={`${brandName || 'Platform'} recruiter dashboard`}>
+            <div className="mx-auto flex w-full max-w-[1400px] items-center gap-2 overflow-visible px-4 py-3 sm:gap-4 sm:px-6">
+                <Link to="/recruiter/dashboard" className="flex min-w-[170px] shrink-0 items-center gap-2.5 lg:min-w-[220px]" aria-label={`${brandName || 'Platform'} recruiter dashboard`}>
                     <span className={`flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl text-sm font-extrabold text-white ${platformBranding.logo && !logoError ? '' : 'bg-[#1D181A]'}`}>
                         {platformBranding.logo && !logoError ? (
                             <img src={platformBranding.logo} alt={`${brandName} logo`} onError={() => setLogoError(true)} className="h-full w-full object-contain" />
@@ -100,7 +100,7 @@ export default function RecruiterNavbar() {
                     </span>
                 </Link>
 
-                <nav className="hidden items-center gap-1 md:flex" aria-label="Recruiter primary navigation">
+                <nav className="hidden min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:flex" aria-label="Recruiter primary navigation">
                     {links.map(({ to, label, icon: Icon }) => (
                             to === '/recruiter/post-job' && isViewer ? (
                                                 <span key={to} aria-disabled="true" title="Viewer access is read-only" className={`${navClass(false, true)} cursor-not-allowed opacity-50`}>
@@ -114,17 +114,17 @@ export default function RecruiterNavbar() {
                     ))}
                 </nav>
 
-                <div className="ml-auto flex items-center gap-2">
+                <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
                     <button
                         type="button"
                         onClick={() => navigate('/recruiter/messages')}
                         disabled={isViewer}
-                        className="inline-flex items-center gap-2 rounded-lg border border-[#EBC2AE] bg-[#FFF0E8] px-4 py-2.5 text-[12px] font-bold text-[#1D181A] transition-all hover:-translate-y-0.5 hover:border-[#C75560]"
+                        className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-[#EBC2AE] bg-[#FFF0E8] px-2.5 py-2.5 text-[12px] font-bold text-[#1D181A] transition-all hover:-translate-y-0.5 hover:border-[#C75560] sm:px-3 lg:px-4"
                         title="Message"
                         aria-label="Message"
                     >
                         <span className="relative"><MessageCircle size={15} className="text-[#C75560]" />{unreadMessages > 0 && <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#C75560] px-1 text-[9px] font-bold text-white">{unreadMessages > 9 ? '9+' : unreadMessages}</span>}</span>
-                        <span className="hidden sm:inline">Message</span>
+                        <span className="hidden lg:inline">Message</span>
                     </button>
 
                     <NotificationCenter className="flex h-10 w-10 items-center justify-center rounded-lg text-[#80576A] hover:bg-[#FFF0E8] hover:text-[#1D181A]" />
@@ -133,17 +133,17 @@ export default function RecruiterNavbar() {
                         type="button"
                         onClick={() => navigate('/recruiter/wallet')}
                         disabled={isViewer}
-                        className="inline-flex items-center gap-2 rounded-lg border border-[#EBC2AE] bg-[#FFF0E8] px-4 py-2.5 text-[12px] font-bold text-[#1D181A] transition-all hover:-translate-y-0.5 hover:border-[#C75560]"
+                        className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-[#EBC2AE] bg-[#FFF0E8] px-2.5 py-2.5 text-[12px] font-bold text-[#1D181A] transition-all hover:-translate-y-0.5 hover:border-[#C75560] sm:px-3 lg:px-4"
                         title="Wallet"
                     >
                         <Wallet size={15} className="text-[#C75560]" />
-                        <span className="hidden sm:inline">Wallet</span>
+                        <span className="hidden lg:inline">Wallet</span>
                     </button>
 
                     <RecruiterProfileMenu />
                 </div>
             </div>
-            <nav className="mx-auto flex w-full max-w-[1400px] gap-1 overflow-x-auto border-t border-[#F0D1BF] px-4 py-1 md:hidden sm:px-6" aria-label="Recruiter mobile navigation">
+            <nav className="mx-auto flex w-full max-w-[1400px] gap-1 overflow-x-auto border-t border-[#F0D1BF] px-4 py-1 lg:hidden sm:px-6" aria-label="Recruiter responsive navigation">
                 {links.map(({ to, label, icon: Icon }) => (
                     <NavLink key={to} to={to} className={({ isActive }) => navClass(isActive, to === '/recruiter/post-job')}>
                         <Icon size={14} />
