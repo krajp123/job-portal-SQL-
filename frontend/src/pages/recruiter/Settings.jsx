@@ -83,6 +83,8 @@ function LocationAutocomplete({ value, onChange, className }) {
   const [query, setQuery] = useState(value || '');
   const [suggestions, setSuggestions] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState('');
   const containerRef = React.useRef(null);
   const selectedRef = React.useRef('');
 
@@ -142,17 +144,57 @@ function LocationAutocomplete({ value, onChange, className }) {
     };
   }, [query]);
 
+  function useCurrentLocation() {
+    if (!navigator.geolocation || locating) {
+      setLocationError('Current location is not supported by this browser.');
+      return;
+    }
+
+    setLocating(true);
+    setLocationError('');
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        try {
+          const response = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${coords.latitude}&longitude=${coords.longitude}&localityLanguage=en`,
+          );
+          if (!response.ok) throw new Error('Location lookup failed');
+          const data = await response.json();
+          const location = [
+            data.city || data.locality,
+            data.principalSubdivision,
+            data.countryName,
+          ]
+            .filter(Boolean)
+            .join(', ');
+          const resolvedLocation = location || `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`;
+          setQuery(resolvedLocation);
+          onChange(resolvedLocation);
+          setOpen(false);
+        } catch {
+          const coordinates = `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`;
+          setQuery(coordinates);
+          onChange(coordinates);
+          setLocationError('City lookup unavailable. Coordinates added instead.');
+        } finally {
+          setLocating(false);
+        }
+      },
+      () => {
+        setLocationError('Location permission was denied. You can enter it manually.');
+        setLocating(false);
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 },
+    );
+  }
+
   return (
     <div ref={containerRef} className="relative">
       <input
-        className={className}
+        className={`${className} cursor-not-allowed bg-slate-100`}
         value={query}
-        onChange={(event) => {
-          setQuery(event.target.value);
-          onChange(event.target.value);
-          setOpen(true);
-        }}
-        onFocus={() => query.trim().length >= 2 && setOpen(true)}
+        readOnly
+        title="Use current location to set your location"
         placeholder="e.g. Bengaluru, India"
         autoComplete="off"
       />
@@ -178,6 +220,17 @@ function LocationAutocomplete({ value, onChange, className }) {
           ))}
         </div>
       )}
+      <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={useCurrentLocation}
+          disabled={locating}
+          className="text-xs font-semibold text-[#8B1E2F] underline-offset-2 transition-colors hover:text-[#C75560] hover:underline disabled:cursor-wait disabled:opacity-60"
+        >
+          {locating ? 'Detecting location...' : 'Use current location'}
+        </button>
+        {locationError && <span className="text-[11px] font-medium text-[#B3261E]">{locationError}</span>}
+      </div>
     </div>
   );
 }

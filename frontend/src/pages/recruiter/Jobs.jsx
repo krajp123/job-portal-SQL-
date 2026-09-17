@@ -87,6 +87,43 @@ function emptyStatusCounts() {
     return { applied: 0, offered: 0, accepted: 0, hired: 0, rejected: 0 };
 }
 
+function getJobCategoryDisplay(job) {
+    if (!job?.category || job.category === 'student') {
+        return null;
+    }
+
+    const mainCategoryMap = {
+        construction: 'Construction',
+        security: 'Security',
+        technical: 'Professional / Technical',
+    };
+
+    const detailKeys = [
+        'workType',
+        'securityAssignment',
+        'assignmentType',
+        'serviceExpertise',
+        'machineryType',
+        'projectType',
+        'expertiseArea',
+        'qualification',
+        'requiredQualification',
+        'engagementType',
+        'supervisoryExperience',
+    ];
+
+    const mainCategory = mainCategoryMap[job.category] || String(job.category).replace(/_/g, ' ');
+    const details = job.categoryDetails || {};
+    const detailText = detailKeys
+        .map((key) => details[key])
+        .find((value) => value !== undefined && value !== null && String(value).trim() !== '');
+
+    return {
+        mainCategory,
+        detailText: detailText ? String(detailText).trim() : '',
+    };
+}
+
 /* ------------------------------------------------------------------ */
 /* Status badge — job status (open / closed)                           */
 /* ------------------------------------------------------------------ */
@@ -313,6 +350,7 @@ function JobCard({ job, onOpenDetail, onRequestClose, onRequestEdit, onRequestDe
     const total = job.applicantStats?.total ?? null;
     const counts = job.applicantStats?.counts ?? emptyStatusCounts();
     const categoryHighlights = getCategoryDetailHighlights(job);
+    const categoryDisplay = getJobCategoryDisplay(job);
 
     return (
         <article className="portal-card group flex h-full flex-col p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_48px_-28px_rgba(29,24,26,0.5)]">
@@ -321,10 +359,25 @@ function JobCard({ job, onOpenDetail, onRequestClose, onRequestEdit, onRequestDe
                 <button
                     type="button"
                     onClick={() => onOpenDetail(job)}
-                    className="min-h-[42px] min-w-0 text-left text-[16px] font-bold leading-snug text-[#1D181A] transition-colors hover:text-[#C75560]"
+                    className="min-h-[42px] min-w-0 text-left transition-colors hover:text-[#C75560]"
                     style={{ fontFamily: FONT_DISPLAY }}
                 >
-                    <span className="line-clamp-2">{job.title}</span>
+                    {categoryDisplay ? (
+                        <span className="block min-w-0">
+                            <span className="block text-[15px] font-bold leading-snug text-[#1D181A] sm:text-[16px]">
+                                {categoryDisplay.mainCategory}
+                            </span>
+                            {categoryDisplay.detailText && (
+                                <span className="mt-1 block text-[11px] font-medium text-[#7F5B6A]">
+                                    {categoryDisplay.detailText}
+                                </span>
+                            )}
+                        </span>
+                    ) : (
+                        <span className="block text-[16px] font-bold leading-snug text-[#1D181A]">
+                            {job.title}
+                        </span>
+                    )}
                 </button>
                 <JobStatusBadge status={job.status} />
             </div>
@@ -462,6 +515,7 @@ function JobRow({ job, onOpenDetail, onRequestClose, onRequestEdit, onRequestDel
     const isViewer = user?.workspaceAccess?.role === 'viewer';
     const total = job.applicantStats?.total ?? null;
     const categoryHighlights = getCategoryDetailHighlights(job);
+    const categoryDisplay = getJobCategoryDisplay(job);
     return (
         <div className="portal-card flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-5 sm:p-4">
             <button
@@ -473,9 +527,22 @@ function JobRow({ job, onOpenDetail, onRequestClose, onRequestEdit, onRequestDel
                     <Briefcase size={16} />
                 </span>
                 <span className="min-w-0">
-                    <span className="block truncate text-[13.5px] font-bold text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>
-                        {job.title}
-                    </span>
+                    {categoryDisplay ? (
+                        <>
+                            <span className="block truncate text-[13.5px] font-bold text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>
+                                {categoryDisplay.mainCategory}
+                            </span>
+                            {categoryDisplay.detailText && (
+                                <span className="mt-0.5 block truncate text-[10.5px] font-medium text-[#7F5B6A]">
+                                    {categoryDisplay.detailText}
+                                </span>
+                            )}
+                        </>
+                    ) : (
+                        <span className="block truncate text-[13.5px] font-bold text-[#1D181A]" style={{ fontFamily: FONT_DISPLAY }}>
+                            {job.title}
+                        </span>
+                    )}
                     <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11.5px] text-[#80576A]">
                         {job.location && (
                             <span className="flex items-center gap-1">

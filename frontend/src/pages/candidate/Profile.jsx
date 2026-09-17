@@ -2152,8 +2152,7 @@ export default function Profile() {
     const [nameDraft, setNameDraft] = useState('');
     const [aboutDraft, setAboutDraft] = useState('');
     const [locationDraft, setLocationDraft] = useState('');
-    const [stateDraft, setStateDraft] = useState('');
-    const [cityDraft, setCityDraft] = useState('');
+    const [locating, setLocating] = useState(false);
     const [phoneDraft, setPhoneDraft] = useState('');
     const [contactModalMode, setContactModalMode] = useState('contact');
     const [workPrefDraft, setWorkPrefDraft] = useState('');
@@ -2341,9 +2340,7 @@ export default function Profile() {
     // (name, location, phone, availability) — everything except email.
     function openBasicInfoModal() {
         setNameDraft(profile?.name || '');
-        const { city, state } = parseLocation(profile?.profile?.location || '');
-        setCityDraft(city);
-        setStateDraft(state);
+        setLocationDraft(profile?.profile?.location || '');
         setPhoneDraft(profile?.phone || profile?.profile?.phone || '');
         setAvailabilityDraft(profile?.profile?.availability || '');
         openModal('basicInfo');
@@ -2355,6 +2352,7 @@ export default function Profile() {
             return;
         }
 
+        setLocating(true);
         navigator.geolocation.getCurrentPosition(
             async ({ coords }) => {
                 try {
@@ -2372,18 +2370,21 @@ export default function Profile() {
                     const label = [cityName, stateName].filter(Boolean).join(', ');
                     if (label) {
                         setLocationDraft(label);
-                        if (cityName) setCityDraft(cityName);
-                        if (stateName) setStateDraft(stateName);
                         setToast('Current location added');
                     } else {
-                        setToast('Could not determine your city — please type it in manually');
+                        setToast('Could not determine your current location');
                     }
                 } catch (error) {
                     console.error('Reverse geocoding failed:', error);
-                    setToast('Could not resolve your location — please type it in manually');
+                    setToast('Could not resolve your current location');
+                } finally {
+                    setLocating(false);
                 }
             },
-            () => setToast('Unable to access your current location'),
+            () => {
+                setToast('Unable to access your current location');
+                setLocating(false);
+            },
             { enableHighAccuracy: true, timeout: 10000 }
         );
     }
@@ -2760,13 +2761,13 @@ export default function Profile() {
             setToast('Please enter your name');
             return;
         }
-        const combinedLocation = [cityDraft.trim(), stateDraft.trim()].filter(Boolean).join(', ');
+        const location = locationDraft.trim();
         setSaving(true);
         try {
             const [{ data: candidateData }] = await Promise.all([
                 axiosInstance.put('/candidate/me/profile', { name }),
                 axiosInstance.put('/profile', {
-                    location: combinedLocation,
+                    location,
                     phone: phoneDraft,
                     availability: availabilityDraft,
                 }),
@@ -2777,7 +2778,7 @@ export default function Profile() {
                 name,
                 profile: {
                     ...prev.profile,
-                    location: combinedLocation,
+                    location,
                     phone: phoneDraft,
                     availability: availabilityDraft,
                 },
@@ -3962,36 +3963,21 @@ export default function Profile() {
                             </div>
 
                             <div>
-                                <label className="mb-1 block text-[12px] font-medium text-[#6B6259]">State</label>
-                                <AutocompleteInput
-                                    placeholder="e.g. Odisha"
-                                    value={stateDraft}
-                                    onChange={(e) => {
-                                        const newState = e.target.value;
-                                        setStateDraft(newState);
-                                        // Reset city if it no longer belongs to the newly typed/selected state.
-                                        if (!(INDIAN_STATE_CITY_MAP[newState] || []).includes(cityDraft)) {
-                                            setCityDraft('');
-                                        }
-                                    }}
-                                    suggestions={INDIAN_STATE_SUGGESTIONS}
-                                />
-                            </div>
-
-                            <div>
-                                <label className="mb-1 block text-[12px] font-medium text-[#6B6259]">City</label>
-                                <AutocompleteInput
-                                    placeholder="e.g. Bhubaneswar"
-                                    value={cityDraft}
-                                    onChange={(e) => setCityDraft(e.target.value)}
-                                    suggestions={INDIAN_STATE_CITY_MAP[stateDraft] || []}
+                                <label className="mb-1 block text-[12px] font-medium text-[#6B6259]">Location</label>
+                                <TextInput
+                                    placeholder="Use your current location"
+                                    value={locationDraft}
+                                    readOnly
+                                    title="Use my current location to set this field"
+                                    className="cursor-not-allowed bg-stone-50"
                                 />
                                 <button
                                     type="button"
                                     onClick={shareCurrentLocation}
-                                    className="mt-2 flex items-center gap-2 text-[12px] font-semibold text-[#3564A0] hover:underline"
+                                    disabled={locating}
+                                    className="mt-2 flex items-center gap-2 text-[12px] font-semibold text-[#3564A0] hover:underline disabled:cursor-wait disabled:opacity-60"
                                 >
-                                    <MapPin size={14} /> Use my current location
+                                    <MapPin size={14} /> {locating ? 'Detecting location...' : 'Use my current location'}
                                 </button>
                             </div>
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { Fragment, useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -12,11 +12,9 @@ import {
   RefreshCw,
   CheckCircle2,
   Star,
-  EyeOff,
   Building2,
   Clock,
   GraduationCap,
-  Undo2,
   X,
   SlidersHorizontal,
   Sparkles,
@@ -351,13 +349,12 @@ export default function JobSearch() {
 
   const [jobs, setJobs] = useState([]);
   const [savedIds, setSavedIds] = useState(new Set());
-  const [hiddenIds, setHiddenIds] = useState(new Set());
   const [applyingIds, setApplyingIds] = useState(new Set());
   const [appliedIds, setAppliedIds] = useState(new Set());
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [toast, setToast] = useState(null); // { message, onUndo? }
+  const [toast, setToast] = useState(null);
 
   const debouncedKeyword = useDebouncedValue(keyword, 400);
   const debouncedLocation = useDebouncedValue(location, 400);
@@ -429,9 +426,9 @@ export default function JobSearch() {
     return () => { active = false; };
   }, [debouncedSuggestionQuery]);
 
-  function showToast(message, onUndo) {
-    setToast({ message, onUndo });
-    setTimeout(() => setToast(null), onUndo ? 3500 : 2200);
+  function showToast(message) {
+    setToast({ message });
+    setTimeout(() => setToast(null), 2200);
   }
 
   async function toggleSave(jobId) {
@@ -457,17 +454,6 @@ export default function JobSearch() {
       });
       showToast(err.response?.data?.error || "Could not update saved jobs");
     }
-  }
-
-  function hideJob(jobId) {
-    setHiddenIds((prev) => new Set(prev).add(jobId));
-    showToast("Job hidden", () =>
-      setHiddenIds((prev) => {
-        const next = new Set(prev);
-        next.delete(jobId);
-        return next;
-      }),
-    );
   }
 
   async function apply(jobId) {
@@ -542,7 +528,7 @@ export default function JobSearch() {
     datePosted,
   ]);
 
-  const visibleJobs = jobs.filter((j) => !hiddenIds.has(j._id));
+  const visibleJobs = jobs;
 
   return (
     <div
@@ -739,15 +725,15 @@ export default function JobSearch() {
                           {getCategoryDetailHighlights(job).length > 0 && (
                             <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[13px] text-stone-600">
                               {getCategoryDetailHighlights(job).map((item, index) => (
-                                <>
-                                  <span key={`${job._id}-${item.label}`} className="flex items-center gap-1">
+                                <Fragment key={`${job._id}-${item.label}`}>
+                                  <span className="flex items-center gap-1">
                                     <span className="font-semibold text-stone-800">{item.label}:</span>
                                     <span>{item.value}</span>
                                   </span>
                                   {index < getCategoryDetailHighlights(job).length - 1 && (
                                     <span className="text-stone-300">|</span>
                                   )}
-                                </>
+                                </Fragment>
                               ))}
                             </div>
                           )}
@@ -759,17 +745,6 @@ export default function JobSearch() {
                             </p>
 
                             <div className="flex items-center gap-1">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  hideJob(job._id);
-                                }}
-                                aria-label="Hide job"
-                                className="rounded-[10px] p-2 text-stone-300 transition-colors hover:bg-stone-50 hover:text-stone-500"
-                              >
-                                <EyeOff size={18} />
-                              </button>
-
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -915,18 +890,6 @@ export default function JobSearch() {
             style={{ background: MAROON_DARK }}
           >
             {toast.message}
-            {toast.onUndo && (
-              <button
-                onClick={() => {
-                  toast.onUndo();
-                  setToast(null);
-                }}
-                className="flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-[11.5px] font-semibold hover:bg-white/25"
-              >
-                <Undo2 size={12} />
-                Undo
-              </button>
-            )}
           </motion.div>
         )}
       </AnimatePresence>

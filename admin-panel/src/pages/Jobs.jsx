@@ -52,6 +52,33 @@ function formatSubCategoryLabel(category, subCategory) {
   return categoryMap[subCategory] || subCategory || '—';
 }
 
+function getJobTitleDisplay(job) {
+  if (!job || job.category === 'student') {
+    return job?.title || '—';
+  }
+
+  const details = job.categoryDetails || {};
+  const workDetailKeys = [
+    'workType',
+    'securityAssignment',
+    'assignmentType',
+    'serviceExpertise',
+    'machineryType',
+    'projectType',
+    'expertiseArea',
+    'qualification',
+    'requiredQualification',
+    'engagementType',
+    'supervisoryExperience',
+  ];
+
+  const workDetail = workDetailKeys
+    .map((key) => details[key])
+    .find((value) => value !== undefined && value !== null && String(value).trim() !== '');
+
+  return workDetail ? String(workDetail).trim() : job.title || '—';
+}
+
 export default function Jobs() {
   const navigate = useNavigate();
   const [jobs, setJobs] = useState([]);
@@ -139,7 +166,7 @@ export default function Jobs() {
 
   const renderCell = (job, key) => {
     if (key === 'title') {
-      return <span className="block max-w-full overflow-hidden text-ellipsis whitespace-nowrap">{job.title || '—'}</span>;
+      return <span className="block max-w-full overflow-hidden text-ellipsis whitespace-nowrap">{getJobTitleDisplay(job)}</span>;
     }
 
     if (key === 'category') {
