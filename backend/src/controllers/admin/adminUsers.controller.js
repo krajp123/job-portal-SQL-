@@ -507,6 +507,9 @@ exports.setCandidateStatus = async (req, res) => {
 
     const previousStatus = candidate.accountStatus;
     candidate.accountStatus = status;
+    if (status === 'suspended') {
+      candidate.isVerified = false;
+    }
     await candidate.save();
 
     // Send email notification for all status changes

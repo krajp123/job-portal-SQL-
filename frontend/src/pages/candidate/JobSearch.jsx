@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MapPin,
@@ -672,9 +672,19 @@ export default function JobSearch() {
                           >
                             {job.title}
                           </p>
-                          <p className="mt-1 text-[14.5px] font-semibold text-stone-700">
-                            {job.postedBy?.companyName || "Company"}
-                          </p>
+                          {job.postedBy?._id ? (
+                            <Link
+                              to={`/candidate/companies/${job.postedBy._id}`}
+                              onClick={(event) => event.stopPropagation()}
+                              className="mt-1 text-[14.5px] font-semibold text-stone-700 hover:text-[#8B1E2F] hover:underline"
+                            >
+                              {job.postedBy?.companyName || "Company"}
+                            </Link>
+                          ) : (
+                            <p className="mt-1 text-[14.5px] font-semibold text-stone-700">
+                              {job.postedBy?.companyName || "Company"}
+                            </p>
+                          )}
                           <p className="mt-0.5 flex items-center gap-1.5 text-[13.5px] text-[#6B6259]">
                             Posted by {job.postedBy?.companyName || "Company"}
                             <CompanyRating

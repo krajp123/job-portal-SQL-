@@ -801,9 +801,19 @@ export default function JobDetail() {
                                         </h1>
 
                                         <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[13px]">
-                                            <span className="font-semibold" style={{ color: MAROON }}>
-                                                {job.postedBy?.companyName || 'Company'}
-                                            </span>
+                                            {job.postedBy?._id ? (
+                                                <Link
+                                                    to={`/candidate/companies/${job.postedBy._id}`}
+                                                    className="font-semibold hover:underline"
+                                                    style={{ color: MAROON }}
+                                                >
+                                                    {job.postedBy?.companyName || 'Company'}
+                                                </Link>
+                                            ) : (
+                                                <span className="font-semibold" style={{ color: MAROON }}>
+                                                    {job.postedBy?.companyName || 'Company'}
+                                                </span>
+                                            )}
                                             {job.postedBy?.verified && (
                                                 <BadgeCheck size={14} className="text-blue-500" />
                                             )}
@@ -1097,9 +1107,18 @@ export default function JobDetail() {
                                                 className="h-10 w-10 rounded-lg border border-stone-100 object-contain p-1"
                                             />
                                         )}
-                                        <p className="text-[13.5px] font-semibold text-stone-800">
-                                            {job.postedBy?.companyName}
-                                        </p>
+                                        {job.postedBy?._id ? (
+                                            <Link
+                                                to={`/candidate/companies/${job.postedBy._id}`}
+                                                className="text-[13.5px] font-semibold text-stone-800 hover:text-[#8B1E2F] hover:underline"
+                                            >
+                                                {job.postedBy?.companyName}
+                                            </Link>
+                                        ) : (
+                                            <p className="text-[13.5px] font-semibold text-stone-800">
+                                                {job.postedBy?.companyName}
+                                            </p>
+                                        )}
                                     </div>
                                     {job.postedBy?.companyDetails && (
                                         <p className="mt-3 text-[13.5px] leading-6 text-stone-700">

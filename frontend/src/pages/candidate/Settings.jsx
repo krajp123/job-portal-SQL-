@@ -522,7 +522,6 @@ function AccountTab({ user, profile, loadingProfile, onProfileUpdate }) {
         <FieldRow
           label="Phone number"
           value={loadingProfile ? 'Loading…' : (profile?.phone || user?.phone || 'Not set yet')}
-          verified={profile?.phoneVerified ?? true}
           editing={editingPhone}
           onEdit={() => {
             setEditingPhone(true);
@@ -1506,25 +1505,7 @@ function DangerTab({ onDelete, deleting, error, onClearError, accountEmail }) {
 export default function Settings() {
   const { user, logout } = useAuth();
 
-  const getInitialTab = () => {
-    if (typeof window === 'undefined') return 'account';
-
-    const hashTab = window.location.hash.replace('#', '');
-    const validHashTab = TABS.some((tab) => tab.key === hashTab) ? hashTab : null;
-    const storedTab = localStorage.getItem('candidate-settings-tab');
-
-    if (validHashTab && validHashTab !== 'danger') {
-      return validHashTab;
-    }
-
-    if (storedTab && TABS.some((tab) => tab.key === storedTab) && storedTab !== 'danger') {
-      return storedTab;
-    }
-
-    return 'account';
-  };
-
-  const [activeTab, setActiveTab] = useState(getInitialTab);
+  const [activeTab, setActiveTab] = useState('account');
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [message, setMessage] = useState('');
   const [profile, setProfile] = useState(null);

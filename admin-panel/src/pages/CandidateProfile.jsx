@@ -637,7 +637,11 @@ export default function CandidateProfile() {
       const payload = { status };
 
       await adminAxiosInstance.patch(`/users/candidates/${candidateId}/status`, payload);
-      setCandidate((prev) => ({ ...prev, accountStatus: status }));
+      setCandidate((prev) => ({
+        ...prev,
+        accountStatus: status,
+        ...(status === 'suspended' ? { isVerified: false } : {}),
+      }));
       setError(null);
       const message = status === 'suspended' ? 'Candidate account suspended and email notification sent.' : status === 'banned' ? 'Candidate account banned and email notification sent.' : 'Candidate account status updated.';
       setSuccessAlert({ message, type: status });
@@ -650,18 +654,24 @@ export default function CandidateProfile() {
     }
   };
 
-  const toggleVerification = async () => {
-    const nextValue = !candidate?.isVerified;
+  const verifyCandidate = async () => {
     try {
       setUpdating(true);
-      await adminAxiosInstance.patch(`/users/candidates/${candidateId}/verify`, { isVerified: nextValue });
-      setCandidate((prev) => ({ ...prev, isVerified: nextValue }));
+      await adminAxiosInstance.patch(`/users/candidates/${candidateId}/verify`, { isVerified: true });
+      setCandidate((prev) => ({ ...prev, isVerified: true }));
     } catch (err) {
       console.error('Failed to update verification:', err);
       setError(err.response?.data?.error || 'Failed to update verification');
     } finally {
       setUpdating(false);
     }
+  };
+
+  const handleVerificationAction = () => {
+    setConfirmModal({
+      action: 'verify',
+      message: 'Are you sure you want to verify this candidate account?',
+    });
   };
 
   const sendPasswordReset = async () => {
@@ -698,7 +708,11 @@ export default function CandidateProfile() {
     if (!confirmModal) return;
     setError(null);
     setSuccessAlert(null);
-    await updateStatus(confirmModal.action);
+    if (confirmModal.action === 'verify') {
+      await verifyCandidate();
+    } else {
+      await updateStatus(confirmModal.action);
+    }
     setConfirmModal(null);
   };
 
@@ -849,7 +863,11 @@ export default function CandidateProfile() {
           <div className="w-full max-w-md rounded-2xl border border-[#F0E1D6] bg-white p-6 shadow-2xl">
             <div className="mb-4">
               <h3 className="text-lg font-bold text-[#1D181A]">
-                {confirmModal.action === 'suspended' ? 'Suspend Account' : 'Ban Account'}
+                {confirmModal.action === 'verify'
+                  ? 'Verify Candidate Account'
+                  : confirmModal.action === 'suspended'
+                  ? 'Suspend Account'
+                  : 'Ban Account'}
               </h3>
               <p className="mt-2 text-[13px] text-[#80576A]">{confirmModal.message}</p>
             </div>
@@ -867,12 +885,20 @@ export default function CandidateProfile() {
                 onClick={confirmStatusAction}
                 disabled={updating}
                 className={`rounded-lg px-4 py-2 text-[11px] font-bold text-white ${
-                  confirmModal.action === 'suspended'
+                  confirmModal.action === 'verify'
+                    ? 'bg-[#C75560] hover:bg-[#A94658] disabled:bg-[#C75560]'
+                    : confirmModal.action === 'suspended'
                     ? 'bg-amber-600 hover:bg-amber-700 disabled:bg-amber-600'
                     : 'bg-[#B42318] hover:bg-red-800 disabled:bg-[#B42318]'
                 } disabled:opacity-60`}
               >
-                {updating ? 'Processing...' : confirmModal.action === 'suspended' ? 'Suspend' : 'Ban'}
+                {updating
+                  ? 'Processing...'
+                  : confirmModal.action === 'verify'
+                  ? 'Verify'
+                  : confirmModal.action === 'suspended'
+                  ? 'Suspend'
+                  : 'Ban'}
               </button>
             </div>
           </div>
@@ -957,7 +983,11 @@ export default function CandidateProfile() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 overflow-x-auto rounded-xl border border-[#F0E1D6] bg-white p-1">
+      <div
+        role="tablist"
+        aria-label="Candidate profile sections"
+        className="flex gap-1 overflow-x-auto rounded-xl border border-[#EBC2AE] bg-[#FFF4EF] p-1.5 shadow-[0_4px_12px_-10px_rgba(139,30,47,0.35)]"
+      >
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.key;
@@ -966,8 +996,12 @@ export default function CandidateProfile() {
               key={tab.key}
               type="button"
               onClick={() => setActiveTab(tab.key)}
-              className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-bold transition-colors ${
-                isActive ? 'bg-[#1D181A] text-white' : 'text-[#80576A] hover:bg-[#FFF4EF]'
+              role="tab"
+              aria-selected={isActive}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-[11px] font-bold transition-all ${
+                isActive
+                  ? 'border-[#C75560] bg-[#C75560] text-white shadow-sm'
+                  : 'border-transparent bg-white/70 text-[#80576A] hover:border-[#EBC2AE] hover:bg-white'
               }`}
             >
               <Icon size={13} />
@@ -1287,16 +1321,16 @@ export default function CandidateProfile() {
                 </div>
                 <button
                   type="button"
-                  disabled={updating}
-                  onClick={toggleVerification}
+                  disabled={updating || candidate.isVerified}
+                  onClick={handleVerificationAction}
                   className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[10px] font-bold disabled:opacity-50 ${
                     candidate.isVerified
-                      ? 'bg-emerald-50 text-emerald-700'
-                      : 'bg-[#FFF4EF] text-[#80576A]'
+                      ? 'cursor-default bg-[#FFF0E8] text-[#A0182C]'
+                      : 'bg-[#C75560] text-white shadow-sm hover:bg-[#A94658]'
                   }`}
                 >
-                  {candidate.isVerified ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
-                  {candidate.isVerified ? 'Verified' : 'Unverified'}
+                  {candidate.isVerified ? <CheckCircle2 size={12} /> : <ShieldCheck size={12} />}
+                  {candidate.isVerified ? 'Verified' : 'Verify'}
                 </button>
               </div>
 
@@ -1325,8 +1359,11 @@ export default function CandidateProfile() {
             </div>
             <div className="flex flex-wrap gap-2">
               <a
-                href={candidate.email ? `mailto:${candidate.email}` : undefined}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[#F0E1D6] bg-white px-3 py-2 text-[11px] font-bold text-[#1D181A] hover:bg-[#FFF4EF]"
+                href={candidate.email ? `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(candidate.email)}` : undefined}
+                target="_blank"
+                rel="noreferrer"
+                aria-disabled={!candidate.email}
+                className={`inline-flex items-center gap-1.5 rounded-lg border border-[#F0E1D6] bg-white px-3 py-2 text-[11px] font-bold text-[#1D181A] hover:bg-[#FFF4EF] ${!candidate.email ? 'cursor-not-allowed opacity-50' : ''}`}
               >
                 <Mail size={13} /> Email candidate
               </a>

@@ -59,6 +59,13 @@ function getWebsiteHref(value) {
   return /^https?:\/\//i.test(website) ? website : `https://${website}`;
 }
 
+function getCompanyInitials(name = "") {
+  const words = String(name).trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return "?";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return `${words[0][0]}${words[1][0]}`.toUpperCase();
+}
+
 function createCroppedImage(imageSrc, pixelCrop, rotation = 0) {
   return new Promise((resolve, reject) => {
     const image = new Image();
@@ -971,7 +978,9 @@ export default function RecruiterCompanyProfile({ readOnly = false }) {
                     className="h-full w-full object-cover"
                   />
                 ) : (
-                  <ShieldCheck size={30} className="text-[#C75560]" />
+                  <span className="text-3xl font-bold tracking-tight text-[#C75560]">
+                    {getCompanyInitials(companyData.name)}
+                  </span>
                 )}
                 {!readOnly && editMode && (
                   <ImageActions
@@ -2037,12 +2046,16 @@ export default function RecruiterCompanyProfile({ readOnly = false }) {
             </section>
             <section className="rounded-2xl border border-[#EBC2AE] bg-[#FFF0E8] p-5">
               <div className="flex items-center gap-3">
-                {companyData.logoUrl && (
+                {companyData.logoUrl ? (
                   <img
                     src={companyData.logoUrl}
                     alt=""
                     className="h-10 w-10 rounded-lg object-cover"
                   />
+                ) : (
+                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-xs font-bold text-[#C75560]">
+                    {getCompanyInitials(companyData.name)}
+                  </span>
                 )}
                 <b className="text-xs uppercase tracking-widest text-[#C75560]">
                   Hiring now
