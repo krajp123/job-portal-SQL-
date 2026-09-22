@@ -1,6 +1,5 @@
 require('dotenv').config();
-const mongoose = require('mongoose');
-const connectDB = require('./src/config/db');
+const { connectDB, sequelize } = require('./src/config/db');
 const { createAdminAccount } = require('./src/controllers/auth/adminAuth.controller');
 const { hashPassword } = require('./src/utils/hashPassword');
 const Admin = require('./src/models/Admin');
@@ -47,7 +46,7 @@ async function run() {
   console.log(`Role: ${admin.role}`);
   console.log('--------------------------------\n');
 
-  await mongoose.disconnect();
+  await sequelize.close();
 }
 
 run().catch((err) => {

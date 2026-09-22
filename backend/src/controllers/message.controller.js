@@ -3,7 +3,6 @@ const ChatPreference = require('../models/ChatPreference');
 const Candidate = require('../models/Candidate');
 const Recruiter = require('../models/Recruiter');
 const CandidatePerformanceEvent = require('../models/CandidatePerformanceEvent');
-const mongoose = require('mongoose');
 const { createNotification } = require('../services/notification.service');
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
@@ -165,78 +164,25 @@ exports.myConversations = async (req, res) => {
     const otherField = isCandidate ? 'recruiter' : 'candidate';
     const otherCollection = isCandidate ? 'recruiters' : 'candidates';
 
-    const conversations = await Message.aggregate([
-      {
-        $match: {
-          [matchField]: new mongoose.Types.ObjectId(req.user.id),
-          ...(isCandidate ? { startedByRecruiter: true } : {}),
-        },
-      },
-      { $sort: { createdAt: -1 } },
-      {
-        $group: {
-          _id: `$${otherField}`,
-          lastMessage: { $first: '$$ROOT' },
-          unreadCount: {
-            $sum: {
-              $cond: [
-                { $and: [{ $eq: ['$read', false] }, { $ne: ['$sender', isCandidate ? 'candidate' : 'recruiter'] }] },
-                1,
-                0,
-              ],
-            },
-          },
-        },
-      },
-      { $sort: { 'lastMessage.createdAt': -1 } },
-      {
-        $lookup: {
-          from: 'chatpreferences',
-          let: { otherUserId: '$_id', currentUserId: new mongoose.Types.ObjectId(req.user.id) },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $or: [
-                    { $and: [{ $eq: ['$recruiter', '$$currentUserId'] }, { $eq: ['$candidate', '$$otherUserId'] }] },
-                    { $and: [{ $eq: ['$candidate', '$$currentUserId'] }, { $eq: ['$recruiter', '$$otherUserId'] }] },
-                  ],
-                },
-              },
-            },
-            { $project: { _id: 0, recruiterClearedAt: 1, candidateClearedAt: 1 } },
-          ],
-          as: 'chatPreference',
-        },
-      },
-      { $unwind: { path: '$chatPreference', preserveNullAndEmptyArrays: true } },
-      {
-        $lookup: {
-          from: otherCollection,
-          localField: '_id',
-          foreignField: '_id',
-          as: 'otherUser',
-        },
-      },
-      { $unwind: '$otherUser' },
-      {
-        $project: {
-          _id: 1,
-          lastMessage: 1,
-          'chatPreference.recruiterClearedAt': 1,
-          'chatPreference.candidateClearedAt': 1,
-          unreadCount: 1,
-          'otherUser.name': 1,
-          'otherUser.email': 1,
-          'otherUser.fullName': 1,
-          'otherUser.companyName': 1,
-          'otherUser.profilePictureUrl': 1,
-          'otherUser.profile.profilePictureUrl': 1,
-          'otherUser.companyLogoUrl': 1,
-          'otherUser.uniqueId': 1,
-        },
-      },
-    ]);
+    const rows = await Message.find({
+      [matchField]: req.user.id,
+      ...(isCandidate ? { startedByRecruiter: true } : {}),
+    }).sort({ createdAt: -1 });
+    const grouped = new Map();
+    rows.forEach((message) => {
+      const otherId = message[otherField];
+      if (!grouped.has(String(otherId))) grouped.set(String(otherId), {
+        _id: otherId,
+        lastMessage: message,
+        unreadCount: rows.filter((item) => String(item[otherField]) === String(otherId) && !item.read && item.sender !== (isCandidate ? 'candidate' : 'recruiter')).length,
+      });
+    });
+    const OtherModel = isCandidate ? Recruiter : Candidate;
+    const conversations = await Promise.all([...grouped.values()].map(async (conversation) => ({
+      ...conversation,
+      otherUser: await OtherModel.findById(conversation._id),
+      chatPreference: await ChatPreference.findOne({ [isCandidate ? 'candidate' : 'recruiter']: req.user.id, [otherField]: conversation._id }),
+    })));
 
     res.json(conversations);
   } catch (err) {

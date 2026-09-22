@@ -11,7 +11,6 @@ const { twilioClient, TWILIO_PHONE_NUMBER } = require('../config/twilio');
 const { PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const fs = require('fs');
 const path = require('path');
-const mongoose = require('mongoose');
 const http = require('http');
 const https = require('https');
 const { r2Client, BUCKET_NAME, PUBLIC_URL } = require('../config/cloudflareR2');
@@ -101,11 +100,11 @@ exports.getMyProfile = async (req, res) => {
 exports.getMyPerformance = async (req, res) => {
   try {
     const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
-    const counts = await CandidatePerformanceEvent.aggregate([
-      { $match: { candidate: new mongoose.Types.ObjectId(req.user.id), createdAt: { $gte: since } } },
-      { $group: { _id: '$type', count: { $sum: 1 } } },
-    ]);
-    const countMap = Object.fromEntries(counts.map(({ _id, count }) => [_id, count]));
+    const events = await CandidatePerformanceEvent.find({ candidate: req.user.id, createdAt: { $gte: since } });
+    const countMap = events.reduce((counts, event) => {
+      counts[event.type] = (counts[event.type] || 0) + 1;
+      return counts;
+    }, {});
 
     res.json({
       rangeDays: 90,
@@ -817,9 +816,6 @@ exports.unsaveJob = async (req, res) => {
 // GET /api/candidate/me/following/:recruiterId
 exports.getRecruiterFollowStatus = async (req, res) => {
   try {
-    if (!mongoose.isValidObjectId(req.params.recruiterId)) {
-      return res.status(400).json({ error: 'Invalid recruiter ID' });
-    }
     const [candidate, recruiter] = await Promise.all([
       Candidate.findById(req.user.id).select('followedRecruiters').lean(),
       Recruiter.findById(req.params.recruiterId).select('followerCount').lean(),
@@ -837,9 +833,6 @@ exports.getRecruiterFollowStatus = async (req, res) => {
 // POST /api/candidate/me/following/:recruiterId
 exports.followRecruiter = async (req, res) => {
   try {
-    if (!mongoose.isValidObjectId(req.params.recruiterId)) {
-      return res.status(400).json({ error: 'Invalid recruiter ID' });
-    }
     const recruiter = await Recruiter.findById(req.params.recruiterId).select('_id').lean();
     if (!recruiter) return res.status(404).json({ error: 'Recruiter not found' });
     const updatedCandidate = await Candidate.findOneAndUpdate(
@@ -860,9 +853,6 @@ exports.followRecruiter = async (req, res) => {
 // DELETE /api/candidate/me/following/:recruiterId
 exports.unfollowRecruiter = async (req, res) => {
   try {
-    if (!mongoose.isValidObjectId(req.params.recruiterId)) {
-      return res.status(400).json({ error: 'Invalid recruiter ID' });
-    }
     const updatedCandidate = await Candidate.findOneAndUpdate(
       { _id: req.user.id, followedRecruiters: req.params.recruiterId },
       { $pull: { followedRecruiters: req.params.recruiterId } },

@@ -5,7 +5,7 @@ dns.setServers(['8.8.8.8', '1.1.1.1']);
 
 const http = require('http');
 const app = require('./src/app');
-const connectDB = require('./src/config/db');
+const { connectDB } = require('./src/config/db');
 const { initSocket } = require('./src/config/socket');
 const scheduleRenewalReminder = require('./src/jobs/renewalReminder.cron');
 const scheduleAccountSuspension = require('./src/jobs/accountSuspension.cron');

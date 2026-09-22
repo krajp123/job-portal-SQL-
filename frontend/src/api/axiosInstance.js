@@ -4,7 +4,7 @@ import axios from 'axios';
 // The public frontend bundle never references /admin-api at all -
 // there is nothing to reverse-engineer or find in devtools.
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL, // e.g. http://localhost:5000/api
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api',
 });
 
 axiosInstance.interceptors.request.use((config) => {

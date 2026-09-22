@@ -1,54 +1,43 @@
-const mongoose = require('mongoose');
-const dns = require('dns');
+require('dotenv').config();
+const { Sequelize } = require('sequelize');
 
-const MONGO_URI = process.env.MONGO_URI;
+const databaseUrl = process.env.DATABASE_URL;
+const sequelize = databaseUrl
+  ? new Sequelize(databaseUrl, {
+    dialect: 'postgres',
+    logging: false,
+    dialectOptions: databaseUrl.includes('sslmode=require') ? {
+      ssl: { require: true, rejectUnauthorized: false },
+    } : {},
+  })
+  : new Sequelize(
+    process.env.DB_NAME,
+    process.env.DB_USER,
+    process.env.DB_PASSWORD,
+    {
+      host: process.env.DB_HOST || '127.0.0.1',
+      port: process.env.DB_PORT || 5432,
+      dialect: 'postgres',
+      logging: false,
+    }
+  );
 
-async function startMemoryServer() {
+const connectDB = async () => {
   try {
-    const { MongoMemoryServer } = require('mongodb-memory-server');
-    const mongod = await MongoMemoryServer.create();
-    const uri = mongod.getUri();
-    const conn = await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 10000,
-      connectTimeoutMS: 10000,
-    });
-    // MongoDB in-memory server started
-  } catch (err) {
-    console.error('In-memory MongoDB startup failed:', err.message);
-    process.exit(1);
+    [
+      'Admin', 'AdminAuditLog', 'AdminNotification', 'AdminSession', 'Application',
+      'Candidate', 'CandidatePerformanceEvent', 'ChatPreference', 'DeliveryLog',
+      'Dispute', 'HelpCenterReport', 'Job', 'JobReopenRequest', 'JobReport',
+      'Message', 'Notification', 'OfferLetter', 'Payment', 'PendingCandidateRegistration',
+      'PlatformSettings', 'Recruiter', 'Referral', 'Wallet', 'WalletPlan',
+    ].forEach((model) => require(`../models/${model}`));
+    await sequelize.authenticate();
+    await sequelize.sync();
+    console.log('PostgreSQL (Neon) connected successfully');
+  } catch (error) {
+    console.error('Unable to connect to PostgreSQL:', error);
+    throw error;
   }
-}
+};
 
-async function connectDB() {
-  try {
-    if (!MONGO_URI) {
-      throw new Error('MONGO_URI is not configured');
-    }
-
-    const builtInServers = dns.getServers();
-    if (builtInServers.length === 1 && builtInServers[0] === '127.0.0.1') {
-      dns.setServers(['8.8.8.8', '1.1.1.1']);
-      console.warn('Node DNS was using localhost. Forced DNS to 8.8.8.8, 1.1.1.1 for Atlas SRV resolution.');
-    }
-
-    const conn = await mongoose.connect(MONGO_URI, {
-      serverSelectionTimeoutMS: 20000,
-      connectTimeoutMS: 20000,
-      retryWrites: true,
-      w: 'majority',
-    });
-    // MongoDB connected
-  } catch (err) {
-    console.error('MongoDB connection failed:', err.message);
-
-    if (process.env.NODE_ENV !== 'production') {
-      // Falling back to in-memory MongoDB
-      await startMemoryServer();
-      return;
-    }
-
-    process.exit(1);
-  }
-}
-
-module.exports = connectDB;
+module.exports = { sequelize, connectDB };

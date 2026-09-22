@@ -5,8 +5,7 @@
 //   node seedTestRecruiter.js "test@example.com" "password123" "Demo Corp" "+91 9999999999"
 
 require('dotenv').config();
-const mongoose = require('mongoose');
-const connectDB = require('./src/config/db');
+const { connectDB, sequelize } = require('./src/config/db');
 const Recruiter = require('./src/models/Recruiter');
 const { hashPassword } = require('./src/utils/hashPassword');
 
@@ -48,7 +47,7 @@ async function run() {
   console.log('\n--- Login with these credentials on your site ---');
   console.log({ email, password });
 
-  await mongoose.disconnect();
+  await sequelize.close();
 }
 
 run().catch((err) => {

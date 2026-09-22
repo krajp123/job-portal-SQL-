@@ -2,8 +2,7 @@
 // Run from backend/: npm run seed:message-test
 
 require('dotenv').config();
-const mongoose = require('mongoose');
-const connectDB = require('./src/config/db');
+const { connectDB, sequelize } = require('./src/config/db');
 const Candidate = require('./src/models/Candidate');
 const Recruiter = require('./src/models/Recruiter');
 const Message = require('./src/models/Message');
@@ -84,11 +83,11 @@ async function run() {
     conversationId: message._id.toString(),
   });
   console.log('\nLogin as recruiter, open Message, then login as candidate and open Messages.');
-  await mongoose.disconnect();
+  await sequelize.close();
 }
 
 run().catch(async (error) => {
   console.error('Message test seed failed:', error.message);
-  await mongoose.disconnect();
+  await sequelize.close();
   process.exit(1);
 });

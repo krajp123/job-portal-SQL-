@@ -3,8 +3,7 @@
 //   node migrateRecruiters.js
 
 require('dotenv').config();
-const mongoose = require('mongoose');
-const connectDB = require('./src/config/db');
+const { connectDB, sequelize } = require('./src/config/db');
 const Recruiter = require('./src/models/Recruiter');
 
 async function run() {
@@ -39,7 +38,7 @@ async function run() {
   } catch (err) {
     console.error('Migration failed:', err.message);
   } finally {
-    await mongoose.disconnect();
+    await sequelize.close();
   }
 }
 
