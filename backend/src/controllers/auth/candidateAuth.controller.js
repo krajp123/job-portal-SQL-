@@ -423,16 +423,15 @@ exports.login = async (req, res) => {
     const userAgent = req.get('user-agent') || 'Unknown';
     const device = extractDeviceInfo(userAgent);
 
-    candidate.loginHistory.push({
+    const loginHistory = Array.isArray(candidate.loginHistory) ? candidate.loginHistory : [];
+    loginHistory.push({
       ip,
       device,
       timestamp: new Date(),
     });
 
     // Keep only the 3 most recent login records
-    if (candidate.loginHistory.length > 3) {
-      candidate.loginHistory = candidate.loginHistory.slice(-3);
-    }
+    candidate.loginHistory = loginHistory.slice(-3);
 
     await candidate.save();
 

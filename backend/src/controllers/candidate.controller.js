@@ -907,7 +907,7 @@ exports.uploadProfilePicture = async (req, res) => {
 
     const candidate = await Candidate.findByIdAndUpdate(
       req.user.id,
-      { 'profile.profilePictureUrl': profilePictureUrl },
+      { $set: { 'profile.profilePictureUrl': profilePictureUrl } },
       { new: true }
     ).select('-passwordHash');
 
@@ -951,7 +951,7 @@ exports.deleteProfilePicture = async (req, res) => {
 
     const updatedCandidate = await Candidate.findByIdAndUpdate(
       req.user.id,
-      { 'profile.profilePictureUrl': '' },
+      { $set: { 'profile.profilePictureUrl': '' } },
       { new: true }
     ).select('-passwordHash');
 

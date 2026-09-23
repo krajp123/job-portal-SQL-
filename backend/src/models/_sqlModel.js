@@ -129,6 +129,7 @@ function stripMethods(record) {
   delete copy.createdAt;
   delete copy.updatedAt;
   delete copy.save;
+  delete copy.toObject;
   return copy;
 }
 
@@ -142,6 +143,29 @@ function setPath(target, path, value) {
   parent[last] = value;
 }
 
+function setPathWithArrayFilters(target, path, value, arrayFilters = []) {
+  const parts = path.split('.');
+  const filterIndex = parts.findIndex((part) => part.startsWith('$[') && part.endsWith(']'));
+  if (filterIndex === -1) {
+    setPath(target, path, value);
+    return;
+  }
+
+  const filterName = parts[filterIndex].slice(2, -1);
+  const arrayPath = parts.slice(0, filterIndex).join('.');
+  const arrayValue = valueAt(target, arrayPath);
+  if (!Array.isArray(arrayValue)) return;
+
+  const filter = arrayFilters.find((item) => Object.keys(item).some((key) => key === filterName || key.startsWith(`${filterName}.`)));
+  const filterExpression = filter
+    ? Object.fromEntries(Object.entries(filter).map(([key, filterValue]) => [key.startsWith(`${filterName}.`) ? key.slice(filterName.length + 1) : key, filterValue]))
+    : {};
+  const remainingPath = parts.slice(filterIndex + 1).join('.');
+  arrayValue.forEach((item) => {
+    if (matches(item, filterExpression)) setPath(item, remainingPath, value);
+  });
+}
+
 function deletePath(target, path) {
   const parts = path.split('.');
   const last = parts.pop();
@@ -149,13 +173,44 @@ function deletePath(target, path) {
   if (parent) delete parent[last];
 }
 
-function applyUpdate(data, update = {}) {
+function applyUpdate(data, update = {}, options = {}) {
   const next = { ...data };
   const direct = Object.fromEntries(Object.entries(update).filter(([key]) => !key.startsWith('$')));
-  Object.assign(next, stripMethods(direct));
-  Object.entries(update.$set || {}).forEach(([path, value]) => setPath(next, path, value));
+  Object.entries(stripMethods(direct)).forEach(([path, value]) => {
+    if (path.includes('.')) setPath(next, path, value);
+    else next[path] = value;
+  });
+  Object.entries(update.$set || {}).forEach(([path, value]) => setPathWithArrayFilters(next, path, value, options.arrayFilters));
   Object.entries(update.$inc || {}).forEach(([path, value]) => setPath(next, path, Number(valueAt(next, path) || 0) + Number(value)));
+  Object.entries(update.$push || {}).forEach(([path, value]) => {
+    const current = valueAt(next, path);
+    const values = value && typeof value === 'object' && Array.isArray(value.$each) ? value.$each : [value];
+    setPath(next, path, [...(Array.isArray(current) ? current : []), ...values]);
+  });
+  Object.entries(update.$addToSet || {}).forEach(([path, value]) => {
+    const current = Array.isArray(valueAt(next, path)) ? valueAt(next, path) : [];
+    const values = value && typeof value === 'object' && Array.isArray(value.$each) ? value.$each : [value];
+    const nextValues = [...current];
+    values.forEach((item) => {
+      if (!nextValues.some((existing) => JSON.stringify(existing) === JSON.stringify(item))) nextValues.push(item);
+    });
+    setPath(next, path, nextValues);
+  });
+  Object.entries(update.$pull || {}).forEach(([path, condition]) => {
+    const current = valueAt(next, path);
+    if (!Array.isArray(current)) return;
+    const matchesCondition = (item) => {
+      if (item && typeof item === 'object' && !Array.isArray(item) && condition && typeof condition === 'object' && !Object.keys(condition).some((key) => key.startsWith('$'))) {
+        return matches(item, condition);
+      }
+      return matches({ value: item }, { value: condition });
+    };
+    setPath(next, path, current.filter((item) => !matchesCondition(item)));
+  });
   Object.keys(update.$unset || {}).forEach((path) => deletePath(next, path));
+  if (options.isInsert) {
+    Object.entries(update.$setOnInsert || {}).forEach(([path, value]) => setPath(next, path, value));
+  }
   return next;
 }
 
@@ -211,6 +266,7 @@ function expose(instance) {
     await instance.update({ data: stripMethods(record) });
     return expose(instance);
   };
+  record.toObject = () => stripMethods(record);
   return record;
 }
 
@@ -308,16 +364,17 @@ function createModel(name, tableName = name.toLowerCase() + 's') {
   sequelizeModel.findByIdAndUpdate = (id, update, options = {}) => new MutationQuery(async () => {
     const [row] = await sequelizeModel.findAll({ where: { id } });
     if (!row) return null;
-    await row.update({ data: applyUpdate(row.data, update) });
+    await row.update({ data: applyUpdate(row.data, update, options) });
     return options.new === false ? null : expose(row);
   });
   sequelizeModel.findOneAndUpdate = (filter, update, options = {}) => new MutationQuery(async () => {
     const current = await sequelizeModel.findOne(filter);
     if (!current) {
       if (!options.upsert) return null;
-      return sequelizeModel.create({ ...filter, ...applyUpdate({}, update) });
+      const equalityFilter = Object.fromEntries(Object.entries(filter).filter(([, value]) => !value || typeof value !== 'object' || Array.isArray(value)));
+      return sequelizeModel.create({ ...equalityFilter, ...applyUpdate({}, update, { ...options, isInsert: true }) });
     }
-    return await sequelizeModel.findByIdAndUpdate(current.id, update, { new: options.new !== false });
+    return await sequelizeModel.findByIdAndUpdate(current.id, update, options);
   });
   sequelizeModel.findOneAndDelete = (filter) => new MutationQuery(async () => {
     const current = await sequelizeModel.findOne(filter);
@@ -344,6 +401,19 @@ function createModel(name, tableName = name.toLowerCase() + 's') {
       await row.update({ data: applyUpdate(row.data, update) });
     }
     return { modifiedCount: matched.length };
+  };
+  sequelizeModel.bulkWrite = async (operations = []) => {
+    let modifiedCount = 0;
+    for (const operation of operations) {
+      if (operation?.updateOne) {
+        const { filter, update, arrayFilters } = operation.updateOne;
+        const row = await sequelizeModel.findOne(filter);
+        if (!row) continue;
+        await sequelizeModel.findByIdAndUpdate(row._id, update, { new: true, arrayFilters });
+        modifiedCount += 1;
+      }
+    }
+    return { modifiedCount };
   };
   sequelizeModel.aggregate = async (pipeline) => aggregateRows((await sequelizeModel.findAll()).map(expose), pipeline);
   modelCache.set(name, sequelizeModel);
